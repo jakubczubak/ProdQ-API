@@ -8,6 +8,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @AllArgsConstructor
 public class UserService {
@@ -58,4 +60,31 @@ public class UserService {
                 .build();
         userRepository.save(user);
     }
+
+    public void deleteUser(Integer id) {
+        userRepository.deleteById(id);
+    }
+
+    public void updateUser(Integer id, UserDTO userDTO) {
+        User user = userRepository.findById(id).orElseThrow();
+        user.setFirstName(userDTO.getFirstName());
+        user.setLastName(userDTO.getLastName());
+        user.setEmail(userDTO.getEmail());
+        user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        userRepository.save(user);
+    }
+
+    public User getUser(Integer id) {
+        return userRepository.findById(id).orElseThrow();
+    }
+
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email).orElseThrow();
+    }
+
+
 }
