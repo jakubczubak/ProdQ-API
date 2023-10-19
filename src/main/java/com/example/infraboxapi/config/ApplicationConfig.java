@@ -1,6 +1,7 @@
 package com.example.infraboxapi.config;
 
 import com.example.infraboxapi.user.UserRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +20,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 public class ApplicationConfig {
 
     private final UserRepository repository;
+
+
+
 
     @Bean
     public UserDetailsService userDetailsService() {
@@ -42,4 +46,6 @@ public class ApplicationConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+
 }
