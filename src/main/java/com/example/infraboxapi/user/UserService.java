@@ -29,8 +29,8 @@ public class UserService {
             logger.info("Root user already exists!");
         }else{
             User user = User.builder().
-                    password(passwordEncoder.encode(ROOT_PASSWORD)).role(Role.ADMIN).email(ROOT_EMAIL)
-                    .build();
+                    password(passwordEncoder.encode(ROOT_PASSWORD)).role(Role.ADMIN).email(ROOT_EMAIL).firstName("root").lastName("root").build();
+
 
             userRepository.save(user);
             logger.info("Root user created successfully :)");
