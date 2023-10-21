@@ -3,14 +3,18 @@ spring:
     url: jdbc:mysql://localhost:3306/infrabox
     username: root
     password: root
-    driver-class-name: com.mysql.jdbc.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver # Zaktualizowano na com.mysql.cj.jdbc.Driver, co jest zalecane od MySQL 8
+
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
-
     properties:
       hibernate:
         format_sql: true
     database: mysql
     database-platform: org.hibernate.dialect.MySQL8Dialect
+
+# Własności związane z JWT
+jwt:
+  secret-key: "MzQ4MzA3ODU0NDYyMTMwMzAwMTMwMTUyMTQxMTMzNDMzMTIzMTMwMTYzMTUyMTMwMTM="
