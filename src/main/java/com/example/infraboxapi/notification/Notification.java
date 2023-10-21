@@ -22,7 +22,8 @@ public class Notification {
     @GeneratedValue
     private Long id;
     private String description;
-    private boolean isChecked;
+    private String title;
+    private boolean isRead;
     private LocalDateTime createdOn;
     private String author;
 

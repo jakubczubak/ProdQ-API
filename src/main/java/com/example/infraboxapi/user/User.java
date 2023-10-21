@@ -29,9 +29,12 @@ public class User implements UserDetails {
     private String email;
     private String password;
 
+
+
+
     @Enumerated(EnumType.STRING)
     private Role role;
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     private List<Notification> notifications;
 
     @Override

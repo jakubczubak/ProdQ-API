@@ -6,11 +6,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/user")
-
+@CrossOrigin(origins = "http://localhost:3000")
 public class UserController {
 
     private final UserService userService;
@@ -28,30 +31,34 @@ public class UserController {
     }
 
     @GetMapping("/userData")
-    public ResponseEntity<User> getUserInfo() {
+    public ResponseEntity<UserDTO> getUserInfo() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication.getPrincipal() instanceof User) {
             User user = (User) authentication.getPrincipal();
 
-            // Teraz masz dostęp do wszystkich pól w obiekcie użytkownika
-            // Możesz użyć ich do stworzenia odpowiedzi JSON
-            String firstName = user.getFirstName();
+           String firstName = user.getFirstName();
             String lastName = user.getLastName();
             List<Notification> notifications = user.getNotifications();
+            Role role = user.getRole();
 
-            // Tworzenie obiektu User z potrzebnymi danymi
-            User userInfo = new User();
-            userInfo.setFirstName(firstName);
-            userInfo.setLastName(lastName);
-            userInfo.setNotifications(notifications);
 
-            // Zwracanie obiektu User jako JSON w odpowiedzi z odpowiednim statusem HTTP
-            return ResponseEntity.ok(userInfo);
+
+            Notification notification = Notification.builder().
+                    description("asdasd").title("asdasd").id(1L).isRead(false).author("Jakub Czubak").build();
+            notifications.add(notification);
+            notifications.add(notification);
+
+            UserDTO userDTO = UserDTO.builder()
+                    .firstName(firstName)
+                            .lastName(lastName).notifications(notifications).role(role).notifications(notifications).build();
+
+                 return ResponseEntity.ok(userDTO);
         } else {
-            // Możesz również obsłużyć sytuację, gdy nie można uzyskać informacji o użytkowniku
+
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
     }
+
 
 }
