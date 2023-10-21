@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -42,10 +43,14 @@ public class UserController {
             List<Notification> notifications = user.getNotifications();
             Role role = user.getRole();
 
+            LocalDateTime currentDateTime = LocalDateTime.now();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            String formattedDateTime = currentDateTime.format(formatter);
+
 
 
             Notification notification = Notification.builder().
-                    description("asdasd").title("asdasd").id(1L).isRead(false).author("Jakub Czubak").build();
+                    description("Uztkownik xyz dodal nowe nardzedzie do magazynu narzedzi").title("Dodawanie narzedzia").id(1L).isRead(false).author("Jakub Czubak").createdOn(formattedDateTime).build();
             notifications.add(notification);
             notifications.add(notification);
 

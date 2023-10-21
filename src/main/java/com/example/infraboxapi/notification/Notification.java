@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -24,7 +25,7 @@ public class Notification {
     private String description;
     private String title;
     private boolean isRead;
-    private LocalDateTime createdOn;
+    private String createdOn;
     private String author;
 
     @ManyToOne
@@ -32,11 +33,9 @@ public class Notification {
 
     @PrePersist
     public void preUpdate() {
-        LocalDateTime now = LocalDateTime.now();
-
+        LocalDate currentDate = LocalDate.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-        createdOn = LocalDateTime.parse(now.format(formatter));
+        createdOn = currentDate.format(formatter);
     }
 
 }
