@@ -1,6 +1,7 @@
 package com.example.infraboxapi.user;
 
 import com.example.infraboxapi.notification.Notification;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +36,7 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JsonBackReference
     private List<Notification> notifications;
 
     @Override

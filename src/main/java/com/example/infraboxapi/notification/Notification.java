@@ -1,6 +1,7 @@
 package com.example.infraboxapi.notification;
 
 import com.example.infraboxapi.user.User;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,13 +30,14 @@ public class Notification {
     private String author;
 
     @ManyToOne
+    @JsonBackReference
     private User user;
 
     @PrePersist
     public void preUpdate() {
-        LocalDate currentDate = LocalDate.now();
+        LocalDateTime currentDateTime = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        createdOn = currentDate.format(formatter);
+        createdOn = currentDateTime.format(formatter);
     }
 
 }

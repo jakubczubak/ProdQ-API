@@ -1,5 +1,7 @@
 package com.example.infraboxapi.user;
 import com.example.infraboxapi.notification.Notification;
+import com.example.infraboxapi.notification.NotificationRepository;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -15,13 +17,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/user")
 @CrossOrigin(origins = "http://localhost:3000")
+@AllArgsConstructor
 public class UserController {
 
     private final UserService userService;
 
-    public UserController(UserService userService){
-        this.userService=userService;
-    }
+
 
 
     @PostMapping("/register")
@@ -33,36 +34,7 @@ public class UserController {
 
     @GetMapping("/userData")
     public ResponseEntity<UserDTO> getUserInfo() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication.getPrincipal() instanceof User) {
-            User user = (User) authentication.getPrincipal();
-
-           String firstName = user.getFirstName();
-            String lastName = user.getLastName();
-            List<Notification> notifications = user.getNotifications();
-            Role role = user.getRole();
-
-            LocalDateTime currentDateTime = LocalDateTime.now();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            String formattedDateTime = currentDateTime.format(formatter);
-
-
-
-            Notification notification = Notification.builder().
-                    description("Uztkownik xyz dodal nowe nardzedzie do magazynu narzedzi").title("Dodawanie narzedzia").id(1L).isRead(false).author("Jakub Czubak").createdOn(formattedDateTime).build();
-            notifications.add(notification);
-            notifications.add(notification);
-
-            UserDTO userDTO = UserDTO.builder()
-                    .firstName(firstName)
-                            .lastName(lastName).notifications(notifications).role(role).notifications(notifications).build();
-
-                 return ResponseEntity.ok(userDTO);
-        } else {
-
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
-        }
+        return userService.getUserInfo();
     }
 
 
