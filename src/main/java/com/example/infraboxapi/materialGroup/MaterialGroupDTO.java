@@ -1,8 +1,7 @@
 package com.example.infraboxapi.materialGroup;
 
-import com.example.infraboxapi.material.Material;
-import com.example.infraboxapi.materialDescription.MaterialDescription;
-import jakarta.persistence.*;
+import com.example.infraboxapi.material.MaterialDTO;
+import com.example.infraboxapi.materialDescription.MaterialDescriptionDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,13 +13,14 @@ import java.util.List;
 @NoArgsConstructor
 @Data
 @Builder
+
 public class MaterialGroupDTO {
 
     private Integer id;
     private String name;
     private String type;
     private String imageURL;
-    private MaterialDescription materialDescription;
-    private List<Material> materials;
+    private MaterialDescriptionDTO materialDescription;
+    private List<MaterialDTO> materials;
 
 }
