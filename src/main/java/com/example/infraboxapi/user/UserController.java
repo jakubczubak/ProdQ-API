@@ -34,7 +34,12 @@ public class UserController {
 
     @GetMapping("/userData")
     public ResponseEntity<UserDTO> getUserInfo() {
-        return userService.getUserInfo();
+
+        try{
+            return userService.getUserInfo();
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
 

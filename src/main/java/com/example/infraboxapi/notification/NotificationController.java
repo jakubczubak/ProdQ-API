@@ -17,8 +17,15 @@ public class NotificationController {
     @DeleteMapping("/delete/{id}")
     @Transactional
     public ResponseEntity<String> deleteNotification(@PathVariable Long id) {
-        notificationService.deleteNotification(id);
-        return ResponseEntity.ok("Notification deleted");
+
+        try{
+            notificationService.deleteNotification(id);
+            return ResponseEntity.ok("Notification deleted");
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting notification: " + e.getMessage());
+        }
+
+
     }
 
     @PutMapping("/update/{id}")
