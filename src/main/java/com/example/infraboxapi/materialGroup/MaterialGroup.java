@@ -25,12 +25,12 @@ public class MaterialGroup {
     private String type;
     private String imageURL;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL)
     private MaterialDescription materialDescription;
 
 
 
-    @OneToMany(mappedBy = "materialGroup", cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL)
     private List<Material> materials;
 
 

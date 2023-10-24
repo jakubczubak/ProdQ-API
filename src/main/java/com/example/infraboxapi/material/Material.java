@@ -42,11 +42,9 @@ public class Material {
     private String type;
 
     private Integer quantityInTransit;
-    @ManyToOne
-    @JoinColumn(name = "material_group_id")
-    private MaterialGroup materialGroup;
 
-    @OneToMany(mappedBy = "material", cascade = CascadeType.ALL)
+
+    @OneToMany(cascade = CascadeType.ALL)
     private List<MaterialPriceHistory> prices;
 
 }

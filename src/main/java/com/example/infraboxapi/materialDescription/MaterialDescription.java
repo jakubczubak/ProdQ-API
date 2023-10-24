@@ -1,9 +1,7 @@
 package com.example.infraboxapi.materialDescription;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.example.infraboxapi.materialGroup.MaterialGroup;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,4 +20,5 @@ public class MaterialDescription {
     private Integer id;
     private String name;
     private float density;
+
 }
