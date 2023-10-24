@@ -31,6 +31,8 @@ public class MaterialGroupController {
 
     @PutMapping("/update")
     public ResponseEntity<String> updateMaterialGroup(@RequestBody MaterialGroupDTO materialGroupDTO){
+
+        System.out.println(materialGroupDTO);
         try{
             materialGroupService.updateMaterialGroup(materialGroupDTO);
             return ResponseEntity.ok("Material Group updated");
