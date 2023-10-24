@@ -10,6 +10,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Data
@@ -43,8 +45,21 @@ public class Material {
 
     private Integer quantityInTransit;
 
+    @Column(name = "updated_on")
+    private String updatedOn;
+
 
     @OneToMany(cascade = CascadeType.ALL)
     private List<MaterialPriceHistory> prices;
+
+
+    @PreUpdate
+    public void preUpdate() {
+        LocalDateTime now = LocalDateTime.now();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        updatedOn = now.format(formatter);
+    }
 
 }
