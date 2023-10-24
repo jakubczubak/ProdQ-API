@@ -39,6 +39,8 @@ public class MaterialGroupService {
         materialGroup.setType(materialGroupDTO.getType());
         materialGroup.setName(materialGroupDTO.getName());
 
+
+
         materialGroupRepository.save(materialGroup);
     }
 
@@ -60,6 +62,8 @@ public class MaterialGroupService {
 
 
     public List<Material> convertToMaterial(List<MaterialDTO> materialDTOList){
+
+        MaterialGroup materialGroup = materialGroupRepository.findById(materialDTOList.get(0).getParentID()).orElseThrow(() -> new RuntimeException("Material Group not found"));
         return materialDTOList.stream().map(materialDTO -> Material.builder()
                 .id(materialDTO.getId())
                 .pricePerKg(materialDTO.getPricePerKg())
@@ -76,6 +80,7 @@ public class MaterialGroupService {
                 .type(materialDTO.getType())
                 .quantityInTransit(materialDTO.getQuantityInTransit())
                 .prices(materialDTO.getPrices())
+                .materialGroup(materialGroup)
                 .build()).toList();
     }
 
