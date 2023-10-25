@@ -19,7 +19,7 @@ import java.util.List;
 public class MaterialGroup {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
     private String type;
@@ -30,7 +30,7 @@ public class MaterialGroup {
 
 
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "materialGroup")
     private List<Material> materials;
 
 

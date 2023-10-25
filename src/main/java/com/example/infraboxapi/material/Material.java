@@ -22,7 +22,7 @@ import java.util.List;
 @Table(name = "_material")
 public class Material {
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private BigDecimal pricePerKg;
     private float minQuantity;
@@ -51,7 +51,7 @@ public class Material {
     @ManyToOne
     @JoinColumn(name = "material_group_id") // Nazwa kolumny w bazie danych
     private MaterialGroup materialGroup;
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "material")
     private List<MaterialPriceHistory> prices;
 
 

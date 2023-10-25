@@ -20,10 +20,13 @@ import java.time.format.DateTimeFormatter;
 public class MaterialPriceHistory {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private BigDecimal price;
     private String date;
+    @ManyToOne
+    @JoinColumn(name = "material_id")
+    private Material material;
 
 
 
