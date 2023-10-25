@@ -30,7 +30,8 @@ public class MaterialGroup {
 
 
 
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "materialGroup")
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "material_group_id")
     private List<Material> materials;
 
 

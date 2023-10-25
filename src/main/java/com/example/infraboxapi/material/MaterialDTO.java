@@ -1,6 +1,7 @@
 package com.example.infraboxapi.material;
 
 
+import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -33,12 +34,13 @@ public class MaterialDTO {
 
     private BigDecimal price;
 
-    private Integer parentID;
-
     private String type;
 
     private Integer quantityInTransit;
 
-    private List<MaterialPriceHistory> prices;
+
+    private String updatedOn;
+
+    private Integer materialGroupID;
 
 }

@@ -39,8 +39,6 @@ public class Material {
 
     private BigDecimal price;
 
-    private Integer parentID;
-
     private String type;
 
     private Integer quantityInTransit;
@@ -48,11 +46,8 @@ public class Material {
     @Column(name = "updated_on")
     private String updatedOn;
 
-    @ManyToOne
-    @JoinColumn(name = "material_group_id") // Nazwa kolumny w bazie danych
-    private MaterialGroup materialGroup;
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "material")
-    private List<MaterialPriceHistory> prices;
+
+
 
 
     @PreUpdate

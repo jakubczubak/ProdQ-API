@@ -25,7 +25,6 @@ public class MaterialPriceHistory {
     private BigDecimal price;
     private String date;
     @ManyToOne
-    @JoinColumn(name = "material_id")
     private Material material;
 
 
