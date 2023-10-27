@@ -38,7 +38,7 @@ public class MaterialController {
     public ResponseEntity<String> deleteMaterial(@PathVariable Integer id){
 
         try{
-//            materialService.deleteMaterial(id);
+            materialService.deleteMaterial(id);
             return ResponseEntity.ok("Material deleted");
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material: " + e.getMessage());

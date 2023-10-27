@@ -15,6 +15,7 @@ import java.util.ArrayList;
 public class MaterialService {
 
     private final MaterialGroupRepository materialGroupRepository;
+    private final MaterialRepository materialRepository;
     public void createMaterial(MaterialDTO materialDTO) {
 
         MaterialGroup materialGroup = materialGroupRepository.findById(materialDTO.getMaterialGroupID())
@@ -50,5 +51,10 @@ public class MaterialService {
         materialGroup.getMaterials().add(newMaterial);
 
         materialGroupRepository.save(materialGroup);
+    }
+
+    public void deleteMaterial(Integer id) {
+
+        materialRepository.deleteById(id);
     }
 }
