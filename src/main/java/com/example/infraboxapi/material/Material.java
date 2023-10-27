@@ -33,6 +33,8 @@ public class Material {
 
     private float length;
 
+    private float thickness;
+
     private String name;
 
     private BigDecimal price;

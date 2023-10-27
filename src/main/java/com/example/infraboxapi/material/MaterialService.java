@@ -32,6 +32,7 @@ public class MaterialService {
         newMaterial.setX(materialDTO.getX());
         newMaterial.setDiameter(materialDTO.getDiameter());
         newMaterial.setLength(materialDTO.getLength());
+        newMaterial.setThickness(materialDTO.getThickness());
         newMaterial.setName(materialDTO.getName());
         newMaterial.setType(materialDTO.getType());
         newMaterial.setQuantityInTransit(materialDTO.getQuantityInTransit());

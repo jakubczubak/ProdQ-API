@@ -28,6 +28,8 @@ public class MaterialDTO {
 
     private float length;
 
+    private float thickness;
+
     private String name;
 
     private BigDecimal price;
