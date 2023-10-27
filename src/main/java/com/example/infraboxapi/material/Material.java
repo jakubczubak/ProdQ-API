@@ -1,7 +1,5 @@
 package com.example.infraboxapi.material;
 
-
-import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -46,7 +44,9 @@ public class Material {
     @Column(name = "updated_on")
     private String updatedOn;
 
-
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "material_id")
+    private List<MaterialPriceHistory> materialPriceHistoryList;
 
 
 

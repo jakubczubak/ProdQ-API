@@ -1,9 +1,7 @@
 package com.example.infraboxapi.material;
 
 
-import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -42,5 +40,7 @@ public class MaterialDTO {
     private String updatedOn;
 
     private Integer materialGroupID;
+
+    private List<MaterialPriceHistory> materialPriceHistoryList;
 
 }

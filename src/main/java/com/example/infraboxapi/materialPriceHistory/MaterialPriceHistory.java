@@ -24,17 +24,6 @@ public class MaterialPriceHistory {
     private Integer id;
     private BigDecimal price;
     private String date;
-    @ManyToOne
-    private Material material;
 
-
-
-
-    @PrePersist
-    public void preUpdate() {
-        LocalDateTime currentDateTime = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        date = currentDateTime.format(formatter);
-    }
 
 }
