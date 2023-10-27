@@ -24,10 +24,10 @@ public class MaterialController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateMaterial(MaterialDTO materialDTO){
+    public ResponseEntity<String> updateMaterial(@RequestBody MaterialDTO materialDTO){
 
         try{
-//            materialService.updateMaterial(materialDTO);
+            materialService.updateMaterial(materialDTO);
             return ResponseEntity.ok("Material updated");
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating material: " + e.getMessage());
