@@ -44,7 +44,7 @@ public class MaterialService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         MaterialPriceHistory materialPriceHistory = MaterialPriceHistory.builder()
-                        .price(materialDTO.getPrice())
+                        .price(materialDTO.getPricePerKg())
                         .date(currentDateTime.format(formatter)).
 
                 build();
@@ -75,7 +75,7 @@ public class MaterialService {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
             MaterialPriceHistory materialPriceHistory = MaterialPriceHistory.builder()
-                    .price(materialDTO.getPrice())
+                    .price(materialDTO.getPricePerKg())
                     .date(currentDateTime.format(formatter)).
 
                             build();
