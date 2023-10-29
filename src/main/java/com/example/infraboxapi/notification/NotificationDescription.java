@@ -13,7 +13,9 @@ public enum NotificationDescription {
 
     MaterialGroupUpdated("MATERIAL GROUP UPDATED"),
 
-    MaterialGroupDeleted("MATERIAL GROUP DELETED");
+    MaterialGroupDeleted("MATERIAL GROUP DELETED"),
+
+    MaterialScanner("MATERIAL SCANNER");
 
     private final String description;
 

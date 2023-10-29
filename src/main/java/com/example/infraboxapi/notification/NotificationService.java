@@ -19,9 +19,6 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final UserService userService;
 
-
-
-
     @Transactional
     public void deleteNotification(Long id){
 
@@ -67,6 +64,31 @@ public class NotificationService {
 
         // Wyślij powiadomienie do wszystkich użytkowników
         for (User user : allUsersExceptAuthor) {
+
+            notification.setUser(user);
+            user.getNotifications().add(notification);
+
+            userRepository.save(user);
+
+        }
+    }
+
+    public void createAndSendSystemNotification(String description, NotificationDescription notificationDescription) {
+
+        // Tworzenie nowego powiadomienia
+        Notification notification = new Notification();
+        notification.setDescription(description);
+        notification.setTitle(notificationDescription.getDescription());
+        notification.setRead(false);
+        notification.setAuthor("Infrabox");
+
+
+
+        // Pobierz listę wszystkich użytkowników z wyjątkiem autora
+        List<User> allUsers = userRepository.findAll();
+
+        // Wyślij powiadomienie do wszystkich użytkowników
+        for (User user : allUsers) {
 
             notification.setUser(user);
             user.getNotifications().add(notification);
