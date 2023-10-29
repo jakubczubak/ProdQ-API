@@ -3,6 +3,9 @@ package com.example.infraboxapi.material;
 import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialGroup.MaterialGroupRepository;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
+import com.example.infraboxapi.notification.NotificationDescription;
+import com.example.infraboxapi.notification.NotificationService;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +19,9 @@ public class MaterialService {
 
     private final MaterialGroupRepository materialGroupRepository;
     private final MaterialRepository materialRepository;
+    private final NotificationService notificationService;
+
+    @Transactional
     public void createMaterial(MaterialDTO materialDTO) {
 
         MaterialGroup materialGroup = materialGroupRepository.findById(materialDTO.getMaterialGroupID())
@@ -55,13 +61,16 @@ public class MaterialService {
         materialGroup.getMaterials().add(newMaterial);
 
         materialGroupRepository.save(materialGroup);
-    }
 
+        notificationService.createAndSendNotification(    "A new material, '" + newMaterial.getName() + "', has been added successfully.", NotificationDescription.MaterialAdded);
+    }
+    @Transactional
     public void deleteMaterial(Integer id) {
-
+        String materialName = materialRepository.findById(id).orElseThrow(() -> new RuntimeException("Material not found")).getName();
         materialRepository.deleteById(id);
+        notificationService.createAndSendNotification(    "The material '" + materialName + "' has been successfully deleted.", NotificationDescription.MaterialDeleted);
     }
-
+    @Transactional
     public void updateMaterial(MaterialDTO materialDTO) {
 
         Material material = materialRepository.findById(materialDTO.getId())
@@ -98,5 +107,7 @@ public class MaterialService {
         material.setQuantityInTransit(materialDTO.getQuantityInTransit());
 
         materialRepository.save(material);
+
+        notificationService.createAndSendNotification(    "The material '" + material.getName() + "' has been successfully updated.", NotificationDescription.MaterialUpdated);
     }
 }

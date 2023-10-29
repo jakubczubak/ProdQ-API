@@ -5,6 +5,9 @@ import com.example.infraboxapi.material.MaterialDTO;
 import com.example.infraboxapi.materialDescription.MaterialDescription;
 import com.example.infraboxapi.materialDescription.MaterialDescriptionDTO;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
+import com.example.infraboxapi.notification.NotificationDescription;
+import com.example.infraboxapi.notification.NotificationService;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +21,9 @@ import java.util.List;
 public class MaterialGroupService {
 
     private final MaterialGroupRepository materialGroupRepository;
+    private final NotificationService notificationService;
+
+    @Transactional
     public void createMaterialGroup(MaterialGroupDTO materialGroupDTO){
 
         MaterialGroup materialGroup = MaterialGroup.builder()
@@ -30,8 +36,11 @@ public class MaterialGroupService {
 
         materialGroupRepository.save(materialGroup);
 
+        notificationService.createAndSendNotification("A new material group has been added: " + materialGroup.getName(), NotificationDescription.MaterialGroupAdded);
+
     }
 
+    @Transactional
     public void updateMaterialGroup(MaterialGroupDTO materialGroupDTO) {
 
         MaterialGroup materialGroup = materialGroupRepository.findById(materialGroupDTO.getId()).orElseThrow(() -> new RuntimeException("Material Group not found"));
@@ -41,12 +50,19 @@ public class MaterialGroupService {
         materialGroup.setName(materialGroupDTO.getName());
 
         materialGroupRepository.save(materialGroup);
-    }
 
+        notificationService.createAndSendNotification(
+                "The material group '" + materialGroup.getName() + "' has been updated successfully.",
+                NotificationDescription.MaterialGroupUpdated
+        );    }
+
+@Transactional
     public void deleteMaterialGroup(Integer id) {
 
         MaterialGroup materialGroup = materialGroupRepository.findById(id).orElseThrow(() -> new RuntimeException("Material Group not found"));
         materialGroupRepository.delete(materialGroup);
+
+        notificationService.createAndSendNotification("The material group '" + materialGroup.getName() + "' has been successfully deleted.", NotificationDescription.MaterialGroupDeleted);
     }
 
 

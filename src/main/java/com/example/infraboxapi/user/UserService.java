@@ -120,5 +120,7 @@ public class UserService {
         }
     }
 
-
+    public List<User> findAllUsersExceptUserWithId(Integer userId) {
+        return userRepository.findAllUsersExceptUserWithId(userId);
+    }
 }
