@@ -1,6 +1,7 @@
 package com.example.infraboxapi.notification;
 
 import com.example.infraboxapi.materialGroup.MaterialGroup;
+import com.example.infraboxapi.tool.ToolGroup;
 import lombok.Getter;
 
 @Getter
@@ -15,7 +16,11 @@ public enum NotificationDescription {
 
     MaterialGroupDeleted("MATERIAL GROUP DELETED"),
 
-    MaterialScanner("MATERIAL SCANNER");
+    MaterialScanner("MATERIAL SCANNER"),
+
+    ToolGroupAdded("NEW TOOL GROUP ADDED"),
+    ToolGroupUpdated("TOOL GROUP UPDATED"),
+    ToolGroupDeleted("TOOL GROUP DELETED");
 
     private final String description;
 
