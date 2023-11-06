@@ -1,6 +1,5 @@
-package com.example.infraboxapi.tool;
+package com.example.infraboxapi.toolGroup;
 
-import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;

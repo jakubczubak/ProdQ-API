@@ -1,7 +1,5 @@
 package com.example.infraboxapi.notification;
 
-import com.example.infraboxapi.materialGroup.MaterialGroup;
-import com.example.infraboxapi.tool.ToolGroup;
 import lombok.Getter;
 
 @Getter

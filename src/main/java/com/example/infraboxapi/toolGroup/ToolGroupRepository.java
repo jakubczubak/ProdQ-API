@@ -1,4 +1,4 @@
-package com.example.infraboxapi.tool;
+package com.example.infraboxapi.toolGroup;
 
 
 import org.springframework.data.jpa.repository.JpaRepository;
