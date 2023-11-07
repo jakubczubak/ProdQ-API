@@ -18,7 +18,11 @@ public enum NotificationDescription {
 
     ToolGroupAdded("NEW TOOL GROUP ADDED"),
     ToolGroupUpdated("TOOL GROUP UPDATED"),
-    ToolGroupDeleted("TOOL GROUP DELETED");
+    ToolGroupDeleted("TOOL GROUP DELETED"),
+
+    ToolAdded("NEW TOOL ADDED"),
+    ToolUpdated("TOOL UPDATED"),
+    ToolDeleted("TOOL DELETED");
 
     private final String description;
 

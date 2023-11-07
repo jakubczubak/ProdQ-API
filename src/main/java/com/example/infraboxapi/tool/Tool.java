@@ -32,6 +32,7 @@ public class Tool {
     private String toolID;
     private String eShopLink;
     private String additionalInfo;
+    private float quantityInTransit;
 
     @Column(name = "updated_on")
     private String updatedOn;

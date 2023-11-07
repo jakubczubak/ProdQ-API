@@ -1,8 +1,59 @@
 package com.example.infraboxapi.tool;
 
 
+import com.example.infraboxapi.notification.NotificationDescription;
+import com.example.infraboxapi.notification.NotificationService;
+import com.example.infraboxapi.toolGroup.ToolGroup;
+import com.example.infraboxapi.toolGroup.ToolGroupRepository;
+import jakarta.transaction.Transactional;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 @Service
+@AllArgsConstructor
 public class ToolService {
+
+    private final ToolRepository toolRepository;
+    private final ToolGroupRepository toolGroupRepository;
+    private final NotificationService notificationService;
+
+    @Transactional
+    public void createTool(ToolDTO toolDTO) {
+
+        ToolGroup toolGroup = toolGroupRepository.findById(toolDTO.getToolGroupID())
+                .orElseThrow(() -> new RuntimeException("Tool group not found"));
+
+        Tool newTool = Tool.builder()
+
+                .dc(toolDTO.getDc())
+                .cfl(toolDTO.getCfl())
+                .oal(toolDTO.getOal())
+                .name(toolDTO.getName())
+                .type(toolDTO.getType())
+                .quantity(toolDTO.getQuantity())
+                .minQuantity(toolDTO.getMinQuantity())
+                .price(toolDTO.getPrice())
+                .toolID(toolDTO.getToolID())
+                .eShopLink(toolDTO.getEShopLink())
+                .additionalInfo(toolDTO.getAdditionalInfo())
+                .quantityInTransit(toolDTO.getQuantityInTransit())
+
+                .build();
+
+
+        LocalDateTime now = LocalDateTime.now();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        newTool.setUpdatedOn(now.format(formatter));
+
+        toolGroup.getTools().add(newTool);
+
+        toolGroupRepository.save(toolGroup);
+
+        notificationService.createAndSendNotification("Tool " + toolDTO.getName() + " created", NotificationDescription.ToolAdded);
+    }
 }
