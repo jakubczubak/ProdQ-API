@@ -6,6 +6,7 @@ import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -30,6 +31,7 @@ public class ToolGroupService {
                 .name(toolGroupDTO.getName())
                 .type(toolGroupDTO.getType())
                 .imageURL(toolGroupDTO.getImageURL())
+                .tools(new ArrayList<>())
                 .build();
 
         toolGroupRepository.save(toolGroup);
@@ -45,8 +47,8 @@ public class ToolGroupService {
         ToolGroup toolGroup = toolGroupRepository.findById(toolGroupDTO.getId()).orElseThrow(() -> new RuntimeException("Tool Group not found"));
 
         toolGroup.setName(toolGroupDTO.getName());
-        toolGroup.setType(toolGroupDTO.getType());
         toolGroup.setImageURL(toolGroupDTO.getImageURL());
+        toolGroup.setTools(toolGroupDTO.getTools());
 
         toolGroupRepository.save(toolGroup);
 
