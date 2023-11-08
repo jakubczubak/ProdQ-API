@@ -22,7 +22,6 @@ public class ToolService {
 
     @Transactional
     public void createTool(ToolDTO toolDTO) {
-
         ToolGroup toolGroup = toolGroupRepository.findById(toolDTO.getToolGroupID())
                 .orElseThrow(() -> new RuntimeException("Tool group not found"));
 
@@ -37,7 +36,7 @@ public class ToolService {
                 .minQuantity(toolDTO.getMinQuantity())
                 .price(toolDTO.getPrice())
                 .toolID(toolDTO.getToolID())
-                .eShopLink(toolDTO.getEShopLink())
+                .link(toolDTO.getLink())
                 .additionalInfo(toolDTO.getAdditionalInfo())
                 .quantityInTransit(toolDTO.getQuantityInTransit())
 
@@ -55,5 +54,13 @@ public class ToolService {
         toolGroupRepository.save(toolGroup);
 
         notificationService.createAndSendNotification("Tool " + toolDTO.getName() + " created", NotificationDescription.ToolAdded);
+    }
+    @Transactional
+    public void deleteTool(Integer id) {
+
+        String toolName = toolRepository.findById(id).orElseThrow(() -> new RuntimeException("Tool not found")).getName();
+        toolRepository.deleteById(id);
+        notificationService.createAndSendNotification("Tool " + toolName + " deleted", NotificationDescription.ToolDeleted);
+
     }
 }

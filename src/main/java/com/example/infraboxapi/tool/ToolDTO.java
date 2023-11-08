@@ -22,7 +22,7 @@ public class ToolDTO {
     private float minQuantity;
     private float price;
     private String toolID;
-    private String eShopLink;
+    private String link;
     private String additionalInfo;
     private float quantityInTransit;
     private Integer toolGroupID;

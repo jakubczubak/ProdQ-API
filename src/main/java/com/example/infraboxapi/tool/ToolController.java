@@ -22,7 +22,7 @@ public class ToolController {
     @PostMapping("/create")
     public ResponseEntity<String> createTool(@RequestBody ToolDTO toolDTO){
 
-
+        System.out.println("dane z frontu" + toolDTO);
         try{
             toolService.createTool(toolDTO);
             return ResponseEntity.ok("Tool created");
@@ -46,7 +46,7 @@ public class ToolController {
     public ResponseEntity<String> deleteTool(@PathVariable Integer id){
 
         try{
-//            toolService.deleteTool(id);
+            toolService.deleteTool(id);
             return ResponseEntity.ok("Tool deleted");
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting tool: " + e.getMessage());
