@@ -22,7 +22,6 @@ public class ToolController {
     @PostMapping("/create")
     public ResponseEntity<String> createTool(@RequestBody ToolDTO toolDTO){
 
-        System.out.println("dane z frontu" + toolDTO);
         try{
             toolService.createTool(toolDTO);
             return ResponseEntity.ok("Tool created");
