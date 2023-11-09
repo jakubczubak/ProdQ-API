@@ -34,7 +34,7 @@ public class ToolController {
     public ResponseEntity<String> updateTool(@RequestBody ToolDTO toolDTO){
 
         try{
-//            toolService.updateTool(toolDTO);
+            toolService.updateTool(toolDTO);
             return ResponseEntity.ok("Tool updated");
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating tool: " + e.getMessage());

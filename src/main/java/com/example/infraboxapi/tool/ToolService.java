@@ -63,4 +63,9 @@ public class ToolService {
         notificationService.createAndSendNotification("Tool " + toolName + " deleted", NotificationDescription.ToolDeleted);
 
     }
+
+    public void updateTool(ToolDTO toolDTO) {
+
+        System.out.println(toolDTO);
+    }
 }
