@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.util.List;
 
@@ -29,6 +30,7 @@ public class MaterialGroupDTO {
     private String type;
 
     @Size(max = 255, message = "Field 'imageURL' cannot exceed 255 characters")
+    @NotNull(message = "Field 'imageURL' cannot be null")
     private String imageURL;
 
     @Valid // Ensure the nested object is validated as well

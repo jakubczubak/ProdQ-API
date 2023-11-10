@@ -26,7 +26,7 @@ public class ToolGroupDTO {
     @Size(min = 1, max = 50, message = "Field 'type' must have a length between 1 and 50 characters")
     private String type;
 
-    @NotBlank(message = "Field 'imageURL' cannot be blank")
+    @NotNull(message = "Field 'imageURL' cannot be null")
     @Pattern(regexp = "^https?://.*$", message = "Field 'imageURL' must be a valid URL starting with http:// or https://")
     private String imageURL;
 

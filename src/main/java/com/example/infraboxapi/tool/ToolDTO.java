@@ -6,10 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.validation.constraints.DecimalMin;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.PositiveOrZero;
-import javax.validation.constraints.Size;
+import javax.validation.constraints.*;
 import java.math.BigDecimal;
 
 @Data
@@ -46,15 +43,15 @@ public class ToolDTO {
     @DecimalMin(value = "0", message = "Price must be greater than or equal to 0")
     private BigDecimal price;
 
-    @NotBlank(message = "Field 'toolID' cannot be blank")
+    @NotNull(message = "Field 'imageURL' cannot be null")
     @Size(min = 1, max = 100, message = "Field 'toolID' must have a length between 1 and 100 characters")
     private String toolID;
 
-    @NotBlank(message = "Field 'link' cannot be blank")
+    @NotNull(message = "Field 'imageURL' cannot be null")
     @Size(min = 1, max = 300, message = "Field 'name' must have a length between 1 and 300 characters")
     private String link;
 
-    @NotBlank(message = "Field 'additionalInfo' cannot be blank")
+    @NotNull(message = "Field 'imageURL' cannot be null")
     @Size(min = 1, max = 300, message = "Field 'name' must have a length between 1 and 300 characters")
     private String additionalInfo;
     @PositiveOrZero(message = "Value must be a positive number or zero")
