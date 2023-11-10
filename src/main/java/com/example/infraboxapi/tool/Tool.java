@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -28,7 +29,7 @@ public class Tool {
     private float oal;
     private float quantity;
     private float minQuantity;
-    private float price;
+    private BigDecimal price;
     private String toolID;
     private String link;
     private String additionalInfo;

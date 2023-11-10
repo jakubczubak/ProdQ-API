@@ -20,7 +20,7 @@ public class MaterialDTO {
 
     private Integer id;
 
-    @DecimalMin(value = "0.01", message = "Price per kg must be greater than or equal to 0.01")
+    @DecimalMin(value = "0", message = "Price per kg must be greater than or equal to 0")
     private BigDecimal pricePerKg;
 
     @PositiveOrZero(message = "Minimum quantity must be a positive number or zero")
@@ -48,14 +48,14 @@ public class MaterialDTO {
     private float thickness;
 
     @NotBlank(message = "Field 'name' cannot be blank")
-    @Size(min = 2, max = 100, message = "Field 'name' must have a length between 2 and 100 characters")
+    @Size(min = 1, max = 100, message = "Field 'name' must have a length between 1 and 100 characters")
     private String name;
 
-    @DecimalMin(value = "0.01", message = "Price must be greater than or equal to 0.01")
+    @DecimalMin(value = "0", message = "Price must be greater than or equal to 0")
     private BigDecimal price;
 
     @NotBlank(message = "Field 'type' cannot be blank")
-    @Size(min = 2, max = 50, message = "Field 'type' must have a length between 2 and 50 characters")
+    @Size(min = 1, max = 50, message = "Field 'type' must have a length between 1 and 50 characters")
     private String type;
 
     @NotNull(message = "Quantity in transit cannot be null")
@@ -64,8 +64,7 @@ public class MaterialDTO {
 
     private String updatedOn;
 
-    @NotNull(message = "Material group ID cannot be null")
-    @Positive(message = "Material group ID must be a positive number")
+
     private Integer materialGroupID;
 
     @Valid // Ensure the elements in the list are validated

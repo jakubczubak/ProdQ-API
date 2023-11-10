@@ -1,7 +1,6 @@
 package com.example.infraboxapi.materialGroup;
 
 
-import com.example.infraboxapi.materialDescription.MaterialDescriptionDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -1,6 +1,5 @@
 package com.example.infraboxapi.materialDescription;
 
-import com.example.infraboxapi.materialGroup.MaterialGroup;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

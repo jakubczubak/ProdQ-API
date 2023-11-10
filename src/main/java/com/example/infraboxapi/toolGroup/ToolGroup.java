@@ -1,6 +1,5 @@
 package com.example.infraboxapi.toolGroup;
 
-import com.example.infraboxapi.material.Material;
 import com.example.infraboxapi.tool.Tool;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
