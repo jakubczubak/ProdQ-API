@@ -64,8 +64,27 @@ public class ToolService {
 
     }
 
+    @Transactional
     public void updateTool(ToolDTO toolDTO) {
 
-        System.out.println(toolDTO);
+        Tool tool = toolRepository.findById(toolDTO.getId()).orElseThrow(() -> new RuntimeException("Tool not found"));
+
+        tool.setDc(toolDTO.getDc());
+        tool.setCfl(toolDTO.getCfl());
+        tool.setOal(toolDTO.getOal());
+        tool.setName(toolDTO.getName());
+        tool.setType(toolDTO.getType());
+        tool.setQuantity(toolDTO.getQuantity());
+        tool.setMinQuantity(toolDTO.getMinQuantity());
+        tool.setPrice(toolDTO.getPrice());
+        tool.setToolID(toolDTO.getToolID());
+        tool.setLink(toolDTO.getLink());
+        tool.setAdditionalInfo(toolDTO.getAdditionalInfo());
+        tool.setQuantityInTransit(toolDTO.getQuantityInTransit());
+
+
+        toolRepository.save(tool);
+
+        notificationService.createAndSendNotification("Tool " + toolDTO.getName() + " has been successfully updated", NotificationDescription.ToolUpdated);
     }
 }
