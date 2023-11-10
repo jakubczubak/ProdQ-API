@@ -15,6 +15,7 @@ public enum NotificationDescription {
     MaterialGroupDeleted("MATERIAL GROUP DELETED"),
 
     MaterialScanner("MATERIAL SCANNER"),
+    ToolScanner("TOOL SCANNER"),
 
     ToolGroupAdded("NEW TOOL GROUP ADDED"),
     ToolGroupUpdated("TOOL GROUP UPDATED"),

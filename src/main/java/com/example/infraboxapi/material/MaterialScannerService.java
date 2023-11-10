@@ -27,8 +27,7 @@ public class MaterialScannerService {
         for (Material material : materials) {
             if (material.getQuantity() < material.getMinQuantity()) {
                 String description = "Material " + material.getName() + " is running low. There are " + material.getQuantity() + " pieces left.";
-                NotificationDescription notificationDescription = NotificationDescription.MaterialScanner;
-                notificationService.createAndSendSystemNotification(description, notificationDescription);
+                notificationService.createAndSendSystemNotification(description, NotificationDescription.MaterialScanner);
             }
         }
     }
