@@ -1,8 +1,10 @@
 package com.example.infraboxapi.toolGroup;
 
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,7 +27,11 @@ public class ToolGroupController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateToolGroup(@RequestBody ToolGroupDTO toolGroupDTO){
+    public ResponseEntity<String> updateToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult){
+
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+        }
         try{
             toolGroupService.updateToolGroup(toolGroupDTO);
             return ResponseEntity.ok("Tool Group updated");
@@ -35,7 +41,11 @@ public class ToolGroupController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<String> createToolGroup(@RequestBody ToolGroupDTO toolGroupDTO){
+    public ResponseEntity<String> createToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult){
+
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+        }
         try{
             toolGroupService.createToolGroup(toolGroupDTO);
             return ResponseEntity.ok("Tool Group created");

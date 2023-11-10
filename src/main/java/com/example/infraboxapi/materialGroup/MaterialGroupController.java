@@ -1,10 +1,17 @@
 package com.example.infraboxapi.materialGroup;
 
 
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/material_group/")
@@ -16,8 +23,11 @@ public class MaterialGroupController {
 
 
     @PostMapping("/create")
-    public ResponseEntity<String> createMaterialGroup(@RequestBody MaterialGroupDTO materialGroupDTO){
+    public ResponseEntity<String> createMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult  bindingResult){
 
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+        }
 
         try{
             materialGroupService.createMaterialGroup(materialGroupDTO);
@@ -29,7 +39,11 @@ public class MaterialGroupController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateMaterialGroup(@RequestBody MaterialGroupDTO materialGroupDTO){
+    public ResponseEntity<String> updateMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult  bindingResult){
+
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+        }
 
         try{
             materialGroupService.updateMaterialGroup(materialGroupDTO);
@@ -70,4 +84,6 @@ public class MaterialGroupController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+
 }
