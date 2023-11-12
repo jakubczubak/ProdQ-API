@@ -1,7 +1,6 @@
 package com.example.infraboxapi.calculation;
 
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,12 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name = "_calculation")
-public class Calculation {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class CalculationDTO {
     private Integer id;
     private Integer shiftLength;
     private Integer numberOfMachines;

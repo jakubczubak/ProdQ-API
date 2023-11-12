@@ -1,4 +1,6 @@
 package com.example.infraboxapi.calculation;
 
-public class CalculationRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface CalculationRepository extends JpaRepository<Calculation, Integer> {
 }
