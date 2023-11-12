@@ -55,6 +55,7 @@ public class ToolService {
 
         notificationService.createAndSendNotification("Tool " + toolDTO.getName() + " created", NotificationDescription.ToolAdded);
     }
+
     @Transactional
     public void deleteTool(Integer id) {
 

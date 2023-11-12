@@ -29,7 +29,6 @@ public class MaterialGroup {
     private MaterialDescription materialDescription;
 
 
-
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "material_group_id")
     private List<Material> materials;

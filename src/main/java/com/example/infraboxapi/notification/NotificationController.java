@@ -18,10 +18,10 @@ public class NotificationController {
     @Transactional
     public ResponseEntity<String> deleteNotification(@PathVariable Long id) {
 
-        try{
+        try {
             notificationService.deleteNotification(id);
             return ResponseEntity.ok("Notification deleted");
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting notification: " + e.getMessage());
         }
 

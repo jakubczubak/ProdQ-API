@@ -20,7 +20,7 @@ public class NotificationService {
     private final UserService userService;
 
     @Transactional
-    public void deleteNotification(Long id){
+    public void deleteNotification(Long id) {
 
         User user = userRepository.findById(userService.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
         Notification notification = notificationRepository.findById(id).orElseThrow(() -> new RuntimeException("Notification not found"));
@@ -32,7 +32,7 @@ public class NotificationService {
     }
 
     //This method is used to update the notification to read or unread
-    public void updateNotification(Long id){
+    public void updateNotification(Long id) {
 
         Notification notification = notificationRepository.findById(id).orElseThrow(() -> new RuntimeException("Notification not found"));
         notification.setRead(!notification.isRead());
@@ -47,7 +47,6 @@ public class NotificationService {
         User currentUser = (User) authentication.getPrincipal();
 
 
-
         // Pobierz użytkownika, który tworzy powiadomienie
 
         // Tworzenie nowego powiadomienia
@@ -56,7 +55,6 @@ public class NotificationService {
         notification.setTitle(notificationDescription.getDescription());
         notification.setRead(false);
         notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName()); // Ustaw autora na nazwę zalogowanego użytkownika
-
 
 
         // Pobierz listę wszystkich użytkowników z wyjątkiem autora
@@ -81,7 +79,6 @@ public class NotificationService {
         notification.setTitle(notificationDescription.getDescription());
         notification.setRead(false);
         notification.setAuthor("Infrabox");
-
 
 
         // Pobierz listę wszystkich użytkowników z wyjątkiem autora

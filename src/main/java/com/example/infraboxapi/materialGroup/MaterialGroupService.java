@@ -12,6 +12,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+
 @Service
 @AllArgsConstructor
 public class MaterialGroupService {
@@ -20,7 +21,7 @@ public class MaterialGroupService {
     private final NotificationService notificationService;
 
     @Transactional
-    public void createMaterialGroup(MaterialGroupDTO materialGroupDTO){
+    public void createMaterialGroup(MaterialGroupDTO materialGroupDTO) {
 
         MaterialGroup materialGroup = MaterialGroup.builder()
                 .name(materialGroupDTO.getName())
@@ -50,9 +51,10 @@ public class MaterialGroupService {
         notificationService.createAndSendNotification(
                 "The material group '" + materialGroup.getName() + "' has been updated successfully.",
                 NotificationDescription.MaterialGroupUpdated
-        );    }
+        );
+    }
 
-@Transactional
+    @Transactional
     public void deleteMaterialGroup(Integer id) {
 
         MaterialGroup materialGroup = materialGroupRepository.findById(id).orElseThrow(() -> new RuntimeException("Material Group not found"));
@@ -72,9 +74,7 @@ public class MaterialGroupService {
     }
 
 
-
-
-    public MaterialDescription convertToMaterialDescription(MaterialDescriptionDTO materialDescriptionDTO){
+    public MaterialDescription convertToMaterialDescription(MaterialDescriptionDTO materialDescriptionDTO) {
         return MaterialDescription.builder()
                 .id(materialDescriptionDTO.getId())
                 .name(materialDescriptionDTO.getName())

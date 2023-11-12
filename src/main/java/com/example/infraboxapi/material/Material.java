@@ -51,7 +51,6 @@ public class Material {
     private List<MaterialPriceHistory> materialPriceHistoryList;
 
 
-
     @PreUpdate
     public void preUpdate() {
         LocalDateTime now = LocalDateTime.now();

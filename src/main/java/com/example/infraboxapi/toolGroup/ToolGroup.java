@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name="_tool_group")
+@Table(name = "_tool_group")
 public class ToolGroup {
 
     @Id

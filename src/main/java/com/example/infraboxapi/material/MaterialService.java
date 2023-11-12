@@ -50,8 +50,8 @@ public class MaterialService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         MaterialPriceHistory materialPriceHistory = MaterialPriceHistory.builder()
-                        .price(materialDTO.getPricePerKg())
-                        .date(currentDateTime.format(formatter)).
+                .price(materialDTO.getPricePerKg())
+                .date(currentDateTime.format(formatter)).
 
                 build();
 
@@ -62,14 +62,16 @@ public class MaterialService {
 
         materialGroupRepository.save(materialGroup);
 
-        notificationService.createAndSendNotification(    "A new material, '" + newMaterial.getName() + "', has been added successfully.", NotificationDescription.MaterialAdded);
+        notificationService.createAndSendNotification("A new material, '" + newMaterial.getName() + "', has been added successfully.", NotificationDescription.MaterialAdded);
     }
+
     @Transactional
     public void deleteMaterial(Integer id) {
         String materialName = materialRepository.findById(id).orElseThrow(() -> new RuntimeException("Material not found")).getName();
         materialRepository.deleteById(id);
-        notificationService.createAndSendNotification(    "The material '" + materialName + "' has been successfully deleted.", NotificationDescription.MaterialDeleted);
+        notificationService.createAndSendNotification("The material '" + materialName + "' has been successfully deleted.", NotificationDescription.MaterialDeleted);
     }
+
     @Transactional
     public void updateMaterial(MaterialDTO materialDTO) {
 
@@ -79,7 +81,7 @@ public class MaterialService {
 
         //Check if pricePerKg is changed, if yes, add new price to history, if not, do nothing, just update the material
 
-        if(material.getPricePerKg().compareTo(materialDTO.getPricePerKg()) != 0){
+        if (material.getPricePerKg().compareTo(materialDTO.getPricePerKg()) != 0) {
             LocalDateTime currentDateTime = LocalDateTime.now();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -87,7 +89,7 @@ public class MaterialService {
                     .price(materialDTO.getPricePerKg())
                     .date(currentDateTime.format(formatter)).
 
-                            build();
+                    build();
 
             material.getMaterialPriceHistoryList().add(materialPriceHistory);
         }
@@ -108,6 +110,6 @@ public class MaterialService {
 
         materialRepository.save(material);
 
-        notificationService.createAndSendNotification(    "The material '" + material.getName() + "' has been successfully updated.", NotificationDescription.MaterialUpdated);
+        notificationService.createAndSendNotification("The material '" + material.getName() + "' has been successfully updated.", NotificationDescription.MaterialUpdated);
     }
 }

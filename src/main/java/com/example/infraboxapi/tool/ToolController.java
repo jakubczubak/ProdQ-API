@@ -22,42 +22,42 @@ public class ToolController {
 
 
     @PostMapping("/create")
-    public ResponseEntity<String> createTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult){
+    public ResponseEntity<String> createTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
         }
 
-        try{
+        try {
             toolService.createTool(toolDTO);
             return ResponseEntity.ok("Tool created");
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating tool: " + e.getMessage());
         }
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult){
+    public ResponseEntity<String> updateTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
         }
 
-        try{
+        try {
             toolService.updateTool(toolDTO);
             return ResponseEntity.ok("Tool updated");
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating tool: " + e.getMessage());
         }
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteTool(@PathVariable Integer id){
+    public ResponseEntity<String> deleteTool(@PathVariable Integer id) {
 
-        try{
+        try {
             toolService.deleteTool(id);
             return ResponseEntity.ok("Tool deleted");
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting tool: " + e.getMessage());
         }
     }

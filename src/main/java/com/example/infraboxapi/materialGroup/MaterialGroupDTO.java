@@ -21,7 +21,7 @@ import java.util.List;
 
 public class MaterialGroupDTO {
 
-        private Integer id;
+    private Integer id;
     @NotBlank(message = "Field 'name' cannot be blank")
     @Size(min = 2, max = 100, message = "Field 'name' must have a length between 2 and 100 characters")
     private String name;

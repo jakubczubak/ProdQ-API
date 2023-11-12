@@ -23,64 +23,64 @@ public class MaterialGroupController {
 
 
     @PostMapping("/create")
-    public ResponseEntity<String> createMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult  bindingResult){
+    public ResponseEntity<String> createMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
         }
 
-        try{
+        try {
             materialGroupService.createMaterialGroup(materialGroupDTO);
             return ResponseEntity.ok("Material Group created");
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating material group: " + e.getMessage());
         }
 
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult  bindingResult){
+    public ResponseEntity<String> updateMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
         }
 
-        try{
+        try {
             materialGroupService.updateMaterialGroup(materialGroupDTO);
             return ResponseEntity.ok("Material Group updated");
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating material group: " + e.getMessage());
         }
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteMaterialGroup(@PathVariable Integer id){
+    public ResponseEntity<String> deleteMaterialGroup(@PathVariable Integer id) {
 
-        try{
+        try {
             materialGroupService.deleteMaterialGroup(id);
             return ResponseEntity.ok("Material Group deleted");
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material group: " + e.getMessage());
         }
     }
 
     @GetMapping("/get/{id}")
-    public ResponseEntity<MaterialGroup> getMaterialGroup(@PathVariable Integer id){
+    public ResponseEntity<MaterialGroup> getMaterialGroup(@PathVariable Integer id) {
 
 
-        try{
+        try {
             return ResponseEntity.ok(materialGroupService.getMaterialGroup(id));
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/get")
-    public ResponseEntity<Iterable<MaterialGroup>> getMaterialGroups(){
+    public ResponseEntity<Iterable<MaterialGroup>> getMaterialGroups() {
 
-        try{
+        try {
             return ResponseEntity.ok(materialGroupService.getMaterialGroups());
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

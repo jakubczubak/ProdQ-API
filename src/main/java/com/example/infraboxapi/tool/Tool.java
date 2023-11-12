@@ -16,7 +16,7 @@ import java.time.format.DateTimeFormatter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name="_tool")
+@Table(name = "_tool")
 public class Tool {
 
     @Id
