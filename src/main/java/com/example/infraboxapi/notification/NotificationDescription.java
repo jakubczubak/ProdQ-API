@@ -1,5 +1,7 @@
 package com.example.infraboxapi.notification;
 
+import com.example.infraboxapi.calculation.Calculation;
+import com.example.infraboxapi.departmentCost.DepartmentCost;
 import lombok.Getter;
 
 @Getter
@@ -23,7 +25,14 @@ public enum NotificationDescription {
 
     ToolAdded("NEW TOOL ADDED"),
     ToolUpdated("TOOL UPDATED"),
-    ToolDeleted("TOOL DELETED");
+    ToolDeleted("TOOL DELETED"),
+
+    DepartmentCostUpdated("DEPARTMENT COST UPDATED"),
+
+    CalculationAdded("NEW CALCULATION ADDED"),
+    CalculationUpdated("CALCULATION UPDATED"),
+    CalculationDeleted("CALCULATION DELETED");
+
 
     private final String description;
 

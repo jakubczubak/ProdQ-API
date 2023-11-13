@@ -1,7 +1,10 @@
 package com.example.infraboxapi.departmentCost;
 
 
+import com.example.infraboxapi.notification.NotificationDescription;
+import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.user.UserService;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +17,7 @@ public class DepartmentCostService {
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private final DepartmentCostRepository departmentCostRepository;
+    private final NotificationService notificationService;
 
 
     public void createDefaultDepartmentCost() {
@@ -39,6 +43,7 @@ public class DepartmentCostService {
         return departmentCostRepository.findById(1).orElseThrow(() -> new RuntimeException("Department cost not found"));
     }
 
+    @Transactional
     public void updateDepartmentCost(DepartmentCostDTO departmentCostDTO) {
 
         DepartmentCost departmentCost = departmentCostRepository.findById(1).orElseThrow(() -> new RuntimeException("Department cost not found"));
@@ -57,5 +62,6 @@ public class DepartmentCostService {
 
         departmentCostRepository.save(departmentCost);
         logger.info("Department cost updated successfully :)");
+        notificationService.createAndSendNotification("Department cost has been successfully  updated :)", NotificationDescription.DepartmentCostUpdated);
     }
 }
