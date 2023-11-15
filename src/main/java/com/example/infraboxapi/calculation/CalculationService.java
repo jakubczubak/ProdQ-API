@@ -75,8 +75,5 @@ public class CalculationService {
         notificationService.createAndSendNotification("Calculation " + calculation.getCalculationName() + " has been deleted successfully.", NotificationDescription.CalculationDeleted);
     }
 
-    public Calculation getCalculation(Integer id) {
-
-        return calculationRepository.findById(id).orElseThrow(() -> new RuntimeException("Calculation not found"));
-    }
+  
 }

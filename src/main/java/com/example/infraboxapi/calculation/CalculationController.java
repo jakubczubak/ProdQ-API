@@ -1,9 +1,12 @@
 package com.example.infraboxapi.calculation;
 
 
+import com.example.infraboxapi.notification.NotificationService;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +18,7 @@ import java.util.List;
 public class CalculationController {
 
     private final CalculationService calculationService;
+    ;
 
 
     @GetMapping("/all")
@@ -27,7 +31,11 @@ public class CalculationController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<String> addCalculation(@RequestBody CalculationDTO calculationDTO) {
+    public ResponseEntity<String> addCalculation(@Valid @RequestBody CalculationDTO calculationDTO, BindingResult bindingResult) {
+
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+        }
         try {
             calculationService.addCalculation(calculationDTO);
             return ResponseEntity.ok("Calculation added");
@@ -37,7 +45,11 @@ public class CalculationController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateCalculation(@RequestBody CalculationDTO calculationDTO) {
+    public ResponseEntity<String> updateCalculation(@Valid @RequestBody CalculationDTO calculationDTO, BindingResult bindingResult) {
+
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+        }
         try {
             calculationService.updateCalculation(calculationDTO);
             return ResponseEntity.ok("Calculation updated");
@@ -56,13 +68,6 @@ public class CalculationController {
         }
     }
 
-    @GetMapping("/get/{id}")
-    public ResponseEntity<Calculation> getCalculation(@PathVariable Integer id) {
-        try {
-            return ResponseEntity.ok(calculationService.getCalculation(id));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
+
 }
 

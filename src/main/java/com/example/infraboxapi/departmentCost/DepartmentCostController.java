@@ -1,9 +1,11 @@
 package com.example.infraboxapi.departmentCost;
 
 
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -27,8 +29,11 @@ public class DepartmentCostController {
 
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateDepartmentCost(@RequestBody DepartmentCostDTO departmentCostDTO) {
+    public ResponseEntity<String> updateDepartmentCost(@Valid @RequestBody DepartmentCostDTO departmentCostDTO, BindingResult bindingResult) {
 
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+        }
         try {
             departmentCostService.updateDepartmentCost(departmentCostDTO);
             return ResponseEntity.ok("Department Cost updated");
