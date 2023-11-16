@@ -1,6 +1,7 @@
 package com.example.infraboxapi.orderItem;
 
 import com.example.infraboxapi.material.Material;
+import com.example.infraboxapi.tool.Tool;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +21,10 @@ public class OrderItem {
     private Integer id;
     private String name;
     private Integer quantity;
-    private String itemType;
-    private Integer itemID;
+    @OneToOne
+    private Material material;
+    @OneToOne
+    private Tool tool;
+
 
 }
