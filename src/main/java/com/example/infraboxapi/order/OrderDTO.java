@@ -2,6 +2,7 @@ package com.example.infraboxapi.order;
 
 
 import com.example.infraboxapi.orderItem.OrderItem;
+import com.example.infraboxapi.orderItem.OrderItemDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,6 +24,6 @@ public class OrderDTO {
     private boolean isAddedToWarehouse;
     private boolean isQuantityInTransportSet;
     private double totalPrice;
-    private List<OrderItem> orderItems;
+    private List<OrderItemDTO> orderItems;
 
 }
