@@ -21,9 +21,9 @@ public class OrderItem {
     private Integer id;
     private String name;
     private Integer quantity;
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     private Material material;
-    @ManyToOne
+    @ManyToOne(cascade = CascadeType.ALL)
     private Tool tool;
 
 

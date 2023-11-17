@@ -30,7 +30,7 @@ public class Order {
     private boolean isQuantityInTransportSet;
     private double totalPrice;
 
-    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true, targetEntity = OrderItem.class)
+    @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "order_id")
     private List<OrderItem> orderItems;
 }
