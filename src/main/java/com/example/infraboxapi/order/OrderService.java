@@ -4,7 +4,9 @@ import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.orderItem.OrderItem;
 import com.example.infraboxapi.orderItem.OrderItemDTO;
+import com.example.infraboxapi.orderItem.OrderItemRepository;
 import com.example.infraboxapi.tool.ToolRepository;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,7 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final MaterialRepository materialRepository;
     private final ToolRepository toolRepository;
     private final NotificationService notificationService;
@@ -24,22 +27,23 @@ public class OrderService {
         return orderRepository.findAll();
     }
 
+    @Transactional
     public void addOrder(OrderDTO orderDTO) {
 
 
-        System.out.println(orderDTO);
 
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (OrderItemDTO orderItemDTO : orderDTO.getOrderItems()) {
             OrderItem orderItem = OrderItem.builder()
-
                     .name(orderItemDTO.getName())
                     .quantity(orderItemDTO.getQuantity())
                     .material(materialRepository.findById(orderItemDTO.getItemID()).orElse(null))
                     .tool(toolRepository.findById(orderItemDTO.getItemID()).orElse(null))
                     .build();
+
             orderItems.add(orderItem);
+
         }
 
         Order order = Order.builder()

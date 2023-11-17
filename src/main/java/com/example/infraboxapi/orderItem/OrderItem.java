@@ -17,13 +17,13 @@ import lombok.NoArgsConstructor;
 public class OrderItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy =GenerationType.IDENTITY)
     private Integer id;
     private String name;
     private Integer quantity;
-    @OneToOne
+    @ManyToOne
     private Material material;
-    @OneToOne
+    @ManyToOne
     private Tool tool;
 
 
