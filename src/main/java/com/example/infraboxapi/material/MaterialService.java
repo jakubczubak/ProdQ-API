@@ -112,4 +112,6 @@ public class MaterialService {
 
         notificationService.createAndSendNotification("The material '" + material.getName() + "' has been successfully updated.", NotificationDescription.MaterialUpdated);
     }
+
+
 }

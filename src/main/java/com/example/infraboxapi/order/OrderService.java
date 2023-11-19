@@ -35,14 +35,30 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (OrderItemDTO orderItemDTO : orderDTO.getOrderItems()) {
-            OrderItem orderItem = OrderItem.builder()
-                    .name(orderItemDTO.getName())
-                    .quantity(orderItemDTO.getQuantity())
-                    .material(materialRepository.findById(orderItemDTO.getItemID()).orElse(null))
-                    .tool(toolRepository.findById(orderItemDTO.getItemID()).orElse(null))
-                    .build();
 
-            orderItems.add(orderItem);
+
+            if(orderItemDTO.getItemType().equals("tool")){
+                OrderItem orderItem = OrderItem.builder()
+                        .name(orderItemDTO.getName())
+                        .quantity(orderItemDTO.getQuantity())
+                        .material(null)
+                        .tool(toolRepository.findById(orderItemDTO.getItemID()).orElse(null))
+                        .build();
+
+                orderItems.add(orderItem);
+            }else{
+                OrderItem orderItem = OrderItem.builder()
+                        .name(orderItemDTO.getName())
+                        .quantity(orderItemDTO.getQuantity())
+                        .material(materialRepository.findById(orderItemDTO.getItemID()).orElse(null))
+                        .tool(null)
+                        .build();
+
+                orderItems.add(orderItem);
+            }
+
+
+
 
         }
 

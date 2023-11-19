@@ -28,6 +28,7 @@ public class OrderController {
     @PostMapping("/add")
     public ResponseEntity<String> addOrder(@RequestBody OrderDTO orderDTO) {
 
+        System.out.println(orderDTO);
         try{
             orderService.addOrder(orderDTO);
             return ResponseEntity.ok("Order created successfully");
