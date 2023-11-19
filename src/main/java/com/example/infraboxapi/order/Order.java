@@ -26,8 +26,6 @@ public class Order {
     private String status;
     private String supplierEmail;
     private String supplierMessage;
-    private boolean isAddedToWarehouse;
-    private boolean isQuantityInTransportSet;
     private double totalPrice;
 
     @OneToMany(cascade = CascadeType.ALL)

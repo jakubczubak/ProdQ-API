@@ -1,10 +1,12 @@
 package com.example.infraboxapi.order;
+import com.example.infraboxapi.material.Material;
 import com.example.infraboxapi.material.MaterialRepository;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.orderItem.OrderItem;
 import com.example.infraboxapi.orderItem.OrderItemDTO;
 import com.example.infraboxapi.orderItem.OrderItemRepository;
+import com.example.infraboxapi.tool.Tool;
 import com.example.infraboxapi.tool.ToolRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -68,8 +71,6 @@ public class OrderService {
                 .status(orderDTO.getStatus())
                 .supplierEmail(orderDTO.getSupplierEmail())
                 .supplierMessage(orderDTO.getSupplierMessage())
-                .isAddedToWarehouse(false)
-                .isQuantityInTransportSet(false)
                 .totalPrice(orderDTO.getTotalPrice())
                 .orderItems(orderItems)
                 .build();
@@ -82,4 +83,37 @@ public class OrderService {
 
 
     }
+
+    public void deleteOrder(Integer id) {
+        setQuantityInTransportToZero(id);
+        orderRepository.deleteById(id);
+    }
+
+    public void setQuantityInTransportToZero(Integer id) {
+        Optional<Order> orderOptional = orderRepository.findById(id);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            for (OrderItem orderItem : order.getOrderItems()) {
+                if (orderItem.getMaterial() != null) {
+                    Material material = materialRepository.findById(orderItem.getMaterial().getId()).orElse(null);
+
+                    if (material != null) {
+                        material.setQuantityInTransit(0);
+                        materialRepository.save(material);
+                    }
+                } else if (orderItem.getTool() != null) {
+
+                    Tool tool = toolRepository.findById(orderItem.getTool().getId()).orElse(null);
+
+                    if (tool != null) {
+                        tool.setQuantityInTransit(0);
+                        toolRepository.save(tool);
+                    }
+                }
+            }
+        }
+    }
+
 }

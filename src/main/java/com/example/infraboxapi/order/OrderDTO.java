@@ -21,8 +21,6 @@ public class OrderDTO {
     private String status;
     private String supplierEmail;
     private String supplierMessage;
-    private boolean isAddedToWarehouse;
-    private boolean isQuantityInTransportSet;
     private double totalPrice;
     private List<OrderItemDTO> orderItems;
 

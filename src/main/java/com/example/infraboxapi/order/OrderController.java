@@ -36,4 +36,14 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<String> deleteOrder(@PathVariable Integer id) {
+        try{
+            orderService.deleteOrder(id);
+            return ResponseEntity.ok("Order deleted successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }
