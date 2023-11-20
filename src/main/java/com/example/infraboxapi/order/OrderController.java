@@ -28,7 +28,6 @@ public class OrderController {
     @PostMapping("/add")
     public ResponseEntity<String> addOrder(@RequestBody OrderDTO orderDTO) {
 
-        System.out.println(orderDTO);
         try{
             orderService.addOrder(orderDTO);
             return ResponseEntity.ok("Order created successfully");
@@ -45,5 +44,17 @@ public class OrderController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
+    }
+
+    @PostMapping("/update")
+    public void updateOrder(@RequestBody OrderDTO orderDTO) {
+
+        System.out.println(orderDTO);
+//        try{
+//            orderService.updateOrder(orderDTO);
+//            return ResponseEntity.ok("Order updated successfully");
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+//        }
     }
 }
