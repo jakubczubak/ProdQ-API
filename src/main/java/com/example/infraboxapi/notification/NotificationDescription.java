@@ -34,7 +34,8 @@ public enum NotificationDescription {
     CalculationDeleted("CALCULATION DELETED"),
 
     OrderAdded("NEW ORDER ADDED"),
-    OrderDeleted("ORDER DELETED");
+    OrderDeleted("ORDER DELETED"),
+    OrderUpdated("ORDER UPDATED");
 
 
     private final String description;

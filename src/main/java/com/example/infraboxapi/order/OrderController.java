@@ -46,15 +46,14 @@ public class OrderController {
         }
     }
 
-    @PostMapping("/update")
-    public void updateOrder(@RequestBody OrderDTO orderDTO) {
+    @PutMapping("/update")
+    public ResponseEntity<String> updateOrder(@RequestBody Order order) {
 
-        System.out.println(orderDTO);
-//        try{
-//            orderService.updateOrder(orderDTO);
-//            return ResponseEntity.ok("Order updated successfully");
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-//        }
+        try{
+            orderService.updateOrder(order);
+            return ResponseEntity.ok("Order updated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }
