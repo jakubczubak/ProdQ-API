@@ -46,6 +46,8 @@ public class OrderService {
                 .supplierMessage(orderDTO.getSupplierMessage())
                 .totalPrice(orderDTO.getTotalPrice())
                 .orderItems(orderItems)
+                .externalQuantityUpdated(false)
+                .transitQuantitySet(false)
                 .build();
 
         orderRepository.save(order);
@@ -74,8 +76,8 @@ public class OrderService {
 
         if (orderOptional.isPresent()) {
             Order order = orderOptional.get();
-            if ("on the way".equals(order.getStatus())) {
-                updateQuantityInTransport(id);
+            if (order.isTransitQuantitySet() && "on the way".equals(order.getStatus())) {
+               deleteQuantityInTransport(id);
             }
             orderItemRepository.deleteAll(order.getOrderItems());
             orderRepository.deleteById(id);
@@ -86,7 +88,51 @@ public class OrderService {
 
     }
 
-    public void updateQuantityInTransport(Integer id) {
+
+    @Transactional
+    public void updateOrder(Order order) {
+
+        Optional<Order> orderOptional = orderRepository.findById(order.getId());
+
+        if(orderOptional.isPresent()){
+            if("pending".equals(order.getStatus())) {
+
+                if(orderOptional.get().isTransitQuantitySet()){
+                    deleteQuantityInTransport(order.getId());
+                }
+
+                orderOptional.get().setStatus(order.getStatus());
+                orderOptional.get().setExternalQuantityUpdated(false);
+                orderOptional.get().setTransitQuantitySet(false);
+                orderRepository.save(orderOptional.get());
+
+            }else if("on the way".equals(order.getStatus())) {
+
+                if(!orderOptional.get().isTransitQuantitySet()){
+                    updateQuantityInTransit(order.getId());
+                }
+
+                orderOptional.get().setStatus(order.getStatus());
+                orderOptional.get().setExternalQuantityUpdated(false);
+                orderOptional.get().setTransitQuantitySet(true);
+                orderRepository.save(orderOptional.get());
+
+            }else if("delivered".equals(order.getStatus())) {
+
+                if(!orderOptional.get().isExternalQuantityUpdated()){
+                    updateExternalQuantity(order.getId());
+                }
+
+                orderOptional.get().setStatus(order.getStatus());
+                orderOptional.get().setExternalQuantityUpdated(true);
+                deleteQuantityInTransport(order.getId());
+                orderRepository.save(orderOptional.get());
+            }
+        }
+    }
+
+
+    public void deleteQuantityInTransport(Integer id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
 
         if (orderOptional.isPresent()) {
@@ -97,11 +143,7 @@ public class OrderService {
                     Material material = materialRepository.findById(orderItem.getMaterial().getId()).orElse(null);
 
                     if (material != null) {
-                        if(material.getQuantityInTransit() - orderItem.getQuantity() < 0){
-                            material.setQuantityInTransit(0);
-                        }else{
-                            material.setQuantityInTransit(material.getQuantityInTransit() - orderItem.getQuantity());
-                        }
+                        material.setQuantityInTransit(Math.max(material.getQuantityInTransit() - orderItem.getQuantity(), 0));
 
                         materialRepository.save(material);
                     }
@@ -123,24 +165,9 @@ public class OrderService {
         }
     }
 
-    @Transactional
-    public void updateOrder(Order order) {
-        if("on the way".equals(order.getStatus())){
-            updateQuantityInTransitToolAndMaterial(order.getId());
-        }else if("delivered".equals(order.getStatus())){
-            updateQuantityToolAndMaterial(order.getId());
-        }
-
-        Order oldOrder = orderRepository.findById(order.getId()).orElse(null);
-
-        oldOrder.setStatus(order.getStatus());
 
 
-        orderRepository.save(oldOrder);
-        notificationService.createAndSendNotification("Order " + order.getName() + " has been updated.", NotificationDescription.OrderUpdated);
-    }
-
-    private void updateQuantityInTransitToolAndMaterial(Integer id) {
+    private void updateQuantityInTransit(Integer id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
 
         if (orderOptional.isPresent()) {
@@ -169,7 +196,7 @@ public class OrderService {
         }
     }
 
-    private void updateQuantityToolAndMaterial(Integer id) {
+    private void updateExternalQuantity(Integer id) {
         Optional<Order> orderOptional = orderRepository.findById(id);
 
         if (orderOptional.isPresent()) {

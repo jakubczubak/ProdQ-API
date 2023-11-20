@@ -27,6 +27,9 @@ public class Order {
     private String supplierEmail;
     private String supplierMessage;
     private double totalPrice;
+    private boolean externalQuantityUpdated;
+    private boolean transitQuantitySet;
+
 
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "order_id")
