@@ -16,4 +16,8 @@ public class RecyclingItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+    private String name;
+    private String quantity; //kg
+    private String pricePerKg;
+    private String totalPrice;
 }
