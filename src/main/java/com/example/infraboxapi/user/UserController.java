@@ -1,4 +1,5 @@
 package com.example.infraboxapi.user;
+
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,10 +15,8 @@ public class UserController {
     private final UserService userService;
 
 
-
-
     @PostMapping("/register")
-    public String register(@RequestBody UserDTO userDTO){
+    public String register(@RequestBody UserDTO userDTO) {
         userService.createUser(userDTO);
 
         return "User created";
@@ -26,9 +25,9 @@ public class UserController {
     @GetMapping("/userData")
     public ResponseEntity<UserDTO> getUserInfo() {
 
-        try{
+        try {
             return userService.getUserInfo();
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

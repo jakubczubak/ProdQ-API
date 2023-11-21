@@ -31,8 +31,6 @@ public class User implements UserDetails {
     private String password;
 
 
-
-
     @Enumerated(EnumType.STRING)
     private Role role;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
@@ -51,7 +49,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return  true;
+        return true;
     }
 
     @Override

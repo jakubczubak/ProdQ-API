@@ -53,7 +53,7 @@ public class ToolService {
 
         toolGroupRepository.save(toolGroup);
 
-        notificationService.createAndSendNotification("Tool " + toolDTO.getName() + " created", NotificationDescription.ToolAdded);
+        notificationService.createAndSendNotification("Tool '" + toolDTO.getName() + "' created", NotificationDescription.ToolAdded);
     }
 
     @Transactional
@@ -61,7 +61,7 @@ public class ToolService {
 
         String toolName = toolRepository.findById(id).orElseThrow(() -> new RuntimeException("Tool not found")).getName();
         toolRepository.deleteById(id);
-        notificationService.createAndSendNotification("Tool " + toolName + " deleted", NotificationDescription.ToolDeleted);
+        notificationService.createAndSendNotification("Tool '" + toolName + "' deleted", NotificationDescription.ToolDeleted);
 
     }
 
@@ -86,7 +86,7 @@ public class ToolService {
 
         toolRepository.save(tool);
 
-        notificationService.createAndSendNotification("Tool " + toolDTO.getName() + " has been successfully updated", NotificationDescription.ToolUpdated);
+        notificationService.createAndSendNotification("Tool '" + toolDTO.getName() + "' has been successfully updated", NotificationDescription.ToolUpdated);
     }
 
 

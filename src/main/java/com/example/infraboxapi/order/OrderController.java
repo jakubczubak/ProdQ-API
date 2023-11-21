@@ -18,7 +18,7 @@ public class OrderController {
 
     @GetMapping("/all")
     public ResponseEntity<List<Order>> getAllOrders() {
-        try{
+        try {
             return ResponseEntity.ok(orderService.getAllOrders());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
@@ -28,7 +28,7 @@ public class OrderController {
     @PostMapping("/add")
     public ResponseEntity<String> addOrder(@RequestBody OrderDTO orderDTO) {
 
-        try{
+        try {
             orderService.addOrder(orderDTO);
             return ResponseEntity.ok("Order created successfully");
         } catch (Exception e) {
@@ -38,7 +38,7 @@ public class OrderController {
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteOrder(@PathVariable Integer id) {
-        try{
+        try {
             orderService.deleteOrder(id);
             return ResponseEntity.ok("Order deleted successfully");
         } catch (Exception e) {
@@ -49,7 +49,7 @@ public class OrderController {
     @PutMapping("/update")
     public ResponseEntity<String> updateOrder(@RequestBody Order order) {
 
-        try{
+        try {
             orderService.updateOrder(order);
             return ResponseEntity.ok("Order updated successfully");
         } catch (Exception e) {

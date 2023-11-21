@@ -28,14 +28,20 @@ public class UserService {
     private static final String ROOT_PASSWORD = "root";
 
     @Transactional
-    public void createRootUser(){
+    public void createRootUser() {
 
-        if(checkIfEmailExist(ROOT_EMAIL)){
+        if (checkIfEmailExist(ROOT_EMAIL)) {
             logger.info("Root user already exists!");
-        }else{
+        } else {
 
             User user = User.builder().
                     password(passwordEncoder.encode(ROOT_PASSWORD)).role(Role.ADMIN).email(ROOT_EMAIL).firstName("root").lastName("root").notifications(new ArrayList<>()).build();
+
+
+            User user2 = User.builder().
+                    password(passwordEncoder.encode("kuba")).role(Role.ADMIN).email("jczu@inframet.com").firstName("Jakub").lastName("Czubak").notifications(new ArrayList<>()).build();
+
+
             Notification notification = Notification.builder().user(user).author("Jakub Czubak").title("Dodawanie materiałów").isRead(false).description("Uzytkownik XYZ dodał nowy materiał...").build();
             Notification notification2 = Notification.builder().user(user).author("Jakub Czubak").title("Dodawanie narzędzi").isRead(false).description("Użytkownik xYZ dodał nowe narzędzie...").build();
             Notification notification3 = Notification.builder().user(user).author("Jakub Czubak").title("Usuwanie materiałów").isRead(true).description("Użytkownik XYZ usunął następujący material...").build();
@@ -44,6 +50,7 @@ public class UserService {
             user.getNotifications().add(notification2);
             user.getNotifications().add(notification3);
             userRepository.save(user);
+            userRepository.save(user2);
             logger.info("Root user created successfully :)");
         }
     }
@@ -73,7 +80,6 @@ public class UserService {
     }
 
 
-
     public void updateUser(Integer id, UserDTO userDTO) {
         User user = userRepository.findById(id).orElseThrow();
         user.setFirstName(userDTO.getFirstName());
@@ -84,9 +90,8 @@ public class UserService {
     }
 
 
-    public ResponseEntity<UserDTO> getUserInfo(){
+    public ResponseEntity<UserDTO> getUserInfo() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
 
 
         if (authentication.getPrincipal() instanceof User user) {
@@ -111,7 +116,7 @@ public class UserService {
         }
     }
 
-    public Integer getUserId(){
+    public Integer getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication.getPrincipal() instanceof User user) {
             return user.getId();

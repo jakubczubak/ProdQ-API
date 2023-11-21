@@ -1,4 +1,5 @@
 package com.example.infraboxapi.order;
+
 import com.example.infraboxapi.material.Material;
 import com.example.infraboxapi.material.MaterialRepository;
 import com.example.infraboxapi.notification.NotificationDescription;
@@ -11,6 +12,7 @@ import com.example.infraboxapi.tool.ToolRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +26,7 @@ public class OrderService {
     private final MaterialRepository materialRepository;
     private final ToolRepository toolRepository;
     private final NotificationService notificationService;
+
     public List<Order> getAllOrders() {
 
         return orderRepository.findAll();
@@ -52,7 +55,7 @@ public class OrderService {
 
         orderRepository.save(order);
 
-        notificationService.createAndSendNotification("Order " + order.getName() + " has been added.", NotificationDescription.OrderAdded);
+        notificationService.createAndSendNotification("Order '" + order.getName() + "' has been added.", NotificationDescription.OrderAdded);
     }
 
     private OrderItem createOrderItemFromDTO(OrderItemDTO orderItemDTO) {
@@ -77,13 +80,12 @@ public class OrderService {
         if (orderOptional.isPresent()) {
             Order order = orderOptional.get();
             if (order.isTransitQuantitySet() && "on the way".equals(order.getStatus())) {
-               deleteQuantityInTransport(id);
+                deleteQuantityInTransport(id);
             }
             orderItemRepository.deleteAll(order.getOrderItems());
             orderRepository.deleteById(id);
-            notificationService.createAndSendNotification("Order  " + order.getName() + " has been deleted.", NotificationDescription.OrderDeleted);
+            notificationService.createAndSendNotification("Order  '" + order.getName() + "' has been deleted.", NotificationDescription.OrderDeleted);
         }
-
 
 
     }
@@ -94,10 +96,10 @@ public class OrderService {
 
         Optional<Order> orderOptional = orderRepository.findById(order.getId());
 
-        if(orderOptional.isPresent()){
-            if("pending".equals(order.getStatus())) {
+        if (orderOptional.isPresent()) {
+            if ("pending".equals(order.getStatus())) {
 
-                if(orderOptional.get().isTransitQuantitySet()){
+                if (orderOptional.get().isTransitQuantitySet()) {
                     deleteQuantityInTransport(order.getId());
                 }
 
@@ -106,9 +108,9 @@ public class OrderService {
                 orderOptional.get().setTransitQuantitySet(false);
                 orderRepository.save(orderOptional.get());
 
-            }else if("on the way".equals(order.getStatus())) {
+            } else if ("on the way".equals(order.getStatus())) {
 
-                if(!orderOptional.get().isTransitQuantitySet()){
+                if (!orderOptional.get().isTransitQuantitySet()) {
                     updateQuantityInTransit(order.getId());
                 }
 
@@ -117,9 +119,11 @@ public class OrderService {
                 orderOptional.get().setTransitQuantitySet(true);
                 orderRepository.save(orderOptional.get());
 
-            }else if("delivered".equals(order.getStatus())) {
+                notificationService.createAndSendNotification("Order '" + order.getName() + " " + order.getDate() + "' is on the way. Check virtual magazine.", NotificationDescription.OrderOnTheWay);
 
-                if(!orderOptional.get().isExternalQuantityUpdated()){
+            } else if ("delivered".equals(order.getStatus())) {
+
+                if (!orderOptional.get().isExternalQuantityUpdated()) {
                     updateExternalQuantity(order.getId());
                 }
 
@@ -127,6 +131,8 @@ public class OrderService {
                 orderOptional.get().setExternalQuantityUpdated(true);
                 deleteQuantityInTransport(order.getId());
                 orderRepository.save(orderOptional.get());
+
+                notificationService.createAndSendNotification("Order '" + order.getName() + " " + order.getDate() + "' has been delivered. Check virtual magazine.", NotificationDescription.OrderDelivered);
             }
         }
     }
@@ -152,9 +158,9 @@ public class OrderService {
                     Tool tool = toolRepository.findById(orderItem.getTool().getId()).orElse(null);
 
                     if (tool != null) {
-                        if(tool.getQuantityInTransit() - orderItem.getQuantity() < 0){
+                        if (tool.getQuantityInTransit() - orderItem.getQuantity() < 0) {
                             tool.setQuantityInTransit(0);
-                        }else{
+                        } else {
                             tool.setQuantityInTransit(tool.getQuantityInTransit() - orderItem.getQuantity());
                         }
 
@@ -164,7 +170,6 @@ public class OrderService {
             }
         }
     }
-
 
 
     private void updateQuantityInTransit(Integer id) {
