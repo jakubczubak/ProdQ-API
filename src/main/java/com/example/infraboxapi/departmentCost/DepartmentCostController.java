@@ -1,6 +1,7 @@
 package com.example.infraboxapi.departmentCost;
 
 
+import com.example.infraboxapi.common.CommonService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class DepartmentCostController {
 
     private final DepartmentCostService departmentCostService;
+    private final CommonService commonService;
 
 
     @GetMapping("/get")
@@ -31,9 +33,7 @@ public class DepartmentCostController {
     @PutMapping("/update")
     public ResponseEntity<String> updateDepartmentCost(@Valid @RequestBody DepartmentCostDTO departmentCostDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonService.handleBindingResult(bindingResult);
         try {
             departmentCostService.updateDepartmentCost(departmentCostDTO);
             return ResponseEntity.ok("Department Cost updated");

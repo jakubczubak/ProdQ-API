@@ -1,6 +1,7 @@
 package com.example.infraboxapi.materialGroup;
 
 
+import com.example.infraboxapi.common.CommonService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,14 +21,12 @@ import java.util.Map;
 public class MaterialGroupController {
 
     private final MaterialGroupService materialGroupService;
-
+    private final CommonService commonService;
 
     @PostMapping("/create")
     public ResponseEntity<String> createMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonService.handleBindingResult(bindingResult);
 
         try {
             materialGroupService.createMaterialGroup(materialGroupDTO);
@@ -41,9 +40,7 @@ public class MaterialGroupController {
     @PutMapping("/update")
     public ResponseEntity<String> updateMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonService.handleBindingResult(bindingResult);
 
         try {
             materialGroupService.updateMaterialGroup(materialGroupDTO);

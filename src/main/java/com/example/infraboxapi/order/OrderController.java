@@ -1,11 +1,15 @@
 package com.example.infraboxapi.order;
 
 
+import com.example.infraboxapi.common.CommonService;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -15,6 +19,7 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
+    private final CommonService commonService;
 
     @GetMapping("/all")
     public ResponseEntity<List<Order>> getAllOrders() {
@@ -26,7 +31,9 @@ public class OrderController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<String> addOrder(@RequestBody OrderDTO orderDTO) {
+    public ResponseEntity<String> addOrder(@Valid @RequestBody OrderDTO orderDTO, BindingResult bindingResult) {
+
+        commonService.handleBindingResult(bindingResult);
 
         try {
             orderService.addOrder(orderDTO);

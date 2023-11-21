@@ -1,5 +1,6 @@
 package com.example.infraboxapi.toolGroup;
 
+import com.example.infraboxapi.common.CommonService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,7 +17,7 @@ import java.util.List;
 public class ToolGroupController {
 
     private final ToolGroupService toolGroupService;
-
+    private final CommonService commonService;
     @GetMapping("/get")
     public ResponseEntity<List<ToolGroup>> getToolGroups() {
         try {
@@ -29,9 +30,8 @@ public class ToolGroupController {
     @PutMapping("/update")
     public ResponseEntity<String> updateToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonService.handleBindingResult(bindingResult);
+
         try {
             toolGroupService.updateToolGroup(toolGroupDTO);
             return ResponseEntity.ok("Tool Group updated");
@@ -43,9 +43,7 @@ public class ToolGroupController {
     @PostMapping("/create")
     public ResponseEntity<String> createToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonService.handleBindingResult(bindingResult);
         try {
             toolGroupService.createToolGroup(toolGroupDTO);
             return ResponseEntity.ok("Tool Group created");

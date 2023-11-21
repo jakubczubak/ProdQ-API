@@ -1,5 +1,6 @@
 package com.example.infraboxapi.material;
 
+import com.example.infraboxapi.common.CommonService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,13 +15,12 @@ import org.springframework.web.bind.annotation.*;
 public class MaterialController {
 
     private final MaterialService materialService;
+    private final CommonService commonSerivce;
 
     @PostMapping("/create")
     public ResponseEntity<String> createMaterial(@Valid @RequestBody MaterialDTO materialDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonSerivce.handleBindingResult(bindingResult);
 
         try {
             materialService.createMaterial(materialDTO);
@@ -33,9 +33,7 @@ public class MaterialController {
     @PutMapping("/update")
     public ResponseEntity<String> updateMaterial(@Valid @RequestBody MaterialDTO materialDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonSerivce.handleBindingResult(bindingResult);
 
         try {
             materialService.updateMaterial(materialDTO);

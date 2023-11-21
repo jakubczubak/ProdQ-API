@@ -1,6 +1,7 @@
 package com.example.infraboxapi.tool;
 
 
+import com.example.infraboxapi.common.CommonService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.validation.BindingResult;
@@ -19,14 +20,13 @@ import org.springframework.web.bind.annotation.*;
 public class ToolController {
 
     private final ToolService toolService;
+    private final CommonService commonService;
 
 
     @PostMapping("/create")
     public ResponseEntity<String> createTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonService.handleBindingResult(bindingResult);
 
         try {
             toolService.createTool(toolDTO);
@@ -39,9 +39,7 @@ public class ToolController {
     @PutMapping("/update")
     public ResponseEntity<String> updateTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
-        }
+        commonService.handleBindingResult(bindingResult);
 
         try {
             toolService.updateTool(toolDTO);
