@@ -48,9 +48,9 @@ public class RecyclingController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateRecycling(@RequestBody Recycling recycling) {
+    public ResponseEntity<String> updateRecycling(@RequestBody RecyclingDTO recyclingDTO) {
         try{
-            recyclingService.updateRecycling(recycling);
+            recyclingService.updateRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling updated");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);

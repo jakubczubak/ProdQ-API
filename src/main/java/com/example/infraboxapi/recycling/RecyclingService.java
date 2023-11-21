@@ -60,6 +60,6 @@ public class RecyclingService {
         recyclingRepository.deleteById(id);
     }
 
-    public void updateRecycling(Recycling recycling) {
+    public void updateRecycling(RecyclingDTO recyclingDTO) {
     }
 }
