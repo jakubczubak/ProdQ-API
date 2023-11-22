@@ -41,7 +41,11 @@ public enum NotificationDescription {
 
     RecyclingAdded("NEW RECYCLING ADDED"),
     RecyclingUpdated("RECYCLING UPDATED"),
-    RecyclingDeleted("RECYCLING DELETED");
+    RecyclingDeleted("RECYCLING DELETED"),
+
+    SupplierAdded("NEW SUPPLIER ADDED"),
+    SupplierUpdated("SUPPLIER UPDATED"),
+    SupplierDeleted("SUPPLIER DELETED");
 
 
     private final String description;
