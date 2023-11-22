@@ -1,9 +1,11 @@
 package com.example.infraboxapi.recycling;
 
 import com.example.infraboxapi.common.CommonService;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,7 +30,9 @@ public class RecyclingController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<String> addRecycling(@RequestBody RecyclingDTO recyclingDTO) {
+    public ResponseEntity<String> addRecycling(@Valid @RequestBody RecyclingDTO recyclingDTO, BindingResult bindingResult) {
+
+        commonService.handleBindingResult(bindingResult);
         try{
             recyclingService.addRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling added");
@@ -48,7 +52,9 @@ public class RecyclingController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateRecycling(@RequestBody RecyclingDTO recyclingDTO) {
+    public ResponseEntity<String> updateRecycling(@Valid @RequestBody RecyclingDTO recyclingDTO, BindingResult bindingResult) {
+
+        commonService.handleBindingResult(bindingResult);
         try{
             recyclingService.updateRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling updated");

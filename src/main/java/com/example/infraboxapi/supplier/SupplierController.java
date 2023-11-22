@@ -1,9 +1,12 @@
 package com.example.infraboxapi.supplier;
 
 
+import com.example.infraboxapi.common.CommonService;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +18,7 @@ import java.util.List;
 public class SupplierController {
 
     private final SupplierService supplierService;
+    private final CommonService commonService;
     @GetMapping("/all")
     public ResponseEntity<List<Supplier>> getAllSuppliers() {
 
@@ -37,8 +41,9 @@ public class SupplierController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateSupplier(@RequestBody SupplierDTO supplierDTO) {
+    public ResponseEntity<String> updateSupplier(@Valid @RequestBody SupplierDTO supplierDTO, BindingResult bindingResult) {
 
+        commonService.handleBindingResult(bindingResult);
         try {
             supplierService.updateSupplier(supplierDTO);
             return ResponseEntity.ok("Supplier updated");
@@ -48,8 +53,9 @@ public class SupplierController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<String> createSupplier(@RequestBody SupplierDTO supplierDTO) {
+    public ResponseEntity<String> createSupplier(@Valid @RequestBody SupplierDTO supplierDTO, BindingResult bindingResult) {
 
+        commonService.handleBindingResult(bindingResult);
         try {
             supplierService.createSupplier(supplierDTO);
             return ResponseEntity.ok("Supplier created");

@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,7 +19,7 @@ public class RecyclingItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
-    private String quantity; //kg
-    private String pricePerKg;
-    private String totalPrice;
+    private Double quantity; //kg
+    private BigDecimal pricePerKg;
+    private BigDecimal totalPrice;
 }
