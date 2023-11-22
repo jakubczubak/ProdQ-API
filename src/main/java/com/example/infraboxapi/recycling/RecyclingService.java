@@ -3,11 +3,13 @@ package com.example.infraboxapi.recycling;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.recyclingItem.RecyclingItem;
+import com.example.infraboxapi.recyclingItem.RecyclingItemDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @AllArgsConstructor
@@ -23,7 +25,7 @@ public class RecyclingService {
 
         List<RecyclingItem> recyclingItems = new ArrayList<>();
 
-        for (RecyclingItem recyclingItemDTO : recyclingDTO.getRecyclingItems()){
+        for (RecyclingItemDTO recyclingItemDTO : recyclingDTO.getRecyclingItems()){
             RecyclingItem recyclingItem = createRecyclingItemFromDTO(recyclingItemDTO);
             recyclingItems.add(recyclingItem);
         }
@@ -37,6 +39,7 @@ public class RecyclingService {
                 .wasteType(recyclingDTO.getWasteType())
                 .time(recyclingDTO.getTime())
                 .wasteCode(recyclingDTO.getWasteCode())
+                .totalPrice(recyclingDTO.getTotalPrice())
                 .build();
 
         recyclingRepository.save(recycling);
@@ -45,7 +48,7 @@ public class RecyclingService {
     }
 
 
-    private RecyclingItem createRecyclingItemFromDTO(RecyclingItem recyclingItemDTO) {
+    private RecyclingItem createRecyclingItemFromDTO(RecyclingItemDTO recyclingItemDTO) {
 
         return RecyclingItem.builder()
                 .name(recyclingItemDTO.getName())
@@ -58,8 +61,36 @@ public class RecyclingService {
     public void deleteRecycling(Integer id) {
 
         recyclingRepository.deleteById(id);
+        notificationService.createAndSendNotification("Recycling with id '" + id + "' has been deleted.", NotificationDescription.RecyclingDeleted);
     }
 
     public void updateRecycling(RecyclingDTO recyclingDTO) {
+
+        Optional<Recycling> recyclingOptional = recyclingRepository.findById(recyclingDTO.getId());
+
+        if(recyclingOptional.isPresent()){
+            Recycling recycling = recyclingOptional.get();
+
+            recycling.setCarID(recyclingDTO.getCarID());
+            recycling.setCompany(recyclingDTO.getCompany());
+            recycling.setDate(recyclingDTO.getDate());
+            recycling.setTaxID(recyclingDTO.getTaxID());
+            recycling.setWasteType(recyclingDTO.getWasteType());
+            recycling.setTime(recyclingDTO.getTime());
+            recycling.setWasteCode(recyclingDTO.getWasteCode());
+            recycling.setTotalPrice(recyclingDTO.getTotalPrice());
+
+            List<RecyclingItem> recyclingItems = new ArrayList<>();
+
+            for (RecyclingItemDTO recyclingItemDTO : recyclingDTO.getRecyclingItems()){
+                RecyclingItem recyclingItem = createRecyclingItemFromDTO(recyclingItemDTO);
+                recyclingItems.add(recyclingItem);
+            }
+
+            recycling.setRecyclingItems(recyclingItems);
+
+            recyclingRepository.save(recycling);
+            notificationService.createAndSendNotification("Recycling '" + recycling.getCompany() + "' has been updated.", NotificationDescription.RecyclingUpdated);
+        }
     }
 }

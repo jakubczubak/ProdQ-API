@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -28,6 +29,7 @@ public class Recycling {
     private String carID;
     private String date;
     private String time;
+    private BigDecimal totalPrice;
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "recycling_id")
     private List<RecyclingItem> recyclingItems;

@@ -39,7 +39,9 @@ public enum NotificationDescription {
     OrderOnTheWay("ORDER ON THE WAY"),
     OrderDelivered("ORDER DELIVERED"),
 
-    RecyclingAdded("NEW RECYCLING ADDED");
+    RecyclingAdded("NEW RECYCLING ADDED"),
+    RecyclingUpdated("RECYCLING UPDATED"),
+    RecyclingDeleted("RECYCLING DELETED");
 
 
     private final String description;
