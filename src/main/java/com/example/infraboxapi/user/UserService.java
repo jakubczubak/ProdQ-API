@@ -98,6 +98,8 @@ public class UserService {
 
             String firstName = user.getFirstName();
             String lastName = user.getLastName();
+            String email = user.getEmail();
+            Integer id = user.getId();
             List<Notification> notifications = user.getNotifications();
             Role role = user.getRole();
 
@@ -107,6 +109,8 @@ public class UserService {
                     .lastName(lastName)
                     .role(role)
                     .notifications(notifications)
+                    .email(email)
+                    .id(id)
                     .build();
 
             return ResponseEntity.ok(userDTO);
