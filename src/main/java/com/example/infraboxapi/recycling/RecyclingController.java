@@ -32,7 +32,9 @@ public class RecyclingController {
     @PostMapping("/add")
     public ResponseEntity<String> addRecycling(@Valid @RequestBody RecyclingDTO recyclingDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
         try{
             recyclingService.addRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling added");
@@ -54,7 +56,9 @@ public class RecyclingController {
     @PutMapping("/update")
     public ResponseEntity<String> updateRecycling(@Valid @RequestBody RecyclingDTO recyclingDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
         try{
             recyclingService.updateRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling updated");

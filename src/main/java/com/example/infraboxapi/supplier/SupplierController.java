@@ -43,7 +43,9 @@ public class SupplierController {
     @PutMapping("/update")
     public ResponseEntity<String> updateSupplier(@Valid @RequestBody SupplierDTO supplierDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
         try {
             supplierService.updateSupplier(supplierDTO);
             return ResponseEntity.ok("Supplier updated");
@@ -55,7 +57,9 @@ public class SupplierController {
     @PostMapping("/create")
     public ResponseEntity<String> createSupplier(@Valid @RequestBody SupplierDTO supplierDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
         try {
             supplierService.createSupplier(supplierDTO);
             return ResponseEntity.ok("Supplier created");

@@ -33,7 +33,9 @@ public class DepartmentCostController {
     @PutMapping("/update")
     public ResponseEntity<String> updateDepartmentCost(@Valid @RequestBody DepartmentCostDTO departmentCostDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
         try {
             departmentCostService.updateDepartmentCost(departmentCostDTO);
             return ResponseEntity.ok("Department Cost updated");

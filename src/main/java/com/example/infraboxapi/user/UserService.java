@@ -80,12 +80,21 @@ public class UserService {
     }
 
 
-    public void updateUser(Integer id, UserDTO userDTO) {
-        User user = userRepository.findById(id).orElseThrow();
+    public void updateUser(UserDTO userDTO) {
+        User user = userRepository.findById(userDTO.getId()).orElseThrow();
+
+        if(userDTO.getActualPassword() != null && !userDTO.getActualPassword().isEmpty()) {
+            if(!passwordEncoder.matches(userDTO.getActualPassword(), user.getPassword())) {
+                throw new RuntimeException("Wrong password!");
+            }
+        }
+
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
         user.setEmail(userDTO.getEmail());
-        user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        if(userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        }
         userRepository.save(user);
     }
 

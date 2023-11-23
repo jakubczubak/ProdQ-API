@@ -22,9 +22,8 @@ public class CommonService {
             });
 
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data. Errors: " + errors);
+        }else {
+            return ResponseEntity.ok("No errors found.");
         }
-
-        // Możesz dostosować to, co zwracasz, gdy nie ma błędów, na przykład pusty string lub inny komunikat.
-        return ResponseEntity.ok("No errors found.");
     }
 }

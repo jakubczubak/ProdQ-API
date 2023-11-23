@@ -30,11 +30,14 @@ public class UserDTO {
     @Size(max = 100, message = "Field 'email' cannot exceed 100 characters")
     private String email;
 
-    @NotBlank(message = "Field 'password' cannot be blank")
-    @Size(min = 8, message = "Field 'password' must have at least 8 characters")
     private String password;
 
-    @NotNull(message = "Field 'role' cannot be blank")
+    @Size(min = 4, message = "Field 'confirm password' must be the same as password and must have at least 4 characters")
+    private String confirmPassword;
+
+    private String actualPassword;
+
+
     private Role role;
     private List<Notification> notifications;
 }

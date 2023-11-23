@@ -26,7 +26,9 @@ public class MaterialGroupController {
     @PostMapping("/create")
     public ResponseEntity<String> createMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+       if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
 
         try {
             materialGroupService.createMaterialGroup(materialGroupDTO);
@@ -40,7 +42,9 @@ public class MaterialGroupController {
     @PutMapping("/update")
     public ResponseEntity<String> updateMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
 
         try {
             materialGroupService.updateMaterialGroup(materialGroupDTO);

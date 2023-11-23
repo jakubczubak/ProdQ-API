@@ -33,7 +33,9 @@ public class OrderController {
     @PostMapping("/add")
     public ResponseEntity<String> addOrder(@Valid @RequestBody OrderDTO orderDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
 
         try {
             orderService.addOrder(orderDTO);

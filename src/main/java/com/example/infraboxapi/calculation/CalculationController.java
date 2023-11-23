@@ -1,6 +1,7 @@
 package com.example.infraboxapi.calculation;
 
 
+import com.example.infraboxapi.common.CommonService;
 import com.example.infraboxapi.notification.NotificationService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -18,7 +19,8 @@ import java.util.List;
 public class CalculationController {
 
     private final CalculationService calculationService;
-    ;
+    private final CommonService commonService;
+
 
 
     @GetMapping("/all")
@@ -34,7 +36,7 @@ public class CalculationController {
     public ResponseEntity<String> addCalculation(@Valid @RequestBody CalculationDTO calculationDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+            return commonService.handleBindingResult(bindingResult);
         }
         try {
             calculationService.addCalculation(calculationDTO);
@@ -47,8 +49,8 @@ public class CalculationController {
     @PutMapping("/update")
     public ResponseEntity<String> updateCalculation(@Valid @RequestBody CalculationDTO calculationDTO, BindingResult bindingResult) {
 
-        if (bindingResult.hasErrors()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data: " + "Please check the provided information and try again.");
+       if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
         }
         try {
             calculationService.updateCalculation(calculationDTO);

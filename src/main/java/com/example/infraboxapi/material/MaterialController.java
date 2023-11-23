@@ -20,7 +20,9 @@ public class MaterialController {
     @PostMapping("/create")
     public ResponseEntity<String> createMaterial(@Valid @RequestBody MaterialDTO materialDTO, BindingResult bindingResult) {
 
-        commonSerivce.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonSerivce.handleBindingResult(bindingResult);
+        }
 
         try {
             materialService.createMaterial(materialDTO);
@@ -33,7 +35,9 @@ public class MaterialController {
     @PutMapping("/update")
     public ResponseEntity<String> updateMaterial(@Valid @RequestBody MaterialDTO materialDTO, BindingResult bindingResult) {
 
-        commonSerivce.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonSerivce.handleBindingResult(bindingResult);
+        }
 
         try {
             materialService.updateMaterial(materialDTO);

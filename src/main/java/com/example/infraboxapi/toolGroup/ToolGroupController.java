@@ -30,7 +30,9 @@ public class ToolGroupController {
     @PutMapping("/update")
     public ResponseEntity<String> updateToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
 
         try {
             toolGroupService.updateToolGroup(toolGroupDTO);
@@ -43,7 +45,9 @@ public class ToolGroupController {
     @PostMapping("/create")
     public ResponseEntity<String> createToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
         try {
             toolGroupService.createToolGroup(toolGroupDTO);
             return ResponseEntity.ok("Tool Group created");

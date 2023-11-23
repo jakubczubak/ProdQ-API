@@ -26,7 +26,9 @@ public class ToolController {
     @PostMapping("/create")
     public ResponseEntity<String> createTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
 
         try {
             toolService.createTool(toolDTO);
@@ -39,7 +41,9 @@ public class ToolController {
     @PutMapping("/update")
     public ResponseEntity<String> updateTool(@Valid @RequestBody ToolDTO toolDTO, BindingResult bindingResult) {
 
-        commonService.handleBindingResult(bindingResult);
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
 
         try {
             toolService.updateTool(toolDTO);
