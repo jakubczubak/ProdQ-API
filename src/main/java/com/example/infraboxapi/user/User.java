@@ -29,6 +29,8 @@ public class User implements UserDetails {
     private String lastName;
     private String email;
     private String password;
+    private boolean blocked;
+
 
 
     @Enumerated(EnumType.STRING)
@@ -54,7 +56,7 @@ public class User implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return !blocked;
     }
 
     @Override

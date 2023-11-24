@@ -40,4 +40,6 @@ public class UserDTO {
 
     private Role role;
     private List<Notification> notifications;
+
+    private boolean blocked;
 }

@@ -35,11 +35,11 @@ public class UserService {
         } else {
 
             User user = User.builder().
-                    password(passwordEncoder.encode(ROOT_PASSWORD)).role(Role.ADMIN).email(ROOT_EMAIL).firstName("root").lastName("root").notifications(new ArrayList<>()).build();
+                    password(passwordEncoder.encode(ROOT_PASSWORD)).role(Role.ADMIN).email(ROOT_EMAIL).firstName("root").lastName("root").blocked(false).notifications(new ArrayList<>()).build();
 
 
             User user2 = User.builder().
-                    password(passwordEncoder.encode("kuba")).role(Role.ADMIN).email("jczu@inframet.com").firstName("Jakub").lastName("Czubak").notifications(new ArrayList<>()).build();
+                    password(passwordEncoder.encode("kuba")).role(Role.ADMIN).email("jczu@inframet.com").firstName("Jakub").lastName("Czubak").blocked(false).notifications(new ArrayList<>()).build();
 
 
             Notification notification = Notification.builder().user(user).author("Jakub Czubak").title("Dodawanie materiałów").isRead(false).description("Uzytkownik XYZ dodał nowy materiał...").build();
@@ -73,6 +73,7 @@ public class UserService {
                 .firstName(userDTO.getFirstName())
                 .lastName(userDTO.getLastName())
                 .email(userDTO.getEmail())
+                .blocked(false)
                 .role(role)
                 .password(passwordEncoder.encode(userDTO.getPassword()))
                 .build();
@@ -140,5 +141,9 @@ public class UserService {
 
     public List<User> findAllUsersExceptUserWithId(Integer userId) {
         return userRepository.findAllUsersExceptUserWithId(userId);
+    }
+
+    public List<User> getUserList() {
+        return userRepository.findAll();
     }
 }
