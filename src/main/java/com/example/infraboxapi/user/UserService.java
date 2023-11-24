@@ -2,9 +2,12 @@ package com.example.infraboxapi.user;
 
 
 import com.example.infraboxapi.notification.Notification;
+import com.example.infraboxapi.notification.NotificationDescription;
+import com.example.infraboxapi.notification.NotificationService;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,10 +25,14 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     private static final String ROOT_EMAIL = "root@gmail.com";
     private static final String ROOT_PASSWORD = "root";
+
+
+
 
     @Transactional
     public void createRootUser() {
@@ -39,7 +46,7 @@ public class UserService {
 
 
             User user2 = User.builder().
-                    password(passwordEncoder.encode("kuba")).role(Role.ADMIN).email("jczu@inframet.com").firstName("Jakub").lastName("Czubak").blocked(false).notifications(new ArrayList<>()).build();
+                    password(passwordEncoder.encode("kuba")).role(Role.USER).email("jczu@inframet.com").firstName("Jakub").lastName("Czubak").blocked(true).notifications(new ArrayList<>()).build();
 
 
             Notification notification = Notification.builder().user(user).author("Jakub Czubak").title("Dodawanie materiałów").isRead(false).description("Uzytkownik XYZ dodał nowy materiał...").build();
@@ -130,20 +137,57 @@ public class UserService {
         }
     }
 
-    public Integer getUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication.getPrincipal() instanceof User user) {
-            return user.getId();
-        } else {
-            return null;
-        }
-    }
-
-    public List<User> findAllUsersExceptUserWithId(Integer userId) {
-        return userRepository.findAllUsersExceptUserWithId(userId);
-    }
-
     public List<User> getUserList() {
-        return userRepository.findAll();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        Integer userId = ((User) authentication.getPrincipal()).getId();
+        List<User> users = userRepository.findAll();
+        users.removeIf(user -> user.getId().equals(userId));
+
+        return users;
+    }
+
+    public void blockUser(Integer userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        user.setBlocked(true);
+        userRepository.save(user);
+
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been blocked.", NotificationDescription.BlockUser);
+
+    }
+
+    public void unblockUser(Integer userId) {
+
+        User user = userRepository.findById(userId).orElseThrow();
+        user.setBlocked(false);
+        userRepository.save(user);
+
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been unblocked.", NotificationDescription.UnblockUser);
+
+    }
+
+    public void grantAdminPermission(Integer userId) {
+
+        User user = userRepository.findById(userId).orElseThrow();
+        user.setRole(Role.ADMIN);
+        userRepository.save(user);
+
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been granted admin permission.", NotificationDescription.GrantAdminPermission);
+    }
+
+    public void revokeAdminPermission(Integer userId) {
+
+        User user = userRepository.findById(userId).orElseThrow();
+        user.setRole(Role.USER);
+        userRepository.save(user);
+
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been revoked admin permission.", NotificationDescription.RevokeAdminPermission);
+    }
+
+    public void deleteUser(Integer userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        userRepository.deleteById(userId);
+
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been deleted.", NotificationDescription.RevokeAdminPermission);
     }
 }

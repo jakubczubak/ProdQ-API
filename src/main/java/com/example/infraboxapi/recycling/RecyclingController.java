@@ -39,7 +39,7 @@ public class RecyclingController {
             recyclingService.addRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling added");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 
@@ -49,7 +49,7 @@ public class RecyclingController {
             recyclingService.deleteRecycling(id);
             return ResponseEntity.ok("Recycling deleted");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 
@@ -63,7 +63,7 @@ public class RecyclingController {
             recyclingService.updateRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling updated");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 }

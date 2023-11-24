@@ -56,7 +56,7 @@ public class CalculationController {
             calculationService.updateCalculation(calculationDTO);
             return ResponseEntity.ok("Calculation updated");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 
@@ -66,7 +66,7 @@ public class CalculationController {
             calculationService.deleteCalculation(id);
             return ResponseEntity.ok("Calculation deleted");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 

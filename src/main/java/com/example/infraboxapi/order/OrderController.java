@@ -41,7 +41,7 @@ public class OrderController {
             orderService.addOrder(orderDTO);
             return ResponseEntity.ok("Order created successfully");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 
@@ -51,7 +51,7 @@ public class OrderController {
             orderService.deleteOrder(id);
             return ResponseEntity.ok("Order deleted successfully");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 
@@ -62,7 +62,7 @@ public class OrderController {
             orderService.updateOrder(order);
             return ResponseEntity.ok("Order updated successfully");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 }

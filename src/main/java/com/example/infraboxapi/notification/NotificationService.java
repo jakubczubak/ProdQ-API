@@ -5,6 +5,7 @@ import com.example.infraboxapi.user.UserRepository;
 import com.example.infraboxapi.user.UserService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -17,12 +18,11 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
-    private final UserService userService;
 
     @Transactional
     public void deleteNotification(Long id) {
 
-        User user = userRepository.findById(userService.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
         Notification notification = notificationRepository.findById(id).orElseThrow(() -> new RuntimeException("Notification not found"));
         user.getNotifications().remove(notification);
         userRepository.save(user);
@@ -58,7 +58,7 @@ public class NotificationService {
 
 
         // Pobierz listę wszystkich użytkowników z wyjątkiem autora
-        List<User> allUsersExceptAuthor = userService.findAllUsersExceptUserWithId(currentUser.getId());
+        List<User> allUsersExceptAuthor = findAllUsersExceptUserWithId(currentUser.getId());
 
         // Wyślij powiadomienie do wszystkich użytkowników
         for (User user : allUsersExceptAuthor) {
@@ -93,5 +93,18 @@ public class NotificationService {
             userRepository.save(user);
 
         }
+    }
+
+    public Integer getUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication.getPrincipal() instanceof User user) {
+            return user.getId();
+        } else {
+            return null;
+        }
+    }
+
+    public List<User> findAllUsersExceptUserWithId(Integer userId) {
+        return userRepository.findAllUsersExceptUserWithId(userId);
     }
 }

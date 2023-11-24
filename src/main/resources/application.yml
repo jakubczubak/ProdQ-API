@@ -20,3 +20,5 @@ spring:
 # Własności związane z JWT
 jwt:
   secret-key: "MzQ4MzA3ODU0NDYyMTMwMzAwMTMwMTUyMTQxMTMzNDMzMTIzMTMwMTYzMTUyMTMwMTM="
+
+

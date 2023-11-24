@@ -63,8 +63,38 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+    @PutMapping("/manageUser/{userId}/{action}")
+    public ResponseEntity<String> manageUser(@PathVariable Integer userId, @PathVariable String action) {
+        try {
+            switch (action) {
+                case "block":
+                    userService.blockUser(userId);
+                    return ResponseEntity.ok("User blocked");
+                case "unblock":
+                    userService.unblockUser(userId);
+                    return ResponseEntity.ok("User unblocked");
+                case "grantAdmin":
+                    userService.grantAdminPermission(userId);
+                    return ResponseEntity.ok("Admin permission granted");
+                case "revokeAdmin":
+                    userService.revokeAdminPermission(userId);
+                    return ResponseEntity.ok("Admin permission revoked");
+                default:
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid action");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
 
-
-
+    @DeleteMapping("/delete/{userId}")
+    public ResponseEntity<String> deleteUser(@PathVariable Integer userId) {
+        try {
+            userService.deleteUser(userId);
+            return ResponseEntity.ok("User deleted");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
 
 }

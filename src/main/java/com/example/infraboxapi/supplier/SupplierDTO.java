@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.URL;
+import org.hibernate.validator.constraints.UniqueElements;
 import org.springframework.format.annotation.NumberFormat;
 
 import java.util.List;
@@ -30,6 +31,7 @@ public class SupplierDTO {
     @NumberFormat
     private String phoneNumber;
     @Email(message = "Field 'email' must be a valid email address")
+    @UniqueElements(message = "Email already exists")
     private String email;
     @NotBlank(message = "Field 'company name' cannot be blank")
     @Size(min = 1, max = 100, message = "Field 'company name' must have a length between 1 and 100 characters")

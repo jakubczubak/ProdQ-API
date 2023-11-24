@@ -1,57 +1,57 @@
 package com.example.infraboxapi.notification;
 
-import com.example.infraboxapi.calculation.Calculation;
-import com.example.infraboxapi.departmentCost.DepartmentCost;
 import lombok.Getter;
 
 @Getter
 public enum NotificationDescription {
-    MaterialAdded("NEW MATERIAL ADDED"),
-    MaterialUpdated("MATERIAL UPDATED"),
-    MaterialDeleted("MATERIAL DELETED"),
+    MaterialAdded("New material activity."),
+    MaterialUpdated("Material record updated."),
+    MaterialDeleted("Material removed from the system."),
 
-    MaterialGroupAdded("NEW MATERIAL GROUP ADDED"),
+    MaterialGroupAdded("New material group activity."),
+    MaterialGroupUpdated("Material group updated."),
+    MaterialGroupDeleted("Material group removed from the system."),
 
-    MaterialGroupUpdated("MATERIAL GROUP UPDATED"),
+    MaterialScanner("Material scanned."),
+    ToolScanner("Tool scanned."),
 
-    MaterialGroupDeleted("MATERIAL GROUP DELETED"),
+    ToolGroupAdded("New tool group activity."),
+    ToolGroupUpdated("Tool group updated."),
+    ToolGroupDeleted("Tool group removed from the system."),
 
-    MaterialScanner("MATERIAL SCANNER"),
-    ToolScanner("TOOL SCANNER"),
+    ToolAdded("New tool activity."),
+    ToolUpdated("Tool record updated."),
+    ToolDeleted("Tool removed from the system."),
 
-    ToolGroupAdded("NEW TOOL GROUP ADDED"),
-    ToolGroupUpdated("TOOL GROUP UPDATED"),
-    ToolGroupDeleted("TOOL GROUP DELETED"),
+    DepartmentCostUpdated("Department cost updated."),
 
-    ToolAdded("NEW TOOL ADDED"),
-    ToolUpdated("TOOL UPDATED"),
-    ToolDeleted("TOOL DELETED"),
+    CalculationAdded("New calculation activity."),
+    CalculationUpdated("Calculation record updated."),
+    CalculationDeleted("Calculation removed from the system."),
 
-    DepartmentCostUpdated("DEPARTMENT COST UPDATED"),
+    OrderAdded("New order activity."),
+    OrderDeleted("Order removed from the system."),
+    OrderUpdated("Order record updated."),
+    OrderOnTheWay("Order is on the way."),
+    OrderDelivered("Order delivered."),
 
-    CalculationAdded("NEW CALCULATION ADDED"),
-    CalculationUpdated("CALCULATION UPDATED"),
-    CalculationDeleted("CALCULATION DELETED"),
+    RecyclingAdded("New recycling activity."),
+    RecyclingUpdated("Recycling record updated."),
+    RecyclingDeleted("Recycling removed from the system."),
 
-    OrderAdded("NEW ORDER ADDED"),
-    OrderDeleted("ORDER DELETED"),
-    OrderUpdated("ORDER UPDATED"),
-    OrderOnTheWay("ORDER ON THE WAY"),
-    OrderDelivered("ORDER DELIVERED"),
+    SupplierAdded("New supplier activity."),
+    SupplierUpdated("Supplier record updated."),
+    SupplierDeleted("Supplier removed from the system."),
 
-    RecyclingAdded("NEW RECYCLING ADDED"),
-    RecyclingUpdated("RECYCLING UPDATED"),
-    RecyclingDeleted("RECYCLING DELETED"),
-
-    SupplierAdded("NEW SUPPLIER ADDED"),
-    SupplierUpdated("SUPPLIER UPDATED"),
-    SupplierDeleted("SUPPLIER DELETED");
-
+    BlockUser("User blocked."),
+    UnblockUser("User unblocked."),
+    GrantAdminPermission("Admin privileges granted."),
+    RevokeAdminPermission("Administrator privileges revoked."),
+    DeleteUser("User has been removed from the system.");
 
     private final String description;
 
     NotificationDescription(String description) {
         this.description = description;
     }
-
 }
