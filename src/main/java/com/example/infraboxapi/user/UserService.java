@@ -190,4 +190,8 @@ public class UserService {
 
         notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been deleted.", NotificationDescription.RevokeAdminPermission);
     }
+
+    public Boolean checkEmail(String email) {
+        return userRepository.findByEmail(email).isPresent();
+    }
 }

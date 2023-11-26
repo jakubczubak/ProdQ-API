@@ -97,4 +97,13 @@ public class UserController {
         }
     }
 
+    @GetMapping("/email/check/{email}")
+    public ResponseEntity<Boolean> checkEmail(@PathVariable String email) {
+        try {
+            return ResponseEntity.ok(userService.checkEmail(email));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
 }
