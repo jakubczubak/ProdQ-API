@@ -22,10 +22,16 @@ public class UserController {
 
 
     @PostMapping("/register")
-    public String register(@RequestBody UserDTO userDTO) {
-        userService.createUser(userDTO);
+    public ResponseEntity<String> register(@RequestBody UserDTO userDTO) {
 
-        return "User created";
+        System.out.println(userDTO);
+
+        try{
+            userService.createUser(userDTO);
+            return ResponseEntity.ok("User registered");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 
     @GetMapping("/userData")
@@ -100,7 +106,11 @@ public class UserController {
     @GetMapping("/email/check/{email}")
     public ResponseEntity<Boolean> checkEmail(@PathVariable String email) {
         try {
-            return ResponseEntity.ok(userService.checkEmail(email));
+            if(userService.checkEmail(email)) {
+                return ResponseEntity.ok(true);
+            } else {
+                return ResponseEntity.ok(false);
+            }
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
