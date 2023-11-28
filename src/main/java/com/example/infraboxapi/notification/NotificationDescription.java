@@ -47,7 +47,9 @@ public enum NotificationDescription {
     UnblockUser("User unblocked."),
     GrantAdminPermission("Admin privileges granted."),
     RevokeAdminPermission("Administrator privileges revoked."),
-    DeleteUser("User has been removed from the system.");
+    DeleteUser("User has been removed from the system."),
+    UserUpdated("User record updated."),
+    UserCreated("New user created.");
 
     private final String description;
 

@@ -3,13 +3,11 @@ package com.example.infraboxapi.user;
 import com.example.infraboxapi.notification.Notification;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.validator.constraints.UniqueElements;
 
 import java.util.List;
 
@@ -29,7 +27,6 @@ public class UserDTO {
 
     @Email(message = "Invalid email address format")
     @Size(max = 100, message = "Field 'email' cannot exceed 100 characters")
-    @UniqueElements(message = "Email already exists")
     private String email;
 
     private String password;

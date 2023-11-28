@@ -24,8 +24,6 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody UserDTO userDTO) {
 
-        System.out.println(userDTO);
-
         try{
             userService.createUser(userDTO);
             return ResponseEntity.ok("User registered");
@@ -55,6 +53,19 @@ public class UserController {
 
         try {
             userService.updateUser(userDTO);
+            return ResponseEntity.ok("User updated");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/update/user_account")
+    public ResponseEntity<String> updateUser(@RequestBody UserDTO userDTO) {
+
+        System.out.println(userDTO);
+
+        try {
+            userService.updateUserListAccount(userDTO);
             return ResponseEntity.ok("User updated");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());

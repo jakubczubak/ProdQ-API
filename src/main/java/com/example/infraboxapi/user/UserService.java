@@ -43,21 +43,7 @@ public class UserService {
 
             User user = User.builder().
                     password(passwordEncoder.encode(ROOT_PASSWORD)).role(Role.ADMIN).email(ROOT_EMAIL).firstName("root").lastName("root").blocked(false).notifications(new ArrayList<>()).build();
-
-
-            User user2 = User.builder().
-                    password(passwordEncoder.encode("kuba")).role(Role.USER).email("jczu@inframet.com").firstName("Jakub").lastName("Czubak").blocked(true).notifications(new ArrayList<>()).build();
-
-
-            Notification notification = Notification.builder().user(user).author("Jakub Czubak").title("Dodawanie materiałów").isRead(false).description("Uzytkownik XYZ dodał nowy materiał...").build();
-            Notification notification2 = Notification.builder().user(user).author("Jakub Czubak").title("Dodawanie narzędzi").isRead(false).description("Użytkownik xYZ dodał nowe narzędzie...").build();
-            Notification notification3 = Notification.builder().user(user).author("Jakub Czubak").title("Usuwanie materiałów").isRead(true).description("Użytkownik XYZ usunął następujący material...").build();
-
-            user.getNotifications().add(notification);
-            user.getNotifications().add(notification2);
-            user.getNotifications().add(notification3);
             userRepository.save(user);
-            userRepository.save(user2);
             logger.info("Root user created successfully :)");
         }
     }
@@ -85,6 +71,7 @@ public class UserService {
                 .password(passwordEncoder.encode(userDTO.getPassword()))
                 .build();
         userRepository.save(user);
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been created.", NotificationDescription.UserCreated);
     }
 
 
@@ -99,13 +86,25 @@ public class UserService {
 
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
-        user.setEmail(userDTO.getEmail());
         if(userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }
         userRepository.save(user);
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been updated.", NotificationDescription.UserUpdated);
     }
 
+
+    public void updateUserListAccount(UserDTO userDTO) {
+        User user = userRepository.findById(userDTO.getId()).orElseThrow();
+
+        user.setFirstName(userDTO.getFirstName());
+        user.setLastName(userDTO.getLastName());
+        if(userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        }
+        userRepository.save(user);
+        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been updated.", NotificationDescription.UserUpdated);
+    }
 
     public ResponseEntity<UserDTO> getUserInfo() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

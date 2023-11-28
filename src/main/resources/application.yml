@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/infrabox
+    url: jdbc:mysql://localhost:3307/infrabox
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver # Zaktualizowano na com.mysql.cj.jdbc.Driver, co jest zalecane od MySQL 8
