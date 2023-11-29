@@ -75,7 +75,7 @@ public class UserController {
     @GetMapping("/all")
     public ResponseEntity<List<User>> getUserList(){
         try {
-            return ResponseEntity.ok(userService.getUserList());
+            return ResponseEntity.ok(userService.getUserListWithoutLoggedUserAndRootUser());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }

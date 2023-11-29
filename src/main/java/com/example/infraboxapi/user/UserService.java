@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -135,16 +136,25 @@ public class UserService {
         }
     }
 
-    public List<User> getUserList() {
+    public List<User> getUserListWithoutLoggedUserAndRootUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        Integer userId = ((User) authentication.getPrincipal()).getId();
-        List<User> users = userRepository.findAll();
-        users.removeIf(user -> user.getId().equals(userId));
+        if (authentication != null && authentication.getPrincipal() instanceof User) {
+            User loggedInUser = (User) authentication.getPrincipal();
+            Integer loggedInUserId = loggedInUser.getId();
 
-        return users;
+            User rootUser = userRepository.findByEmail(ROOT_EMAIL).orElseThrow();
+
+            List<User> users = userRepository.findAll();
+            users.removeIf(user -> user.getId().equals(loggedInUserId));
+            users.removeIf(user -> user.getId().equals(rootUser.getId()));
+
+            return users;
+        } else {
+            // Handle the case when authentication is not available or the principal is not a User
+            return Collections.emptyList(); // or throw an exception, log an error, etc.
+        }
     }
-
     public void blockUser(Integer userId) {
         User user = userRepository.findById(userId).orElseThrow();
         user.setBlocked(true);
