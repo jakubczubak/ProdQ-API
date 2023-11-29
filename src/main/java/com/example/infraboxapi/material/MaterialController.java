@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,13 +17,12 @@ import org.springframework.web.bind.annotation.*;
 public class MaterialController {
 
     private final MaterialService materialService;
-    private final CommonService commonSerivce;
+    private final CommonService commonService;
 
     @PostMapping("/create")
     public ResponseEntity<String> createMaterial(@Valid @RequestBody MaterialDTO materialDTO, BindingResult bindingResult) {
-
         if (bindingResult.hasErrors()) {
-            return commonSerivce.handleBindingResult(bindingResult);
+            return commonService.handleBindingResult(bindingResult);
         }
 
         try {
@@ -34,9 +35,8 @@ public class MaterialController {
 
     @PutMapping("/update")
     public ResponseEntity<String> updateMaterial(@Valid @RequestBody MaterialDTO materialDTO, BindingResult bindingResult) {
-
         if (bindingResult.hasErrors()) {
-            return commonSerivce.handleBindingResult(bindingResult);
+            return commonService.handleBindingResult(bindingResult);
         }
 
         try {
@@ -49,7 +49,6 @@ public class MaterialController {
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteMaterial(@PathVariable Integer id) {
-
         try {
             materialService.deleteMaterial(id);
             return ResponseEntity.ok("Material deleted");
@@ -57,6 +56,4 @@ public class MaterialController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material: " + e.getMessage());
         }
     }
-
-
 }
