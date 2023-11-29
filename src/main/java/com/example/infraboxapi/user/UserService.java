@@ -71,7 +71,6 @@ public class UserService {
                 .password(passwordEncoder.encode(userDTO.getPassword()))
                 .build();
         userRepository.save(user);
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been created.", NotificationDescription.UserCreated);
     }
 
 
