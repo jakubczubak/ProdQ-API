@@ -27,8 +27,8 @@ public class Tool {
     private float dc;
     private float cfl;
     private float oal;
-    private float quantity;
-    private float minQuantity;
+    private Integer quantity;
+    private Integer minQuantity;
     private BigDecimal price;
     private String toolID;
     private String link;

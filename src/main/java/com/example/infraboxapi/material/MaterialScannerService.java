@@ -26,7 +26,16 @@ public class MaterialScannerService {
 
         for (Material material : materials) {
             if (material.getQuantity() < material.getMinQuantity()) {
-                String description = "Material " + material.getName() + " is running low. There are " + material.getQuantity() + " pieces left.";
+                String quantityText;
+
+                // Sprawdź, czy liczba jest całkowita
+                if (material.getQuantity() % 1 == 0) {
+                    quantityText = String.valueOf((int) material.getQuantity()); // Wyświetl jako liczbę całkowitą
+                } else {
+                    quantityText = String.valueOf(material.getQuantity()); // Wyświetl z miejscami po przecinku
+                }
+
+                String description = "Material " + material.getName() + " is running low. There are " + quantityText + " pieces left.";
                 notificationService.createAndSendSystemNotification(description, NotificationDescription.MaterialScanner);
             }
         }

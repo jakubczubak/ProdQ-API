@@ -36,10 +36,10 @@ public class ToolDTO {
     private float oal;
 
     @PositiveOrZero(message = "Value must be a positive number or zero")
-    private float quantity;
+    private Integer quantity;
 
     @PositiveOrZero(message = "Value must be a positive number or zero")
-    private float minQuantity;
+    private Integer minQuantity;
 
     @DecimalMin(value = "0", message = "Price must be greater than or equal to 0")
     private BigDecimal price;
