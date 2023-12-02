@@ -9,8 +9,8 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.example</groupId>
-    <artifactId>InfraBoxAPI</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <artifactId>InfraboxAPI</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
     <name>InfraBoxAPI</name>
     <description>InfraBoxAPI</description>
     <properties>
@@ -84,15 +84,11 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
+                    <imageName>infrabox-api:v1.0.0</imageName>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
 
 </project>
