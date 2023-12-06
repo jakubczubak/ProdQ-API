@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/department_cost/")
 @AllArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class DepartmentCostController {
 
     private final DepartmentCostService departmentCostService;

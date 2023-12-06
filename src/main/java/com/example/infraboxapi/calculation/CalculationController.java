@@ -15,7 +15,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/calculation/")
 @AllArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class CalculationController {
 
     private final CalculationService calculationService;

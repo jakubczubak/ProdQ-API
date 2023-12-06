@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/tool/")
 @AllArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class ToolController {
 
     private final ToolService toolService;

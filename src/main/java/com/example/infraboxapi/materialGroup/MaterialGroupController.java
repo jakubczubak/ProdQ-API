@@ -16,7 +16,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/material_group/")
-@CrossOrigin(origins = "http://localhost:3000")
 @AllArgsConstructor
 public class MaterialGroupController {
 

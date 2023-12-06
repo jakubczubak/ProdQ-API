@@ -13,7 +13,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/recycling/")
 @AllArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class RecyclingController {
 
     private final RecyclingService recyclingService;

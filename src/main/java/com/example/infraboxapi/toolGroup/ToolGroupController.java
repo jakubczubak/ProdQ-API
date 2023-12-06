@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/tool_group/")
-@CrossOrigin(origins = "http://localhost:3000")
 @AllArgsConstructor
 public class ToolGroupController {
 
