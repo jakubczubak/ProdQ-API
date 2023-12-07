@@ -85,7 +85,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/api/user/register").hasAnyAuthority("ADMIN")
                 .requestMatchers("/api/user/update").hasAnyAuthority("ADMIN", "USER")
                 .requestMatchers("/api/user/update/user_account").hasAnyAuthority("ADMIN")
-                .requestMatchers("/api/user/manageUser/*").hasAnyAuthority("ADMIN")
+                .requestMatchers("/api/user/manageUser/*/*").hasAnyAuthority("ADMIN")
                 .requestMatchers("/api/user/delete/*").hasAnyAuthority("ADMIN")
 
                 //DEPARTMENT COST
