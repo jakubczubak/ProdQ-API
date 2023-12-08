@@ -12,6 +12,11 @@ public enum NotificationDescription {
     MaterialGroupUpdated("Material group updated."),
     MaterialGroupDeleted("Material group removed from the system."),
 
+    MaterialTypeAdded("New material type activity."),
+    MaterialTypeUpdated("Material type updated."),
+    MaterialTypeDeleted("Material type removed from the system."),
+
+
     MaterialScanner("Material scanned."),
     ToolScanner("Tool scanned."),
 

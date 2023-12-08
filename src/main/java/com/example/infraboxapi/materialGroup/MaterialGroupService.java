@@ -24,7 +24,7 @@ public class MaterialGroupService {
                 .name(materialGroupDTO.getName())
                 .type(materialGroupDTO.getType())
                 .imageURL(materialGroupDTO.getImageURL())
-                .materialDescription(convertToMaterialDescription(materialGroupDTO.getMaterialDescription()))
+//                .materialType(convertToMaterialDescription(materialGroupDTO.getMaterialDescription()))
                 .materials(new ArrayList<>())
                 .build();
 

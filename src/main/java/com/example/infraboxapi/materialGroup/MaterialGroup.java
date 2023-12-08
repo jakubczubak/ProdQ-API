@@ -26,7 +26,7 @@ public class MaterialGroup {
     private String imageURL;
 
     @OneToOne(cascade = CascadeType.ALL)
-    private MaterialType materialDescription;
+    private MaterialType materialType;
 
 
     @OneToMany(cascade = CascadeType.ALL)

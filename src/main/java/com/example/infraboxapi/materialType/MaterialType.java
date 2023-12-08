@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "_material_description")
+@Table(name = "_material_type")
 public class MaterialType {
 
     @Id
