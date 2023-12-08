@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.example</groupId>
-    <artifactId>InfraboxAPI</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-    <name>InfraBoxAPI</name>
-    <description>InfraBoxAPI</description>
+    <artifactId>infrabox-api</artifactId>
+    <version>1.0.0</version>
+    <name>infrabox-api</name>
+    <description>infrabox-api</description>
     <properties>
         <java.version>17</java.version>
     </properties>
