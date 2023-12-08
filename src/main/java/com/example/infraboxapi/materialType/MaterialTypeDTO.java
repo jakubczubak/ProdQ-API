@@ -1,4 +1,4 @@
-package com.example.infraboxapi.materialDescription;
+package com.example.infraboxapi.materialType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MaterialDescriptionDTO {
+public class MaterialTypeDTO {
 
     private Integer id;
 

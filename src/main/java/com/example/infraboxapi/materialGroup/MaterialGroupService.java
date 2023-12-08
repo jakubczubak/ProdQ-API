@@ -1,10 +1,7 @@
 package com.example.infraboxapi.materialGroup;
 
-import com.example.infraboxapi.material.Material;
-import com.example.infraboxapi.material.MaterialDTO;
-import com.example.infraboxapi.materialDescription.MaterialDescription;
-import com.example.infraboxapi.materialDescription.MaterialDescriptionDTO;
-import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
+import com.example.infraboxapi.materialType.MaterialType;
+import com.example.infraboxapi.materialType.MaterialTypeDTO;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
@@ -74,11 +71,11 @@ public class MaterialGroupService {
     }
 
 
-    public MaterialDescription convertToMaterialDescription(MaterialDescriptionDTO materialDescriptionDTO) {
-        return MaterialDescription.builder()
-                .id(materialDescriptionDTO.getId())
-                .name(materialDescriptionDTO.getName())
-                .density(materialDescriptionDTO.getDensity())
+    public MaterialType convertToMaterialDescription(MaterialTypeDTO materialTypeDTO) {
+        return MaterialType.builder()
+                .id(materialTypeDTO.getId())
+                .name(materialTypeDTO.getName())
+                .density(materialTypeDTO.getDensity())
                 .build();
     }
 }

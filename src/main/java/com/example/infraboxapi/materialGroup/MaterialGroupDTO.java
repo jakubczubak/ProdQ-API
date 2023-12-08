@@ -1,7 +1,7 @@
 package com.example.infraboxapi.materialGroup;
 
 import com.example.infraboxapi.material.MaterialDTO;
-import com.example.infraboxapi.materialDescription.MaterialDescriptionDTO;
+import com.example.infraboxapi.materialType.MaterialTypeDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -35,7 +35,7 @@ public class MaterialGroupDTO {
     private String imageURL;
 
     @Valid // Ensure the nested object is validated as well
-    private MaterialDescriptionDTO materialDescription;
+    private MaterialTypeDTO materialDescription;
 
     @Valid // Ensure the elements in the list are validated
     private List<MaterialDTO> materials;

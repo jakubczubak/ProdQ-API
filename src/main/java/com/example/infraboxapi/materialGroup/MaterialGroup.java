@@ -1,7 +1,7 @@
 package com.example.infraboxapi.materialGroup;
 
 import com.example.infraboxapi.material.Material;
-import com.example.infraboxapi.materialDescription.MaterialDescription;
+import com.example.infraboxapi.materialType.MaterialType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,7 +26,7 @@ public class MaterialGroup {
     private String imageURL;
 
     @OneToOne(cascade = CascadeType.ALL)
-    private MaterialDescription materialDescription;
+    private MaterialType materialDescription;
 
 
     @OneToMany(cascade = CascadeType.ALL)

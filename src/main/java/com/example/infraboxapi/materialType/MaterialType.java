@@ -1,4 +1,4 @@
-package com.example.infraboxapi.materialDescription;
+package com.example.infraboxapi.materialType;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Entity
 @Table(name = "_material_description")
-public class MaterialDescription {
+public class MaterialType {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
