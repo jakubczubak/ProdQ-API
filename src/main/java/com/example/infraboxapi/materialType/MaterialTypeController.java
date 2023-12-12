@@ -37,4 +37,14 @@ public class MaterialTypeController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error getting material types: " + e.getMessage());
         }
     }
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<?> deleteMaterialType(@PathVariable Integer id) {
+        try {
+            materialTypeService.deleteMaterialType(id);
+            return ResponseEntity.ok("Material type deleted");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material type: " + e.getMessage());
+        }
+    }
 }

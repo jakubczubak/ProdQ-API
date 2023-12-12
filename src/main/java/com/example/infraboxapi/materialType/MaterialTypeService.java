@@ -29,4 +29,9 @@ public class MaterialTypeService {
     public List<MaterialType> getAllMaterials() {
         return materialTypeRepository.findAll();
     }
+
+    public void deleteMaterialType(Integer id) {
+        materialTypeRepository.deleteById(id);
+        notificationService.createAndSendNotification("Material type deleted", NotificationDescription.MaterialTypeDeleted );
+    }
 }
