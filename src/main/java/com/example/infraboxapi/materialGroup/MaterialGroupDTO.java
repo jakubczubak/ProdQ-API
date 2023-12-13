@@ -35,7 +35,7 @@ public class MaterialGroupDTO {
     private String imageURL;
 
     @Valid // Ensure the nested object is validated as well
-    private MaterialTypeDTO materialDescription;
+    private MaterialTypeDTO materialType;
 
     @Valid // Ensure the elements in the list are validated
     private List<MaterialDTO> materials;

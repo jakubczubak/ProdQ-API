@@ -2,6 +2,7 @@ package com.example.infraboxapi.materialGroup;
 
 import com.example.infraboxapi.materialType.MaterialType;
 import com.example.infraboxapi.materialType.MaterialTypeDTO;
+import com.example.infraboxapi.materialType.MaterialTypeRepository;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
@@ -16,15 +17,18 @@ public class MaterialGroupService {
 
     private final MaterialGroupRepository materialGroupRepository;
     private final NotificationService notificationService;
+    private final MaterialTypeRepository materialTypeRepository;
 
     @Transactional
     public void createMaterialGroup(MaterialGroupDTO materialGroupDTO) {
+
+        MaterialType materialType = materialTypeRepository.findById(materialGroupDTO.getMaterialType().getId()).orElseThrow(() -> new RuntimeException("Material Type not found"));
 
         MaterialGroup materialGroup = MaterialGroup.builder()
                 .name(materialGroupDTO.getName())
                 .type(materialGroupDTO.getType())
                 .imageURL(materialGroupDTO.getImageURL())
-//                .materialType(convertToMaterialDescription(materialGroupDTO.getMaterialDescription()))
+                .materialType(materialType)
                 .materials(new ArrayList<>())
                 .build();
 
@@ -40,7 +44,6 @@ public class MaterialGroupService {
         MaterialGroup materialGroup = materialGroupRepository.findById(materialGroupDTO.getId()).orElseThrow(() -> new RuntimeException("Material Group not found"));
         materialGroup.setId(materialGroupDTO.getId());
         materialGroup.setImageURL(materialGroupDTO.getImageURL());
-        materialGroup.setType(materialGroupDTO.getType());
         materialGroup.setName(materialGroupDTO.getName());
 
         materialGroupRepository.save(materialGroup);
@@ -71,11 +74,5 @@ public class MaterialGroupService {
     }
 
 
-    public MaterialType convertToMaterialDescription(MaterialTypeDTO materialTypeDTO) {
-        return MaterialType.builder()
-                .id(materialTypeDTO.getId())
-                .name(materialTypeDTO.getName())
-                .density(materialTypeDTO.getDensity())
-                .build();
-    }
+
 }
