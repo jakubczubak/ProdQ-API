@@ -47,4 +47,18 @@ public class MaterialTypeController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material type: " + e.getMessage());
         }
     }
+
+    @PutMapping("/update")
+    public ResponseEntity<?> updateMaterialType(@Valid @RequestBody MaterialTypeDTO materialTypeDTO, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
+
+        try {
+            materialTypeService.updateMaterialType(materialTypeDTO);
+            return ResponseEntity.ok("Material type updated");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating material type: " + e.getMessage());
+        }
+    }
 }
