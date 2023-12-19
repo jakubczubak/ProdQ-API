@@ -1,9 +1,6 @@
 package com.example.infraboxapi.File;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Getter
@@ -21,5 +18,6 @@ public class File {
 
     private String type;
     @Lob
+    @Column(length = 100000) // Ustaw maksymalną długość kolumny
     private byte[] imageData;
 }

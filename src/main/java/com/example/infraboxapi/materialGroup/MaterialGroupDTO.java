@@ -31,15 +31,11 @@ public class MaterialGroupDTO {
     @Size(min = 2, max = 50, message = "Field 'type' must have a length between 2 and 50 characters")
     private String type;
 
-
-    private String imageURL;
-
+    @NotNull(message = "Field 'file' cannot be null")
     private MultipartFile file;
 
     @Valid // Ensure the nested object is validated as well
-    private MaterialTypeDTO materialType;
+    private Integer  materialTypeID;
 
-    @Valid // Ensure the elements in the list are validated
-    private List<MaterialDTO> materials;
 
 }

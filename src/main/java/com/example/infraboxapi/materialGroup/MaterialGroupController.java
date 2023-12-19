@@ -28,27 +28,19 @@ public class MaterialGroupController {
     private final FileService fileService;
 
     @PostMapping("/create")
-    public ResponseEntity<String> createMaterialGroup(@RequestPart("name") String name, @RequestPart("file") MultipartFile file) throws IOException {
+    public ResponseEntity<String> createMaterialGroup(@ModelAttribute @Valid MaterialGroupDTO materialGroupDTO,
+                                                      BindingResult bindingResult){
 
-        System.out.println(name);
-        System.out.println(file.getOriginalFilename());
+       if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
 
-
-//
-//        fileService.storeFile(materialGroupDTO.getFile());
-//
-//       if (bindingResult.hasErrors()) {
-//            return commonService.handleBindingResult(bindingResult);
-//        }
-//
-//        try {
-//            materialGroupService.createMaterialGroup(materialGroupDTO);
-//            return ResponseEntity.ok("Material Group created");
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating material group: " + e.getMessage());
-//        }
-
-        return ResponseEntity.ok("Material Group created");
+        try {
+            materialGroupService.createMaterialGroup(materialGroupDTO);
+            return ResponseEntity.ok("Material Group created");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating material group: " + e.getMessage());
+        }
 
     }
 

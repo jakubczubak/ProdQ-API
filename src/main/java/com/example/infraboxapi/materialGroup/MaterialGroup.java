@@ -1,5 +1,6 @@
 package com.example.infraboxapi.materialGroup;
 
+import com.example.infraboxapi.File.File;
 import com.example.infraboxapi.material.Material;
 import com.example.infraboxapi.materialType.MaterialType;
 import jakarta.persistence.*;
@@ -23,7 +24,9 @@ public class MaterialGroup {
     private Integer id;
     private String name;
     private String type;
-    private String imageURL;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    private File file;
 
     @OneToOne(cascade = CascadeType.ALL)
     private MaterialType materialType;

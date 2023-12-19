@@ -13,13 +13,12 @@ public class FileService {
 
     private final FileRepository fileRepository;
 
-    public void storeFile(MultipartFile file) throws IOException {
-        File newFile = File.builder()
+    public File createFile(MultipartFile file) throws IOException {
+
+        return File.builder()
                 .name(file.getOriginalFilename())
                 .type(file.getContentType())
                 .imageData(file.getBytes())
                 .build();
-
-        fileRepository.save(newFile);
     }
 }
