@@ -1,7 +1,9 @@
 package com.example.infraboxapi.materialGroup;
 
 
+import com.example.infraboxapi.File.FileService;
 import com.example.infraboxapi.common.CommonService;
+import com.example.infraboxapi.materialType.MaterialType;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -10,7 +12,9 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,20 +25,30 @@ public class MaterialGroupController {
 
     private final MaterialGroupService materialGroupService;
     private final CommonService commonService;
+    private final FileService fileService;
 
     @PostMapping("/create")
-    public ResponseEntity<String> createMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
+    public ResponseEntity<String> createMaterialGroup(@RequestPart("name") String name, @RequestPart("file") MultipartFile file) throws IOException {
 
-       if (bindingResult.hasErrors()) {
-            return commonService.handleBindingResult(bindingResult);
-        }
+        System.out.println(name);
+        System.out.println(file.getOriginalFilename());
 
-        try {
-            materialGroupService.createMaterialGroup(materialGroupDTO);
-            return ResponseEntity.ok("Material Group created");
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating material group: " + e.getMessage());
-        }
+
+//
+//        fileService.storeFile(materialGroupDTO.getFile());
+//
+//       if (bindingResult.hasErrors()) {
+//            return commonService.handleBindingResult(bindingResult);
+//        }
+//
+//        try {
+//            materialGroupService.createMaterialGroup(materialGroupDTO);
+//            return ResponseEntity.ok("Material Group created");
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating material group: " + e.getMessage());
+//        }
+
+        return ResponseEntity.ok("Material Group created");
 
     }
 

@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 
 import java.util.List;
@@ -30,9 +31,10 @@ public class MaterialGroupDTO {
     @Size(min = 2, max = 50, message = "Field 'type' must have a length between 2 and 50 characters")
     private String type;
 
-    @Size(max = 255, message = "Field 'imageURL' cannot exceed 255 characters")
-    @NotNull(message = "Field 'imageURL' cannot be null")
+
     private String imageURL;
+
+    private MultipartFile file;
 
     @Valid // Ensure the nested object is validated as well
     private MaterialTypeDTO materialType;
