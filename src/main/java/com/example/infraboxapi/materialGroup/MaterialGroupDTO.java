@@ -34,7 +34,7 @@ public class MaterialGroupDTO {
     @NotNull(message = "Field 'file' cannot be null")
     private MultipartFile file;
 
-    @Valid // Ensure the nested object is validated as well
+    @NotNull(message = "Field 'materialTypeID' cannot be null")
     private Integer  materialTypeID;
 
 
