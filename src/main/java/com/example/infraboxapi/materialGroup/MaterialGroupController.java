@@ -45,7 +45,7 @@ public class MaterialGroupController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateMaterialGroup(@Valid @RequestBody MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
+    public ResponseEntity<String> updateMaterialGroup(@ModelAttribute @Valid MaterialGroupDTO materialGroupDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);

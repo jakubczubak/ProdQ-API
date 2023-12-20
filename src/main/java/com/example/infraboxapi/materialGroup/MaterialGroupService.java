@@ -45,11 +45,24 @@ public class MaterialGroupService {
     }
 
     @Transactional
-    public void updateMaterialGroup(MaterialGroupDTO materialGroupDTO) {
+    public void updateMaterialGroup(MaterialGroupDTO materialGroupDTO) throws IOException {
+
+        MaterialType materialType = materialTypeRepository.findById(materialGroupDTO.getMaterialTypeID()).orElseThrow(() -> new RuntimeException("Material Type not found"));
+
+
+
 
         MaterialGroup materialGroup = materialGroupRepository.findById(materialGroupDTO.getId()).orElseThrow(() -> new RuntimeException("Material Group not found"));
-        materialGroup.setId(materialGroupDTO.getId());
         materialGroup.setName(materialGroupDTO.getName());
+        materialGroup.setType(materialGroupDTO.getType());
+        materialGroup.setMaterialType(materialType);
+
+
+        if(materialGroupDTO.getFile() != null) {
+            File file = fileService.createFile(materialGroupDTO.getFile());
+            materialGroup.setFile(file);
+        }
+
 
         materialGroupRepository.save(materialGroup);
 

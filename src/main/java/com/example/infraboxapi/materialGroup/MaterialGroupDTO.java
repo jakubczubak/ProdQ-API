@@ -31,7 +31,6 @@ public class MaterialGroupDTO {
     @Size(min = 2, max = 50, message = "Field 'type' must have a length between 2 and 50 characters")
     private String type;
 
-    @NotNull(message = "Field 'file' cannot be null")
     private MultipartFile file;
 
     @NotNull(message = "Field 'materialTypeID' cannot be null")
