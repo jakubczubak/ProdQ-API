@@ -91,5 +91,16 @@ public class MaterialGroupController {
         }
     }
 
+    @DeleteMapping("/delete/{fileID}/{materialGroupID}")
+    public ResponseEntity<String> deleteFileImage(@PathVariable Integer fileID, @PathVariable Integer materialGroupID) {
+
+        try {
+            materialGroupService.deleteFile(fileID, materialGroupID);
+            return ResponseEntity.ok("Material Group deleted");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material group: " + e.getMessage());
+        }
+    }
+
 
 }
