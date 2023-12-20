@@ -9,7 +9,7 @@ import lombok.*;
 @NoArgsConstructor
 @Entity
 @Builder
-@Table(name = "_file")
+@Table(name = "_fileImage")
 public class FileImage {
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
