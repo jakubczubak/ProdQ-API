@@ -49,7 +49,7 @@ To run INFRABOX, follow the steps below using Docker Compose:
 
 1. Ensure that you have Docker and Docker Compose installed on your system.
 
-2. Navigate to the project's root directory where the `docker-compose.yml` file is located.
+2. Navigate to the project's root directory where the `docker-compose.yml` fileImage is located.
 
 3. Open a terminal or command prompt in the project directory.
 
@@ -57,9 +57,9 @@ To run INFRABOX, follow the steps below using Docker Compose:
 
    docker-compose up -d
 
-This command will launch all containers specified in the `docker-compose.yml` file. The `-d` flag means the containers will run in the background.
+This command will launch all containers specified in the `docker-compose.yml` fileImage. The `-d` flag means the containers will run in the background.
 
-5. Once the startup process is complete, the application will be accessible at the appropriate URL, which will be displayed in the console. Typically, this will be `http://localhost` or `http://localhost:port`, where `port` is the port number if defined in the `docker-compose.yml` file.
+5. Once the startup process is complete, the application will be accessible at the appropriate URL, which will be displayed in the console. Typically, this will be `http://localhost` or `http://localhost:port`, where `port` is the port number if defined in the `docker-compose.yml` fileImage.
 
 ## Project Status
 

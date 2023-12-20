@@ -1,10 +1,9 @@
 package com.example.infraboxapi.materialGroup;
 
-import com.example.infraboxapi.File.File;
-import com.example.infraboxapi.File.FileRepository;
-import com.example.infraboxapi.File.FileService;
+import com.example.infraboxapi.FileImage.FileImage;
+import com.example.infraboxapi.FileImage.FileImageRepository;
+import com.example.infraboxapi.FileImage.FileImageService;
 import com.example.infraboxapi.materialType.MaterialType;
-import com.example.infraboxapi.materialType.MaterialTypeDTO;
 import com.example.infraboxapi.materialType.MaterialTypeRepository;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
@@ -22,20 +21,20 @@ public class MaterialGroupService {
     private final MaterialGroupRepository materialGroupRepository;
     private final NotificationService notificationService;
     private final MaterialTypeRepository materialTypeRepository;
-    private final FileService fileService;
-    private final FileRepository fileRepository;
+    private final FileImageService fileImageService;
+    private final FileImageRepository fileImageRepository;
 
     @Transactional
     public void createMaterialGroup(MaterialGroupDTO materialGroupDTO) throws IOException {
 
         MaterialType materialType = materialTypeRepository.findById(materialGroupDTO.getMaterialTypeID()).orElseThrow(() -> new RuntimeException("Material Type not found"));
 
-        File file = fileService.createFile(materialGroupDTO.getFile());
+        FileImage fileImage = fileImageService.createFile(materialGroupDTO.getFile());
 
         MaterialGroup materialGroup = MaterialGroup.builder()
                 .name(materialGroupDTO.getName())
                 .type(materialGroupDTO.getType())
-                .file(file)
+                .fileImage(fileImage)
                 .materialType(materialType)
                 .materials(new ArrayList<>())
                 .build();
@@ -59,8 +58,8 @@ public class MaterialGroupService {
 
 
         if(materialGroupDTO.getFile() != null) {
-            File file = fileService.updateFile(materialGroupDTO.getFile(), materialGroup.getFile());
-            materialGroup.setFile(file);
+            FileImage fileImage = fileImageService.updateFile(materialGroupDTO.getFile(), materialGroup.getFileImage());
+            materialGroup.setFileImage(fileImage);
         }
 
 
@@ -86,13 +85,13 @@ public class MaterialGroupService {
 
         MaterialGroup materialGroup = materialGroupRepository.findById(materialGroupID).orElseThrow(() -> new RuntimeException("Material Group not found"));
 
-        File file = fileRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
+        FileImage fileImage = fileImageRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
 
-        materialGroup.setFile(null);
+        materialGroup.setFileImage(null);
 
         materialGroupRepository.save(materialGroup);
 
-        fileRepository.delete(file);
+        fileImageRepository.delete(fileImage);
     }
 
 

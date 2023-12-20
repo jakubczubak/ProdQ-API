@@ -1,7 +1,6 @@
-package com.example.infraboxapi.File;
+package com.example.infraboxapi.FileImage;
 
 
-import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialGroup.MaterialGroupRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,30 +10,30 @@ import java.io.IOException;
 
 @Service
 @AllArgsConstructor
-public class FileService {
+public class FileImageService {
 
-    private final FileRepository fileRepository;
+    private final FileImageRepository fileImageRepository;
     private final MaterialGroupRepository materialGroupRepository;
 
-    public File createFile(MultipartFile file) throws IOException {
+    public FileImage createFile(MultipartFile file) throws IOException {
 
-        return File.builder()
+        return FileImage.builder()
                 .name(file.getOriginalFilename())
                 .type(file.getContentType())
                 .imageData(file.getBytes())
                 .build();
     }
 
-    public File updateFile(MultipartFile file, File oldFile) throws IOException {
+    public FileImage updateFile(MultipartFile file, FileImage oldFileImage) throws IOException {
 
-        if(oldFile == null) {
+        if(oldFileImage == null) {
             return createFile(file);
         }
-        oldFile.setName(file.getOriginalFilename());
-        oldFile.setType(file.getContentType());
-        oldFile.setImageData(file.getBytes());
+        oldFileImage.setName(file.getOriginalFilename());
+        oldFileImage.setType(file.getContentType());
+        oldFileImage.setImageData(file.getBytes());
 
-        return oldFile;
+        return oldFileImage;
     }
 
 

@@ -1,4 +1,4 @@
-package com.example.infraboxapi.File;
+package com.example.infraboxapi.FileImage;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -10,7 +10,7 @@ import lombok.*;
 @Entity
 @Builder
 @Table(name = "_file")
-public class File {
+public class FileImage {
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private Integer id;

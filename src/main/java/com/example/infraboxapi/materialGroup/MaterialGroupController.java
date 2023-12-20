@@ -1,22 +1,14 @@
 package com.example.infraboxapi.materialGroup;
 
 
-import com.example.infraboxapi.File.FileService;
+import com.example.infraboxapi.FileImage.FileImageService;
 import com.example.infraboxapi.common.CommonService;
-import com.example.infraboxapi.materialType.MaterialType;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/material_group/")
@@ -25,7 +17,7 @@ public class MaterialGroupController {
 
     private final MaterialGroupService materialGroupService;
     private final CommonService commonService;
-    private final FileService fileService;
+    private final FileImageService fileImageService;
 
     @PostMapping("/create")
     public ResponseEntity<String> createMaterialGroup(@ModelAttribute @Valid MaterialGroupDTO materialGroupDTO,
