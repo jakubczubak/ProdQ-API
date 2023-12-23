@@ -1,5 +1,6 @@
 package com.example.infraboxapi.toolGroup;
 
+import com.example.infraboxapi.FileImage.FileImage;
 import com.example.infraboxapi.tool.Tool;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -22,7 +23,8 @@ public class ToolGroup {
     private Integer id;
     private String name;
     private String type;
-    private String imageURL;
+    @OneToOne(cascade = CascadeType.ALL)
+    private FileImage fileImage;
 
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "tool_group_id")

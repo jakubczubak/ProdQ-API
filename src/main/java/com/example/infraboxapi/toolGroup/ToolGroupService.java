@@ -1,11 +1,16 @@
 package com.example.infraboxapi.toolGroup;
 
+import com.example.infraboxapi.FileImage.FileImage;
+import com.example.infraboxapi.FileImage.FileImageRepository;
+import com.example.infraboxapi.FileImage.FileImageService;
+import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,6 +20,8 @@ public class ToolGroupService {
 
     private final ToolGroupRepository toolGroupRepository;
     private final NotificationService notificationService;
+    private final FileImageService fileImageService;
+    private final FileImageRepository fileImageRepository;
 
 
     public List<ToolGroup> getToolGroups() {
@@ -25,12 +32,14 @@ public class ToolGroupService {
 
 
     @Transactional
-    public void createToolGroup(ToolGroupDTO toolGroupDTO) {
+    public void createToolGroup(ToolGroupDTO toolGroupDTO) throws IOException {
+
+        FileImage fileImage = fileImageService.createFile(toolGroupDTO.getFile());
 
         ToolGroup toolGroup = ToolGroup.builder()
                 .name(toolGroupDTO.getName())
                 .type(toolGroupDTO.getType())
-                .imageURL(toolGroupDTO.getImageURL())
+                .fileImage(fileImage)
                 .tools(new ArrayList<>())
                 .build();
 
@@ -42,13 +51,16 @@ public class ToolGroupService {
 
 
     @Transactional
-    public void updateToolGroup(ToolGroupDTO toolGroupDTO) {
+    public void updateToolGroup(ToolGroupDTO toolGroupDTO) throws IOException {
 
         ToolGroup toolGroup = toolGroupRepository.findById(toolGroupDTO.getId()).orElseThrow(() -> new RuntimeException("Tool Group not found"));
 
         toolGroup.setName(toolGroupDTO.getName());
-        toolGroup.setImageURL(toolGroupDTO.getImageURL());
-        toolGroup.setTools(toolGroupDTO.getTools());
+        if(toolGroupDTO.getFile() != null) {
+            FileImage fileImage = fileImageService.updateFile(toolGroupDTO.getFile(), toolGroup.getFileImage());
+            toolGroup.setFileImage(fileImage);
+        }
+
 
         toolGroupRepository.save(toolGroup);
 
@@ -72,5 +84,20 @@ public class ToolGroupService {
 
         return toolGroupRepository.findById(id).orElseThrow(() -> new RuntimeException("Tool Group not found"));
 
+
+    }
+
+
+    public void deleteFile(Integer id, Integer materialGroupID) {
+
+        ToolGroup toolGroup = toolGroupRepository.findById(materialGroupID).orElseThrow(() -> new RuntimeException("Tool group not found"));
+
+        FileImage fileImage = fileImageRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
+
+        toolGroup.setFileImage(null);
+
+        toolGroupRepository.save(toolGroup);
+
+        fileImageRepository.delete(fileImage);
     }
 }

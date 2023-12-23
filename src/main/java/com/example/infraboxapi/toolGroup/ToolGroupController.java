@@ -27,7 +27,7 @@ public class ToolGroupController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
+    public ResponseEntity<String> updateToolGroup(@ModelAttribute @Valid ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
@@ -42,7 +42,7 @@ public class ToolGroupController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<String> createToolGroup(@Valid @RequestBody ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
+    public ResponseEntity<String> createToolGroup(@ModelAttribute @Valid ToolGroupDTO toolGroupDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
@@ -71,6 +71,17 @@ public class ToolGroupController {
             return ResponseEntity.ok(toolGroupService.getToolGroup(id));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @DeleteMapping("/delete/{fileID}/{toolGroupID}")
+    public ResponseEntity<String> deleteFileImage(@PathVariable Integer fileID, @PathVariable Integer toolGroupID) {
+
+        try {
+            toolGroupService.deleteFile(fileID, toolGroupID);
+            return ResponseEntity.ok("Tool group image deleted");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting tool group image: " + e.getMessage());
         }
     }
 }

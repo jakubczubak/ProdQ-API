@@ -88,9 +88,9 @@ public class MaterialGroupController {
 
         try {
             materialGroupService.deleteFile(fileID, materialGroupID);
-            return ResponseEntity.ok("Material Group deleted");
+            return ResponseEntity.ok("Material group image deleted");
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material group: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting material group image: " + e.getMessage());
         }
     }
 

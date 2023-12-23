@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 
 import java.util.List;
@@ -29,8 +30,7 @@ public class ToolGroupDTO {
     @Size(min = 2, max = 50, message = "Field 'type' must have a length between 2 and 50 characters")
     private String type;
 
-    @NotNull(message = "Field 'imageURL' cannot be null")
-    private String imageURL;
+    private MultipartFile file;
 
     @NotNull(message = "Field 'tools' cannot be null")
     private List<Tool> tools;
