@@ -34,14 +34,16 @@ public class ToolGroupService {
     @Transactional
     public void createToolGroup(ToolGroupDTO toolGroupDTO) throws IOException {
 
-        FileImage fileImage = fileImageService.createFile(toolGroupDTO.getFile());
-
         ToolGroup toolGroup = ToolGroup.builder()
                 .name(toolGroupDTO.getName())
                 .type(toolGroupDTO.getType())
-                .fileImage(fileImage)
                 .tools(new ArrayList<>())
                 .build();
+
+        if(toolGroupDTO.getFile() != null) {
+            FileImage fileImage = fileImageService.createFile(toolGroupDTO.getFile());
+            toolGroup.setFileImage(fileImage);
+        }
 
         toolGroupRepository.save(toolGroup);
 

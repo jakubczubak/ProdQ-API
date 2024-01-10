@@ -29,15 +29,20 @@ public class MaterialGroupService {
 
         MaterialType materialType = materialTypeRepository.findById(materialGroupDTO.getMaterialTypeID()).orElseThrow(() -> new RuntimeException("Material Type not found"));
 
-        FileImage fileImage = fileImageService.createFile(materialGroupDTO.getFile());
+
 
         MaterialGroup materialGroup = MaterialGroup.builder()
                 .name(materialGroupDTO.getName())
                 .type(materialGroupDTO.getType())
-                .fileImage(fileImage)
                 .materialType(materialType)
                 .materials(new ArrayList<>())
                 .build();
+
+        if(materialGroupDTO.getFile() != null) {
+
+            FileImage fileImage = fileImageService.createFile(materialGroupDTO.getFile());
+            materialGroup.setFileImage(fileImage);
+        }
 
         materialGroupRepository.save(materialGroup);
 

@@ -32,7 +32,4 @@ public class ToolGroupDTO {
 
     private MultipartFile file;
 
-    @NotNull(message = "Field 'tools' cannot be null")
-    private List<Tool> tools;
-
 }
