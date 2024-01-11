@@ -84,7 +84,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <imageName>infrabox-api:v1.0.0</imageName>
+                    <imageName>infrabox-api</imageName>
                 </configuration>
             </plugin>
         </plugins>
