@@ -11,7 +11,7 @@ import org.springframework.web.filter.CorsFilter;
 public class CorsConfig {
 
     @Value("${cors.allowed-origins}")
-    private String allowedOrigins;
+    private String[] allowedOrigin;
 
     @Bean
     public CorsFilter corsFilter() {
@@ -20,7 +20,10 @@ public class CorsConfig {
 
         // Ustawienia dla wszystkich ścieżek
         config.setAllowCredentials(true);
-        config.addAllowedOrigin(allowedOrigins); // Adres, z którego przyjmujesz żądania
+
+        for (String origin : allowedOrigin) {
+            config.addAllowedOrigin(origin);
+        }
         config.addAllowedHeader("*"); // Wszystkie nagłówki
         config.addAllowedMethod("GET");
         config.addAllowedMethod("POST");
@@ -31,3 +34,4 @@ public class CorsConfig {
         return new CorsFilter(source);
     }
 }
+
