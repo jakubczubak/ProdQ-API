@@ -28,7 +28,8 @@ public class MaterialGroup {
     @OneToOne(cascade = CascadeType.ALL)
     private FileImage fileImage;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
+    @JoinColumn(name = "material_type_id")
     private MaterialType materialType;
 
 
