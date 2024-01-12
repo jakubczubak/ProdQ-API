@@ -28,7 +28,7 @@ public class MaterialGroup {
     @OneToOne(cascade = CascadeType.ALL)
     private FileImage fileImage;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @ManyToOne(cascade = CascadeType.ALL)
     private MaterialType materialType;
 
 
