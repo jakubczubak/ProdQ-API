@@ -54,7 +54,9 @@ public enum NotificationDescription {
     RevokeAdminPermission("Administrator privileges revoked."),
     DeleteUser("User has been removed from the system."),
     UserUpdated("User record updated."),
-    UserCreated("New user created.");
+    UserCreated("New user created."),
+
+    ProductionItemAdded("New production item activity.");
 
     private final String description;
 
