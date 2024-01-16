@@ -3,13 +3,11 @@ package com.example.infraboxapi.toolGroup;
 import com.example.infraboxapi.FileImage.FileImage;
 import com.example.infraboxapi.FileImage.FileImageRepository;
 import com.example.infraboxapi.FileImage.FileImageService;
-import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,7 +92,7 @@ public class ToolGroupService {
 
         ToolGroup toolGroup = toolGroupRepository.findById(materialGroupID).orElseThrow(() -> new RuntimeException("Tool group not found"));
 
-        FileImage fileImage = fileImageRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
+        FileImage fileImage = fileImageRepository.findById(Long.valueOf(id)).orElseThrow(() -> new RuntimeException("File not found"));
 
         toolGroup.setFileImage(null);
 

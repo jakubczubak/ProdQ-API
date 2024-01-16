@@ -1,8 +1,8 @@
-package com.example.infraboxapi.FileImage;
+package com.example.infraboxapi.FilePDF;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface FileImageRepository extends JpaRepository<FileImage, Long> {
+public interface FilePDFRepository extends JpaRepository<FilePDF, Long> {
 }

@@ -10,7 +10,6 @@ import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -89,7 +88,7 @@ public class MaterialGroupService {
 
         MaterialGroup materialGroup = materialGroupRepository.findById(materialGroupID).orElseThrow(() -> new RuntimeException("Material Group not found"));
 
-        FileImage fileImage = fileImageRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
+        FileImage fileImage = fileImageRepository.findById(Long.valueOf(id)).orElseThrow(() -> new RuntimeException("File not found"));
 
         materialGroup.setFileImage(null);
 

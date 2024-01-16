@@ -12,9 +12,6 @@ import java.io.IOException;
 @AllArgsConstructor
 public class FileImageService {
 
-    private final FileImageRepository fileImageRepository;
-    private final MaterialGroupRepository materialGroupRepository;
-
     public FileImage createFile(MultipartFile file) throws IOException {
 
         return FileImage.builder()
