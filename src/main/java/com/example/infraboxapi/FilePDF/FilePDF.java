@@ -10,7 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @Entity
 @Builder
-@Table(name = "_filePDF")
+@Table(name = "_file_pdf")
 public class FilePDF {
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)

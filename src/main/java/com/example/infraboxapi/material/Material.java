@@ -46,6 +46,7 @@ public class Material {
     @Column(name = "updated_on")
     private String updatedOn;
 
+
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "material_id")
     private List<MaterialPriceHistory> materialPriceHistoryList;

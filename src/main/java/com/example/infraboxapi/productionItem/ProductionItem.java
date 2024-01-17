@@ -24,6 +24,8 @@ public class ProductionItem {
     private Integer quantity;
     @Column(name = "updated_on")
     private String updatedOn;
+    @Column(name = "craeted_on")
+    private String createdOn;
     private String status;
     private double camTime;
     private BigDecimal materialValue;
@@ -39,5 +41,14 @@ public class ProductionItem {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
         updatedOn = now.format(formatter);
+    }
+
+    @PrePersist
+    public void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        createdOn = now.format(formatter);
     }
 }
