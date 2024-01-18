@@ -2,8 +2,6 @@ package com.example.infraboxapi.productionItem;
 
 
 import com.example.infraboxapi.common.CommonService;
-import com.example.infraboxapi.materialGroup.MaterialGroup;
-import com.example.infraboxapi.materialGroup.MaterialGroupDTO;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -48,13 +46,28 @@ public class ProductionItemController {
     }
 
     @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteProductionItem(@PathVariable Long id) {
+    public ResponseEntity<String> deleteProductionItem(@PathVariable Integer id) {
 
         try {
             productionItemService.deleteProductionItem(id);
             return ResponseEntity.ok("Production item deleted");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting production item: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/update")
+    public ResponseEntity<String> updateProductionItem(@ModelAttribute @Valid ProductionItemDTO productionItemDTO, BindingResult bindingResult) {
+
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
+
+        try {
+           productionItemService.updateProductionItem(productionItemDTO);
+            return ResponseEntity.ok("Production item updated");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating production item: " + e.getMessage());
         }
     }
 }

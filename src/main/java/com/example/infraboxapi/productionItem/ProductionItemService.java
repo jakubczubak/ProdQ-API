@@ -1,20 +1,13 @@
 package com.example.infraboxapi.productionItem;
 
-import com.example.infraboxapi.FileImage.FileImage;
 import com.example.infraboxapi.FilePDF.FilePDF;
 import com.example.infraboxapi.FilePDF.FilePDFService;
-import com.example.infraboxapi.materialGroup.MaterialGroup;
-import com.example.infraboxapi.materialGroup.MaterialGroupDTO;
-import com.example.infraboxapi.materialType.MaterialType;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 @Service
 @AllArgsConstructor
@@ -51,12 +44,35 @@ public class ProductionItemService {
         return productionItemRepository.findAll();
     }
 
-    public void deleteProductionItem(Long id) {
+    public void deleteProductionItem(Integer id) {
 
         ProductionItem pr = productionItemRepository.findById(id).orElseThrow(() -> new RuntimeException("Production Item not found"));
         productionItemRepository.deleteById(id);
 
 
         notificationService.createAndSendNotification("A production item has been deleted: " + pr.getPartName() , NotificationDescription.ProductionItemDeleted);
+    }
+
+    public void updateProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
+        ProductionItem productionItem = productionItemRepository.findById(productionItemDTO.getId()).orElseThrow(() -> new RuntimeException("Production Item not found"));
+
+        productionItem.setPartName(productionItemDTO.getPartName());
+        productionItem.setQuantity(productionItemDTO.getQuantity());
+        productionItem.setStatus(productionItemDTO.getStatus());
+        productionItem.setCamTime(productionItemDTO.getCamTime());
+        productionItem.setMaterialValue(productionItemDTO.getMaterialValue());
+        productionItem.setPartType(productionItemDTO.getPartType());
+
+        if(productionItemDTO.getFilePDF() != null) {
+            FilePDF filePDF = filePDFService.updateFile(productionItemDTO.getFilePDF(), productionItem.getFilePDF());
+            productionItem.setFilePDF(filePDF);
+        }
+
+        productionItemRepository.save(productionItem);
+
+        notificationService.createAndSendNotification(
+                "The production item '" + productionItem.getPartName() + "' has been updated successfully.",
+                NotificationDescription.ProductionItemUpdated
+        );
     }
 }

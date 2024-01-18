@@ -52,10 +52,6 @@ public class MaterialGroupService {
     @Transactional
     public void updateMaterialGroup(MaterialGroupDTO materialGroupDTO) throws IOException {
 
-
-
-
-
         MaterialGroup materialGroup = materialGroupRepository.findById(materialGroupDTO.getId()).orElseThrow(() -> new RuntimeException("Material Group not found"));
         materialGroup.setName(materialGroupDTO.getName());
 
