@@ -56,7 +56,9 @@ public enum NotificationDescription {
     UserUpdated("User record updated."),
     UserCreated("New user created."),
 
-    ProductionItemAdded("New production item activity.");
+    ProductionItemAdded("New production item activity."),
+    ProductionItemUpdated("Production item record updated."),
+    ProductionItemDeleted("Production item removed from the system.");
 
     private final String description;
 

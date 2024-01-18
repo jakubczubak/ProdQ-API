@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @AllArgsConstructor
@@ -25,10 +26,6 @@ public class ProductionItemService {
 
     @Transactional
     public void createProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
-
-
-
-
         ProductionItem productionItem = ProductionItem.builder()
                 .partName(productionItemDTO.getPartName())
                 .quantity(productionItemDTO.getQuantity())
@@ -48,5 +45,18 @@ public class ProductionItemService {
 
         notificationService.createAndSendNotification("A new production item has been added: " + productionItem.getPartName(), NotificationDescription.ProductionItemAdded);
 
+    }
+
+    public Iterable<ProductionItem> getProductionItems() {
+        return productionItemRepository.findAll();
+    }
+
+    public void deleteProductionItem(Long id) {
+
+        ProductionItem pr = productionItemRepository.findById(id).orElseThrow(() -> new RuntimeException("Production Item not found"));
+        productionItemRepository.deleteById(id);
+
+
+        notificationService.createAndSendNotification("A production item has been deleted: " + pr.getPartName() , NotificationDescription.ProductionItemDeleted);
     }
 }
