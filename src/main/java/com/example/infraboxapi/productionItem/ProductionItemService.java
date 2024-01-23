@@ -26,6 +26,8 @@ public class ProductionItemService {
                 .camTime(productionItemDTO.getCamTime())
                 .materialValue(productionItemDTO.getMaterialValue())
                 .partType(productionItemDTO.getPartType())
+                .startUpTime(productionItemDTO.getStartUpTime())
+                .factor(productionItemDTO.getFactor())
                 .build();
 
         if(productionItemDTO.getFilePDF() != null) {
@@ -62,6 +64,8 @@ public class ProductionItemService {
         productionItem.setCamTime(productionItemDTO.getCamTime());
         productionItem.setMaterialValue(productionItemDTO.getMaterialValue());
         productionItem.setPartType(productionItemDTO.getPartType());
+        productionItem.setStartUpTime(productionItemDTO.getStartUpTime());
+        productionItem.setFactor(productionItemDTO.getFactor());
 
         if(productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.updateFile(productionItemDTO.getFilePDF(), productionItem.getFilePDF());

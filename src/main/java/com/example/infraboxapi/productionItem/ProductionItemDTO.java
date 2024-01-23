@@ -32,6 +32,10 @@ public class ProductionItemDTO {
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private double camTime;
     @PositiveOrZero(message = "Value must be a positive number or zero")
+    private double startUpTime;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private double factor;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
     private BigDecimal materialValue;
     @NotBlank(message = "Field 'part type' cannot be blank")
     @Size(min = 2, max = 100, message = "Field 'part type' must have a length between 2 and 100 characters")

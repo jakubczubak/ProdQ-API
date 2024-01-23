@@ -28,6 +28,9 @@ public class ProductionItem {
     private String createdOn;
     private String status;
     private double camTime;
+    private double factor;
+    private double startUpTime;
+
     private BigDecimal materialValue;
     private String partType;
     @OneToOne(cascade = CascadeType.ALL)
