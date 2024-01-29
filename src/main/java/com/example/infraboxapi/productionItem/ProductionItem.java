@@ -28,6 +28,7 @@ public class ProductionItem {
     private String createdOn;
     private String status;
     private double camTime;
+    private double fixtureTime;
     private double factor;
     private double startUpTime;
 
