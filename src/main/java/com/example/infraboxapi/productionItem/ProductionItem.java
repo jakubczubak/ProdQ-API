@@ -33,6 +33,7 @@ public class ProductionItem {
     private double startUpTime;
 
     private BigDecimal materialValue;
+    private BigDecimal toolValue;
     private String partType;
     @OneToOne(cascade = CascadeType.ALL)
     private FilePDF filePDF;

@@ -25,6 +25,7 @@ public class ProductionItemService {
                 .status(productionItemDTO.getStatus())
                 .camTime(productionItemDTO.getCamTime())
                 .materialValue(productionItemDTO.getMaterialValue())
+                .toolValue(productionItemDTO.getToolValue())
                 .partType(productionItemDTO.getPartType())
                 .startUpTime(productionItemDTO.getStartUpTime())
                 .factor(productionItemDTO.getFactor())
@@ -64,6 +65,7 @@ public class ProductionItemService {
         productionItem.setStatus(productionItemDTO.getStatus());
         productionItem.setCamTime(productionItemDTO.getCamTime());
         productionItem.setMaterialValue(productionItemDTO.getMaterialValue());
+        productionItem.setToolValue(productionItemDTO.getToolValue());
         productionItem.setPartType(productionItemDTO.getPartType());
         productionItem.setStartUpTime(productionItemDTO.getStartUpTime());
         productionItem.setFactor(productionItemDTO.getFactor());
