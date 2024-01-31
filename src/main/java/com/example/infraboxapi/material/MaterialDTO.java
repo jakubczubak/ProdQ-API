@@ -26,7 +26,7 @@ public class MaterialDTO {
     @PositiveOrZero(message = "Minimum quantity must be a positive number or zero")
     private float minQuantity;
 
-    @Positive(message = "Quantity must be a positive number")
+    @PositiveOrZero(message = "Quantity must be a positive number")
     private float quantity;
 
     @PositiveOrZero(message = "Value must be a positive number or zero")
