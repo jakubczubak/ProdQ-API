@@ -30,6 +30,7 @@ public class OrderDTO {
     @Email(message = "Field 'supplierEmail' must be a valid email address")
     private String supplierEmail;
     @NotBlank(message = "Field 'supplier message' cannot be blank")
+    @Size(max = 65535, message = "Field 'supplier message' must have a length up to 65535 characters")
     private String supplierMessage;
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private double totalPrice;
