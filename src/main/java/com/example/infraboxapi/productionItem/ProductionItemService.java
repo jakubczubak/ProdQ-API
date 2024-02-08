@@ -28,6 +28,8 @@ public class ProductionItemService {
                 .toolValue(productionItemDTO.getToolValue())
                 .partType(productionItemDTO.getPartType())
                 .startUpTime(productionItemDTO.getStartUpTime())
+                .finishingTime(productionItemDTO.getFinishingTime())
+                .totalTime(productionItemDTO.getTotalTime())
                 .factor(productionItemDTO.getFactor())
                 .fixtureTime(productionItemDTO.getFixtureTime())
                 .build();
@@ -70,6 +72,8 @@ public class ProductionItemService {
         productionItem.setStartUpTime(productionItemDTO.getStartUpTime());
         productionItem.setFactor(productionItemDTO.getFactor());
         productionItem.setFixtureTime(productionItemDTO.getFixtureTime());
+        productionItem.setFinishingTime(productionItemDTO.getFinishingTime());
+        productionItem.setTotalTime(productionItemDTO.getTotalTime());
 
         if(productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.updateFile(productionItemDTO.getFilePDF(), productionItem.getFilePDF());

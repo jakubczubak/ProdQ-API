@@ -34,6 +34,10 @@ public class ProductionItemDTO {
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private double startUpTime;
     @PositiveOrZero(message = "Value must be a positive number or zero")
+    private double finishingTime;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private double totalTime;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
     private double fixtureTime;
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private double factor;
