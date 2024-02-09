@@ -33,7 +33,7 @@ public class Notification {
     private User user;
 
     @PrePersist
-    public void preUpdate() {
+    public void prePersist() {
         LocalDateTime currentDateTime = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         createdOn = currentDateTime.format(formatter);
