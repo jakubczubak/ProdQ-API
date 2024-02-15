@@ -65,7 +65,7 @@ public class NotificationService {
 
             notification.setUser(user);
             user.getNotifications().add(notification);
-
+            notificationRepository.save(notification);
             userRepository.save(user);
 
         }
@@ -81,7 +81,6 @@ public class NotificationService {
         notification.setAuthor("Infrabox");
 
 
-        // Pobierz listę wszystkich użytkowników z wyjątkiem autora
         List<User> allUsers = userRepository.findAll();
 
         // Wyślij powiadomienie do wszystkich użytkowników
@@ -89,7 +88,7 @@ public class NotificationService {
 
             notification.setUser(user);
             user.getNotifications().add(notification);
-
+            notificationRepository.save(notification);
             userRepository.save(user);
 
         }
