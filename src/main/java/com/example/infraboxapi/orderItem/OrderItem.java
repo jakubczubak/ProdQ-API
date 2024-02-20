@@ -20,7 +20,7 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
-    private Integer quantity;
+    private float quantity;
     @ManyToOne
     private Material material;
     @ManyToOne
