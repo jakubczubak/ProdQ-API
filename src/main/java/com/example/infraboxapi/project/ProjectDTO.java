@@ -12,7 +12,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ProjectDTO {
     private Integer id;
-    @NotBlank(message = "Field 'part name' cannot be blank")
-    @Size(min = 2, max = 100, message = "Field 'part name' must have a length between 2 and 100 characters")
+    @NotBlank(message = "Field 'project name' cannot be blank")
+    @Size(min = 2, max = 100, message = "Field 'project name' must have a length between 2 and 100 characters")
     private String name;
+    private String status;
 }

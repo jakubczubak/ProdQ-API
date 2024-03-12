@@ -18,6 +18,7 @@ public class Project {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
+    private String status;
     @Column(name = "updated_on")
     private String updatedOn;
     @Column(name = "craeted_on")

@@ -14,6 +14,7 @@ public class ProjectService {
     public void createProject(ProjectDTO projectDTO) {
         Project project = Project.builder()
                 .name(projectDTO.getName())
+                .status("pending")
                 .build();
         projectRepository.save(project);
         notificationService.createAndSendNotification("A new project has been added: " + project.getName(), NotificationDescription.ProjectAdded);
@@ -30,6 +31,7 @@ public class ProjectService {
     public void updateProject(ProjectDTO projectDTO) {
         Project project = projectRepository.findById(projectDTO.getId()).orElseThrow(() -> new RuntimeException("Project not found"));
         project.setName(projectDTO.getName());
+        project.setStatus(projectDTO.getStatus());
         projectRepository.save(project);
         notificationService.createAndSendNotification("A project has been updated: " + project.getName() , NotificationDescription.ProjectUpdated);
     }

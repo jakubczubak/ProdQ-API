@@ -16,7 +16,9 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping("/create")
-        public ResponseEntity<String> createProject(@ModelAttribute @Valid ProjectDTO projectDTO, BindingResult bindingResult) {
+        public ResponseEntity<String> createProject(@Valid @RequestBody ProjectDTO projectDTO, BindingResult bindingResult) {
+
+        System.out.println(projectDTO);
 
         if(bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
@@ -50,7 +52,7 @@ public class ProjectController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateProject(@ModelAttribute @Valid ProjectDTO projectDTO, BindingResult bindingResult) {
+    public ResponseEntity<String> updateProject(@Valid @RequestBody ProjectDTO projectDTO, BindingResult bindingResult) {
         if(bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
