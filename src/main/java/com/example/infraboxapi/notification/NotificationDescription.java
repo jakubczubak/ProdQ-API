@@ -58,7 +58,11 @@ public enum NotificationDescription {
 
     ProductionItemAdded("New production item activity."),
     ProductionItemUpdated("Production item record updated."),
-    ProductionItemDeleted("Production item removed from the system.");
+    ProductionItemDeleted("Production item removed from the system."),
+
+    ProjectAdded("New project activity."),
+    ProjectUpdated("Project record updated."),
+    ProjectDeleted("Project removed from the system.");
 
     private final String description;
 
