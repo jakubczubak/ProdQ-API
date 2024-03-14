@@ -18,8 +18,6 @@ public class ProjectController {
     @PostMapping("/create")
         public ResponseEntity<String> createProject(@Valid @RequestBody ProjectDTO projectDTO, BindingResult bindingResult) {
 
-        System.out.println(projectDTO);
-
         if(bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
