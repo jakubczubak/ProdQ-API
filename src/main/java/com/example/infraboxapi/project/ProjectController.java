@@ -39,6 +39,15 @@ public class ProjectController {
         }
     }
 
+    @GetMapping("/get/{id}")
+    public ResponseEntity<Project> getProject(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(projectService.getProject(id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteProject(@PathVariable Integer id) {
         try {

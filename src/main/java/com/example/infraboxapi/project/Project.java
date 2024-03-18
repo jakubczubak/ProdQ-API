@@ -1,11 +1,16 @@
 package com.example.infraboxapi.project;
+import com.example.infraboxapi.material.Material;
+import com.example.infraboxapi.productionItem.ProductionItem;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Data
 @Builder
@@ -19,6 +24,16 @@ public class Project {
     private Integer id;
     private String name;
     private String status;
+    private double hourlyRate;
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "production_item_id")
+    private List<ProductionItem> productionItems;
+    private double productionTime;
+    private BigDecimal materialValue;
+    private BigDecimal toolValue;
+    private BigDecimal productionValue;
+    private BigDecimal productionValueBasedOnDepartmentCost;
+    private BigDecimal totalProductionValue;
     @Column(name = "updated_on")
     private String updatedOn;
     @Column(name = "craeted_on")
