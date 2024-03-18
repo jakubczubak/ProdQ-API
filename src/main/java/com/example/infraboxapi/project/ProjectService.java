@@ -22,7 +22,7 @@ public class ProjectService {
     public void createProject(ProjectDTO projectDTO) {
         Project project = Project.builder()
                 .name(projectDTO.getName())
-                .status("pending")
+                .status("done")
                 .hourlyRate(200)
                 .productionItems(new ArrayList<>())
                 .productionTime(0)
@@ -60,6 +60,7 @@ public class ProjectService {
     }
 
     private void updateProjectStatus(Project project, String status) {
+
         if (status != null) {
             project.setStatus(status);
         }
