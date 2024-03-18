@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -22,9 +23,14 @@ public class ProjectService {
         Project project = Project.builder()
                 .name(projectDTO.getName())
                 .status("pending")
-
-
-
+                .hourlyRate(200)
+                .productionItems(new ArrayList<>())
+                .productionTime(0)
+                .materialValue(BigDecimal.valueOf(0))
+                .toolValue(BigDecimal.valueOf(0))
+                .productionValue(BigDecimal.valueOf(0))
+                .productionValueBasedOnDepartmentCost(BigDecimal.valueOf(0))
+                .totalProductionValue(BigDecimal.valueOf(0))
                 .build();
         projectRepository.save(project);
         notificationService.createAndSendNotification("A new project has been added: " + project.getName(), NotificationDescription.ProjectAdded);
@@ -39,12 +45,48 @@ public class ProjectService {
     }
 
     public void updateProject(ProjectDTO projectDTO) {
-        Project project = projectRepository.findById(projectDTO.getId()).orElseThrow(() -> new RuntimeException("Project not found"));
+        Project project = projectRepository.findById(projectDTO.getId())
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+
         project.setName(projectDTO.getName());
-        project.setStatus(projectDTO.getStatus());
+        updateProjectStatus(project, projectDTO.getStatus());
+        updateHourlyRate(project, projectDTO.getHourlyRate());
+        updateProductionItems(project, projectDTO.getProductionItems());
+
+        updateProductionValues(project);
+
         projectRepository.save(project);
-        notificationService.createAndSendNotification("A project has been updated: " + project.getName() , NotificationDescription.ProjectUpdated);
+        notificationService.createAndSendNotification("A project has been updated: " + project.getName(), NotificationDescription.ProjectUpdated);
     }
+
+    private void updateProjectStatus(Project project, String status) {
+        if (status != null) {
+            project.setStatus(status);
+        }
+    }
+
+    private void updateHourlyRate(Project project, double hourlyRate) {
+        if (hourlyRate != 0.0) {
+            project.setHourlyRate(hourlyRate);
+        }
+    }
+
+    private void updateProductionItems(Project project, List<ProductionItem> productionItems) {
+        if (productionItems != null) {
+            project.setProductionItems(productionItems);
+            updateProductionValues(project);
+        }
+    }
+
+    private void updateProductionValues(Project project) {
+        project.setProductionTime(calculateTotalProductionTime(project.getProductionItems()));
+        project.setMaterialValue(calculateTotalMaterialValue(project.getProductionItems()));
+        project.setToolValue(calculateTotalToolValue(project.getProductionItems()));
+        project.setProductionValue(BigDecimal.valueOf(project.getHourlyRate() * project.getProductionTime()));
+        project.setProductionValueBasedOnDepartmentCost(calculateProductionValueBasedOnDepartmentCost((float) project.getProductionTime()));
+        project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()));
+    }
+
 
     public Project getProject(Integer id) {
         return projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
