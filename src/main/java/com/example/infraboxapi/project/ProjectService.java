@@ -124,4 +124,15 @@ public class ProjectService {
         }
         return TotalToolValue;
     }
+
+    public void updateProjectStatus(Integer id) {
+        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
+        if (project.getStatus().equals("done")) {
+            project.setStatus("pending");
+        } else {
+            project.setStatus("done");
+        }
+        System.out.println(project);
+        projectRepository.save(project);
+    }
 }

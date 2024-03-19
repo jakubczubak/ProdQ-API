@@ -70,4 +70,14 @@ public class ProjectController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating project: " + e.getMessage());
         }
     }
+
+    @PutMapping("/update/status/{id}")
+    public ResponseEntity<String> updateProjectStatus(@PathVariable Integer id) {
+        try {
+            projectService.updateProjectStatus(id);
+            return ResponseEntity.ok("Project status updated");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating project status: " + e.getMessage());
+        }
+    }
 }
