@@ -75,17 +75,32 @@ public class ProjectService {
 
     public BigDecimal calculateProductionValueBasedOnDepartmentCost(float productionTime) {
         DepartmentCost departmentCost = departmentCostService.getDepartmentCost();
-        BigDecimal departmentMaintenanceCost = BigDecimal.valueOf(departmentCost.getEmployeeCosts() + departmentCost.getMediaPrice() + departmentCost.getDepreciationPrice() + departmentCost.getToolsPrice() + departmentCost.getLeasingPrice() + departmentCost.getVariableCostsI() + departmentCost.getVariableCostsII() + (departmentCost.getPowerConsumption() * departmentCost.getPricePerKwh() * departmentCost.getOperatingHours()) );
+        BigDecimal departmentMaintenanceCost = BigDecimal.valueOf(departmentCost.getEmployeeCosts() +
+                departmentCost.getMediaPrice() +
+                departmentCost.getDepreciationPrice() +
+                departmentCost.getToolsPrice() +
+                departmentCost.getLeasingPrice() +
+                departmentCost.getVariableCostsI() +
+                departmentCost.getVariableCostsII() +
+                (departmentCost.getPowerConsumption() * departmentCost.getPricePerKwh() * departmentCost.getOperatingHours()));
+
         BigDecimal departmentHourlyCost = departmentMaintenanceCost.divide(BigDecimal.valueOf(departmentCost.getOperatingHours()), 2, BigDecimal.ROUND_HALF_UP);
-        return departmentHourlyCost.multiply(BigDecimal.valueOf(productionTime));
+
+        return departmentHourlyCost.multiply(BigDecimal.valueOf(productionTime)).setScale(2, BigDecimal.ROUND_HALF_UP);
     }
 
     public double calculateTotalProductionTime(List<ProductionItem> productionItems) {
-        double TotalProductionTime = 0;
+        double totalProductionTime = 0;
         for (ProductionItem productionItem : productionItems) {
-            TotalProductionTime += productionItem.getTotalTime();
+            totalProductionTime += productionItem.getTotalTime();
         }
-        return TotalProductionTime;
+
+        double totalProductionTimeInHours = totalProductionTime / 60;
+
+        // Zaokrąglamy do dwóch miejsc po przecinku
+        totalProductionTimeInHours = Math.round(totalProductionTimeInHours * 100.0) / 100.0;
+
+        return totalProductionTimeInHours;
     }
 
     public BigDecimal calculateTotalMaterialValue(List<ProductionItem> productionItems) {
@@ -109,9 +124,9 @@ public class ProjectService {
         project.setProductionTime(calculateTotalProductionTime(project.getProductionItems()));
         project.setMaterialValue(calculateTotalMaterialValue(project.getProductionItems()));
         project.setToolValue(calculateTotalToolValue(project.getProductionItems()));
-        project.setProductionValue(BigDecimal.valueOf(project.getProductionTime() * project.getHourlyRate()));
+        project.setProductionValue(BigDecimal.valueOf(project.getProductionTime() * project.getHourlyRate()).setScale(2, BigDecimal.ROUND_HALF_UP));
         project.setProductionValueBasedOnDepartmentCost(calculateProductionValueBasedOnDepartmentCost((float) project.getProductionTime()));
-        project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()));
+        project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()).setScale(2, BigDecimal.ROUND_HALF_UP));
 
         projectRepository.save(project);
     }
