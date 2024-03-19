@@ -23,7 +23,7 @@ public class DepartmentCostService {
     public void createDefaultDepartmentCost() {
         DepartmentCost departmentCost = DepartmentCost.builder()
                 .billingPeriod(200)
-                .employeeCosts(50000)
+                .employeeCosts(45000)
                 .powerConsumption(30)
                 .operatingHours(200)
                 .pricePerKwh(0.79)
