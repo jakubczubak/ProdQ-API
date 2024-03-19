@@ -6,6 +6,7 @@ import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.project.Project;
 import com.example.infraboxapi.project.ProjectRepository;
+import com.example.infraboxapi.project.ProjectService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,11 +20,11 @@ public class ProductionItemService {
     private final FilePDFService filePDFService;
     private final NotificationService notificationService;
     private final ProjectRepository projectRepository;
+    private final ProjectService projectService;
 
     @Transactional
     public void createProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
         Project project = projectRepository.findById(productionItemDTO.getProjectID()).orElseThrow(() -> new RuntimeException("Project not found"));
-
         ProductionItem productionItem = ProductionItem.builder()
                 .partName(productionItemDTO.getPartName())
                 .quantity(productionItemDTO.getQuantity())
@@ -38,13 +39,10 @@ public class ProductionItemService {
                 .factor(productionItemDTO.getFactor())
                 .fixtureTime(productionItemDTO.getFixtureTime())
                 .build();
-
         if(productionItemDTO.getFilePDF() != null) {
-
             FilePDF filePDF = filePDFService.createFile(productionItemDTO.getFilePDF());
             productionItem.setFilePDF(filePDF);
         }
-        productionItemRepository.save(productionItem);
         project.getProductionItems().add(productionItem);
         projectRepository.save(project);
         notificationService.createAndSendNotification("A new production item has been added: " + productionItem.getPartName(), NotificationDescription.ProductionItemAdded);
@@ -55,17 +53,13 @@ public class ProductionItemService {
     }
 
     public void deleteProductionItem(Integer id) {
-
         ProductionItem pr = productionItemRepository.findById(id).orElseThrow(() -> new RuntimeException("Production Item not found"));
         productionItemRepository.deleteById(id);
-
-
         notificationService.createAndSendNotification("A production item has been deleted: " + pr.getPartName() , NotificationDescription.ProductionItemDeleted);
     }
 
     public void updateProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
         ProductionItem productionItem = productionItemRepository.findById(productionItemDTO.getId()).orElseThrow(() -> new RuntimeException("Production Item not found"));
-
         productionItem.setPartName(productionItemDTO.getPartName());
         productionItem.setQuantity(productionItemDTO.getQuantity());
         productionItem.setStatus(productionItemDTO.getStatus());
@@ -78,14 +72,11 @@ public class ProductionItemService {
         productionItem.setFixtureTime(productionItemDTO.getFixtureTime());
         productionItem.setFinishingTime(productionItemDTO.getFinishingTime());
         productionItem.setTotalTime(productionItemDTO.getTotalTime());
-
         if(productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.updateFile(productionItemDTO.getFilePDF(), productionItem.getFilePDF());
             productionItem.setFilePDF(filePDF);
         }
-
         productionItemRepository.save(productionItem);
-
         notificationService.createAndSendNotification(
                 "The production item '" + productionItem.getPartName() + "' has been updated successfully.",
                 NotificationDescription.ProductionItemUpdated

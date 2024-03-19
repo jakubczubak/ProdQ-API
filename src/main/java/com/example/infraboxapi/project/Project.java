@@ -25,8 +25,10 @@ public class Project {
     private String name;
     private String status;
     private double hourlyRate;
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "production_item_id")
+
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
+
+    @JoinColumn(name = "project_id")
     private List<ProductionItem> productionItems;
     private double productionTime;
     private BigDecimal materialValue;

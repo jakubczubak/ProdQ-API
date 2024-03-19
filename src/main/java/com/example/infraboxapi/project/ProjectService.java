@@ -53,6 +53,7 @@ public class ProjectService {
     }
 
     public Project getProject(Integer id) {
+        updateProjectValues(id);
         return projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
     }
     public void updateProjectStatus(Integer id) {
@@ -62,7 +63,6 @@ public class ProjectService {
         } else {
             project.setStatus("done");
         }
-        System.out.println(project);
         projectRepository.save(project);
         notificationService.createAndSendNotification("Project status has been updated: " + project.getName(), NotificationDescription.ProjectStatusUpdated);
     }
@@ -102,5 +102,17 @@ public class ProjectService {
             TotalToolValue = TotalToolValue.add(productionItem.getToolValue());
         }
         return TotalToolValue;
+    }
+
+    public void updateProjectValues(Integer id) {
+        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
+        project.setProductionTime(calculateTotalProductionTime(project.getProductionItems()));
+        project.setMaterialValue(calculateTotalMaterialValue(project.getProductionItems()));
+        project.setToolValue(calculateTotalToolValue(project.getProductionItems()));
+        project.setProductionValue(BigDecimal.valueOf(project.getProductionTime() * project.getHourlyRate()));
+        project.setProductionValueBasedOnDepartmentCost(calculateProductionValueBasedOnDepartmentCost((float) project.getProductionTime()));
+        project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()));
+
+        projectRepository.save(project);
     }
 }
