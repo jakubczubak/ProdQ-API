@@ -62,7 +62,8 @@ public enum NotificationDescription {
 
     ProjectAdded("New project activity."),
     ProjectUpdated("Project record updated."),
-    ProjectDeleted("Project removed from the system.");
+    ProjectDeleted("Project removed from the system."),
+    ProjectStatusUpdated("Project status updated.");
 
     private final String description;
 

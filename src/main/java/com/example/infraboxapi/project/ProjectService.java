@@ -22,7 +22,7 @@ public class ProjectService {
     public void createProject(ProjectDTO projectDTO) {
         Project project = Project.builder()
                 .name(projectDTO.getName())
-                .status("done")
+                .status("pending")
                 .hourlyRate(200)
                 .productionItems(new ArrayList<>())
                 .productionTime(0)
@@ -97,8 +97,7 @@ public class ProjectService {
         DepartmentCost departmentCost = departmentCostService.getDepartmentCost();
         BigDecimal departmentMaintenanceCost = BigDecimal.valueOf(departmentCost.getEmployeeCosts() + departmentCost.getMediaPrice() + departmentCost.getDepreciationPrice() + departmentCost.getToolsPrice() + departmentCost.getLeasingPrice() + departmentCost.getVariableCostsI() + departmentCost.getVariableCostsII() + (departmentCost.getPowerConsumption() * departmentCost.getPricePerKwh() * departmentCost.getOperatingHours()) );
         BigDecimal departmentHourlyCost = departmentMaintenanceCost.divide(BigDecimal.valueOf(departmentCost.getOperatingHours()), 2, BigDecimal.ROUND_HALF_UP);
-        BigDecimal productionValueBasedOnDepartmentCost = departmentHourlyCost.multiply(BigDecimal.valueOf(productionTime));
-        return productionValueBasedOnDepartmentCost;
+        return departmentHourlyCost.multiply(BigDecimal.valueOf(productionTime));
     }
 
     public double calculateTotalProductionTime(List<ProductionItem> productionItems) {
@@ -133,6 +132,13 @@ public class ProjectService {
             project.setStatus("done");
         }
         System.out.println(project);
+        projectRepository.save(project);
+        notificationService.createAndSendNotification("Project status has been updated: " + project.getName(), NotificationDescription.ProjectStatusUpdated);
+    }
+
+    public void updateHourlyRate(Integer id, double hourlyRate) {
+        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
+        project.setHourlyRate(hourlyRate);
         projectRepository.save(project);
     }
 }

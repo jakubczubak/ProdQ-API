@@ -80,4 +80,14 @@ public class ProjectController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating project status: " + e.getMessage());
         }
     }
+
+    @PutMapping("/update/hourlyRate/{id}")
+    public ResponseEntity<String> updateHourlyRate(@PathVariable Integer id, @RequestBody double hourlyRate) {
+        try {
+            projectService.updateHourlyRate(id, hourlyRate);
+            return ResponseEntity.ok("Project hourly rate updated");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating project hourly rate: " + e.getMessage());
+        }
+    }
 }
