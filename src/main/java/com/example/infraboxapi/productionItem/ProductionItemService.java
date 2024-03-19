@@ -4,6 +4,8 @@ import com.example.infraboxapi.FilePDF.FilePDF;
 import com.example.infraboxapi.FilePDF.FilePDFService;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
+import com.example.infraboxapi.project.Project;
+import com.example.infraboxapi.project.ProjectRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,9 +18,12 @@ public class ProductionItemService {
     private final ProductionItemRepository productionItemRepository;
     private final FilePDFService filePDFService;
     private final NotificationService notificationService;
+    private final ProjectRepository projectRepository;
 
     @Transactional
     public void createProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
+        Project project = projectRepository.findById(productionItemDTO.getProjectID()).orElseThrow(() -> new RuntimeException("Project not found"));
+
         ProductionItem productionItem = ProductionItem.builder()
                 .partName(productionItemDTO.getPartName())
                 .quantity(productionItemDTO.getQuantity())
@@ -39,11 +44,10 @@ public class ProductionItemService {
             FilePDF filePDF = filePDFService.createFile(productionItemDTO.getFilePDF());
             productionItem.setFilePDF(filePDF);
         }
-
         productionItemRepository.save(productionItem);
-
+        project.getProductionItems().add(productionItem);
+        projectRepository.save(project);
         notificationService.createAndSendNotification("A new production item has been added: " + productionItem.getPartName(), NotificationDescription.ProductionItemAdded);
-
     }
 
     public Iterable<ProductionItem> getProductionItems() {

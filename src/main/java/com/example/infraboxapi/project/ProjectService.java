@@ -47,50 +47,30 @@ public class ProjectService {
     public void updateProject(ProjectDTO projectDTO) {
         Project project = projectRepository.findById(projectDTO.getId())
                 .orElseThrow(() -> new RuntimeException("Project not found"));
-
         project.setName(projectDTO.getName());
-        updateProjectStatus(project, projectDTO.getStatus());
-        updateHourlyRate(project, projectDTO.getHourlyRate());
-        updateProductionItems(project, projectDTO.getProductionItems());
-
-        updateProductionValues(project);
-
         projectRepository.save(project);
         notificationService.createAndSendNotification("A project has been updated: " + project.getName(), NotificationDescription.ProjectUpdated);
     }
 
-    private void updateProjectStatus(Project project, String status) {
-
-        if (status != null) {
-            project.setStatus(status);
-        }
-    }
-
-    private void updateHourlyRate(Project project, double hourlyRate) {
-        if (hourlyRate != 0.0) {
-            project.setHourlyRate(hourlyRate);
-        }
-    }
-
-    private void updateProductionItems(Project project, List<ProductionItem> productionItems) {
-        if (productionItems != null) {
-            project.setProductionItems(productionItems);
-            updateProductionValues(project);
-        }
-    }
-
-    private void updateProductionValues(Project project) {
-        project.setProductionTime(calculateTotalProductionTime(project.getProductionItems()));
-        project.setMaterialValue(calculateTotalMaterialValue(project.getProductionItems()));
-        project.setToolValue(calculateTotalToolValue(project.getProductionItems()));
-        project.setProductionValue(BigDecimal.valueOf(project.getHourlyRate() * project.getProductionTime()));
-        project.setProductionValueBasedOnDepartmentCost(calculateProductionValueBasedOnDepartmentCost((float) project.getProductionTime()));
-        project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()));
-    }
-
-
     public Project getProject(Integer id) {
         return projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
+    }
+    public void updateProjectStatus(Integer id) {
+        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
+        if (project.getStatus().equals("done")) {
+            project.setStatus("pending");
+        } else {
+            project.setStatus("done");
+        }
+        System.out.println(project);
+        projectRepository.save(project);
+        notificationService.createAndSendNotification("Project status has been updated: " + project.getName(), NotificationDescription.ProjectStatusUpdated);
+    }
+
+    public void updateHourlyRate(Integer id, double hourlyRate) {
+        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
+        project.setHourlyRate(hourlyRate);
+        projectRepository.save(project);
     }
 
     public BigDecimal calculateProductionValueBasedOnDepartmentCost(float productionTime) {
@@ -122,23 +102,5 @@ public class ProjectService {
             TotalToolValue = TotalToolValue.add(productionItem.getToolValue());
         }
         return TotalToolValue;
-    }
-
-    public void updateProjectStatus(Integer id) {
-        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
-        if (project.getStatus().equals("done")) {
-            project.setStatus("pending");
-        } else {
-            project.setStatus("done");
-        }
-        System.out.println(project);
-        projectRepository.save(project);
-        notificationService.createAndSendNotification("Project status has been updated: " + project.getName(), NotificationDescription.ProjectStatusUpdated);
-    }
-
-    public void updateHourlyRate(Integer id, double hourlyRate) {
-        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
-        project.setHourlyRate(hourlyRate);
-        projectRepository.save(project);
     }
 }
