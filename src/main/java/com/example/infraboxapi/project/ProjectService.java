@@ -5,9 +5,12 @@ import com.example.infraboxapi.departmentCost.DepartmentCostService;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.productionItem.ProductionItem;
+import com.example.infraboxapi.productionItem.ProductionItemDTO;
+import com.example.infraboxapi.productionItem.ProductionItemService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -128,6 +131,28 @@ public class ProjectService {
         project.setProductionValueBasedOnDepartmentCost(calculateProductionValueBasedOnDepartmentCost((float) project.getProductionTime()));
         project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()).setScale(2, BigDecimal.ROUND_HALF_UP));
 
+        projectRepository.save(project);
+    }
+
+
+    public void addProductionItem(Integer id, ProductionItem productionItem) {
+        Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
+        ProductionItem copyOfProductionItem = ProductionItem.builder()
+                .partName(productionItem.getPartName())
+                .quantity(productionItem.getQuantity())
+                .status(productionItem.getStatus())
+                .camTime(productionItem.getCamTime())
+                .materialValue(productionItem.getMaterialValue())
+                .toolValue(productionItem.getToolValue())
+                .partType(productionItem.getPartType())
+                .startUpTime(productionItem.getStartUpTime())
+                .finishingTime(productionItem.getFinishingTime())
+                .totalTime(productionItem.getTotalTime())
+                .factor(productionItem.getFactor())
+                .fixtureTime(productionItem.getFixtureTime())
+                .filePDF(productionItem.getFilePDF())
+                .build();
+        project.getProductionItems().add(copyOfProductionItem);
         projectRepository.save(project);
     }
 }

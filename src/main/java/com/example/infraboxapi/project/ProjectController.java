@@ -1,12 +1,16 @@
 package com.example.infraboxapi.project;
 
 import com.example.infraboxapi.common.CommonService;
+import com.example.infraboxapi.productionItem.ProductionItem;
+import com.example.infraboxapi.productionItem.ProductionItemDTO;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/project")
@@ -88,6 +92,16 @@ public class ProjectController {
             return ResponseEntity.ok("Project hourly rate updated");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating project hourly rate: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/update/addProductionItem/{id}")
+    public ResponseEntity<String> addProductionItem(@PathVariable Integer id, @RequestBody ProductionItem productionItem) {
+        try {
+            projectService.addProductionItem(id, productionItem);
+            return ResponseEntity.ok("Production item added to project");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error adding production item to project: " + e.getMessage());
         }
     }
 }
