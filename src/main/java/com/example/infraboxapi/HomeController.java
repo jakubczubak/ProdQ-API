@@ -24,8 +24,7 @@ public class HomeController {
                 "<body>" +
                 "<h1>Welcome to the Infrabox API!</h1>" +
                 "<p>This is the backend for the Infrabox project. If you are reading this message, it means the API is operational.</p>" +
-                "<p>To utilize the API services, please ensure that self-signed certificate verification is disabled in your browser.</p>" +
-                "<p>Once you have disabled certificate verification, you can <a href=\"" + loginUrl + "\">click here to log in again</a>.</p>" +
+                " <a href=\"" + loginUrl + "\">click here to log in</a>" +
                 "</body></html>";
 
         return new ResponseEntity<>(message, HttpStatus.OK);
