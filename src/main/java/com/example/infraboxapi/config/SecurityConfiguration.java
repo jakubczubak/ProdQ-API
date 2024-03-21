@@ -32,6 +32,7 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
 
                 //AUTH
+                .requestMatchers("/").permitAll()
                 .requestMatchers("/api/va/auth/**").permitAll()
 
                 //MATERIAL GROUP,
