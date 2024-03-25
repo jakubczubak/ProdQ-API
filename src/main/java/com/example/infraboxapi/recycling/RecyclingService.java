@@ -93,4 +93,30 @@ public class RecyclingService {
             notificationService.createAndSendNotification("Recycling '" + recycling.getCompany() + "' has been updated.", NotificationDescription.RecyclingUpdated);
         }
     }
+
+    public Double getTotalRecyclingQuantity() {
+        List<Recycling> recyclingList = recyclingRepository.findAll();
+        double totalQuantity = 0;
+
+        for (Recycling recycling : recyclingList){
+            for (RecyclingItem recyclingItem : recycling.getRecyclingItems()){
+                totalQuantity += Math.round(recyclingItem.getQuantity() * 100.0) / 100.0;
+            }
+        }
+
+        return totalQuantity;
+    }
+
+
+    public Double getTotalRefund() {
+        List<Recycling> recyclingList = recyclingRepository.findAll();
+        double totalRefund = 0;
+
+        for (Recycling recycling : recyclingList){
+            totalRefund += Math.round(recycling.getTotalPrice().doubleValue() * 100.0) / 100.0;
+        }
+
+        return totalRefund;
+    }
+
 }

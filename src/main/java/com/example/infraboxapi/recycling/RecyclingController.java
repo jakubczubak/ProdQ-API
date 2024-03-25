@@ -65,4 +65,21 @@ public class RecyclingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
+
+    @GetMapping("/quantity")
+    public ResponseEntity<Double> getTotalRecyclingQuantity() {
+        try{
+            return ResponseEntity.ok(recyclingService.getTotalRecyclingQuantity());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+    @GetMapping("/refund")
+    public ResponseEntity<Double> getTotalRefund() {
+        try{
+            return ResponseEntity.ok(recyclingService.getTotalRefund());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }
