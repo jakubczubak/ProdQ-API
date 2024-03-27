@@ -11,8 +11,6 @@ import java.util.List;
 
 @Service
 public class CommonService {
-
-
     public ResponseEntity<String> handleBindingResult(BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             List<String> errors = new ArrayList<>();

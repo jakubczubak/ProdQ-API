@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @EnableScheduling
@@ -27,6 +28,7 @@ public class MaterialScannerService {
         for (Material material : materials) {
             if (material.getQuantity() < material.getMinQuantity()) {
                 String quantityText;
+                String endText;
 
                 // Sprawdź, czy liczba jest całkowita
                 if (material.getQuantity() % 1 == 0) {
@@ -35,7 +37,13 @@ public class MaterialScannerService {
                     quantityText = String.valueOf(material.getQuantity()); // Wyświetl z miejscami po przecinku
                 }
 
-                String description = "Material " + material.getName() + " is running low. There are " + quantityText + " pieces left.";
+                if(Objects.equals(material.getType(), "Plate")){ // Jeśli materiał to płyta to wyświetl "sztuk" zamiast "m"
+                    endText = " pieces left.";
+                }else {
+                    endText = " m left.";
+                }
+
+                String description = "Material " + material.getName() + " is running low. There are " + quantityText + endText;
                 notificationService.createAndSendSystemNotification(description, NotificationDescription.MaterialScanner);
             }
         }
