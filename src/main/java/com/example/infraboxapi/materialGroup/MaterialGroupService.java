@@ -10,6 +10,7 @@ import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -29,7 +30,6 @@ public class MaterialGroupService {
         MaterialType materialType = materialTypeRepository.findById(materialGroupDTO.getMaterialTypeID()).orElseThrow(() -> new RuntimeException("Material Type not found"));
 
 
-
         MaterialGroup materialGroup = MaterialGroup.builder()
                 .name(materialGroupDTO.getName())
                 .type(materialGroupDTO.getType())
@@ -37,7 +37,7 @@ public class MaterialGroupService {
                 .materials(new ArrayList<>())
                 .build();
 
-        if(materialGroupDTO.getFile() != null) {
+        if (materialGroupDTO.getFile() != null) {
 
             FileImage fileImage = fileImageService.createFile(materialGroupDTO.getFile());
             materialGroup.setFileImage(fileImage);
@@ -56,7 +56,7 @@ public class MaterialGroupService {
         materialGroup.setName(materialGroupDTO.getName());
 
 
-        if(materialGroupDTO.getFile() != null) {
+        if (materialGroupDTO.getFile() != null) {
             FileImage fileImage = fileImageService.updateFile(materialGroupDTO.getFile(), materialGroup.getFileImage());
             materialGroup.setFileImage(fileImage);
         }
@@ -102,7 +102,6 @@ public class MaterialGroupService {
     public Iterable<MaterialGroup> getMaterialGroups() {
         return materialGroupRepository.findAll();
     }
-
 
 
 }

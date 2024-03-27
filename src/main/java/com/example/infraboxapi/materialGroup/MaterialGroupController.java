@@ -21,9 +21,9 @@ public class MaterialGroupController {
 
     @PostMapping("/create")
     public ResponseEntity<String> createMaterialGroup(@ModelAttribute @Valid MaterialGroupDTO materialGroupDTO,
-                                                      BindingResult bindingResult){
+                                                      BindingResult bindingResult) {
 
-       if (bindingResult.hasErrors()) {
+        if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
 

@@ -19,14 +19,14 @@ public class ProductionItemController {
 
     @PostMapping("/create")
     public ResponseEntity<String> createProductionItem(@ModelAttribute @Valid ProductionItemDTO productionItemDTO,
-                                                      BindingResult bindingResult){
+                                                       BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
 
         try {
-           productionItemService.createProductionItem(productionItemDTO);
+            productionItemService.createProductionItem(productionItemDTO);
             return ResponseEntity.ok("Production item created");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating production item: " + e.getMessage());
@@ -64,7 +64,7 @@ public class ProductionItemController {
         }
 
         try {
-           productionItemService.updateProductionItem(productionItemDTO);
+            productionItemService.updateProductionItem(productionItemDTO);
             return ResponseEntity.ok("Production item updated");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating production item: " + e.getMessage());

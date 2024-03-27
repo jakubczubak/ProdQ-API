@@ -1,8 +1,5 @@
 package com.example.infraboxapi.materialGroup;
 
-import com.example.infraboxapi.material.MaterialDTO;
-import com.example.infraboxapi.materialType.MaterialTypeDTO;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -11,9 +8,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.web.multipart.MultipartFile;
-
-
-import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -34,7 +28,7 @@ public class MaterialGroupDTO {
     private MultipartFile file;
 
     @NotNull(message = "Field 'materialTypeID' cannot be null")
-    private Integer  materialTypeID;
+    private Integer materialTypeID;
 
 
 }

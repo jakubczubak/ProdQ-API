@@ -10,6 +10,7 @@ import com.example.infraboxapi.project.ProjectService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 
 @Service
@@ -39,7 +40,7 @@ public class ProductionItemService {
                 .factor(productionItemDTO.getFactor())
                 .fixtureTime(productionItemDTO.getFixtureTime())
                 .build();
-        if(productionItemDTO.getFilePDF() != null) {
+        if (productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.createFile(productionItemDTO.getFilePDF());
             productionItem.setFilePDF(filePDF);
         }
@@ -55,7 +56,7 @@ public class ProductionItemService {
     public void deleteProductionItem(Integer id) {
         ProductionItem pr = productionItemRepository.findById(id).orElseThrow(() -> new RuntimeException("Production Item not found"));
         productionItemRepository.deleteById(id);
-        notificationService.createAndSendNotification("A production item has been deleted: " + pr.getPartName() , NotificationDescription.ProductionItemDeleted);
+        notificationService.createAndSendNotification("A production item has been deleted: " + pr.getPartName(), NotificationDescription.ProductionItemDeleted);
     }
 
     public void updateProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
@@ -72,7 +73,7 @@ public class ProductionItemService {
         productionItem.setFixtureTime(productionItemDTO.getFixtureTime());
         productionItem.setFinishingTime(productionItemDTO.getFinishingTime());
         productionItem.setTotalTime(productionItemDTO.getTotalTime());
-        if(productionItemDTO.getFilePDF() != null) {
+        if (productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.updateFile(productionItemDTO.getFilePDF(), productionItem.getFilePDF());
             productionItem.setFilePDF(filePDF);
         }

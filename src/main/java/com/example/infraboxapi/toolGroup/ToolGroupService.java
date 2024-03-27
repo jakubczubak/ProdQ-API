@@ -8,6 +8,7 @@ import com.example.infraboxapi.notification.NotificationService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +39,7 @@ public class ToolGroupService {
                 .tools(new ArrayList<>())
                 .build();
 
-        if(toolGroupDTO.getFile() != null) {
+        if (toolGroupDTO.getFile() != null) {
             FileImage fileImage = fileImageService.createFile(toolGroupDTO.getFile());
             toolGroup.setFileImage(fileImage);
         }
@@ -56,7 +57,7 @@ public class ToolGroupService {
         ToolGroup toolGroup = toolGroupRepository.findById(toolGroupDTO.getId()).orElseThrow(() -> new RuntimeException("Tool Group not found"));
 
         toolGroup.setName(toolGroupDTO.getName());
-        if(toolGroupDTO.getFile() != null) {
+        if (toolGroupDTO.getFile() != null) {
             FileImage fileImage = fileImageService.updateFile(toolGroupDTO.getFile(), toolGroup.getFileImage());
             toolGroup.setFileImage(fileImage);
         }

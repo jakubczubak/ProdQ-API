@@ -1,5 +1,5 @@
 package com.example.infraboxapi.project;
-import com.example.infraboxapi.material.Material;
+
 import com.example.infraboxapi.productionItem.ProductionItem;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -40,12 +40,14 @@ public class Project {
     private String updatedOn;
     @Column(name = "craeted_on")
     private String createdOn;
+
     @PreUpdate
     public void preUpdate() {
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         updatedOn = now.format(formatter);
     }
+
     @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();

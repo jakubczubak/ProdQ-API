@@ -27,7 +27,7 @@ public class ToolScannerService {
         for (Tool tool : tools) {
             if (tool.getQuantity() < tool.getMinQuantity()) {
                 String quantityText;
-                if(tool.getQuantity() % 1 == 0) {
+                if (tool.getQuantity() % 1 == 0) {
                     quantityText = String.valueOf((int) tool.getQuantity());
                 } else {
                     quantityText = String.valueOf(tool.getQuantity());

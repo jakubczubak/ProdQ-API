@@ -5,13 +5,11 @@ import com.example.infraboxapi.departmentCost.DepartmentCostService;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.productionItem.ProductionItem;
-import com.example.infraboxapi.productionItem.ProductionItemDTO;
-import com.example.infraboxapi.productionItem.ProductionItemService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +20,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final NotificationService notificationService;
     private final DepartmentCostService departmentCostService;
+
     public void createProject(ProjectDTO projectDTO) {
         Project project = Project.builder()
                 .name(projectDTO.getName())
@@ -39,12 +38,14 @@ public class ProjectService {
         notificationService.createAndSendNotification("A new project has been added: " + project.getName(), NotificationDescription.ProjectAdded);
     }
 
-    public Iterable<Project> getProjects() { return projectRepository.findAll(); }
+    public Iterable<Project> getProjects() {
+        return projectRepository.findAll();
+    }
 
     public void deleteProject(Integer id) {
         Project pr = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
         projectRepository.deleteById(id);
-        notificationService.createAndSendNotification("A project has been deleted: " + pr.getName() , NotificationDescription.ProjectDeleted);
+        notificationService.createAndSendNotification("A project has been deleted: " + pr.getName(), NotificationDescription.ProjectDeleted);
     }
 
     public void updateProject(ProjectDTO projectDTO) {
@@ -59,6 +60,7 @@ public class ProjectService {
         updateProjectValues(id);
         return projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
     }
+
     public void updateProjectStatus(Integer id) {
         Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
         if (project.getStatus().equals("done")) {
@@ -87,9 +89,9 @@ public class ProjectService {
                 departmentCost.getVariableCostsII() +
                 (departmentCost.getPowerConsumption() * departmentCost.getPricePerKwh() * departmentCost.getOperatingHours()));
 
-        BigDecimal departmentHourlyCost = departmentMaintenanceCost.divide(BigDecimal.valueOf(departmentCost.getOperatingHours()), 2, BigDecimal.ROUND_HALF_UP);
+        BigDecimal departmentHourlyCost = departmentMaintenanceCost.divide(BigDecimal.valueOf(departmentCost.getOperatingHours()), 2, RoundingMode.HALF_UP);
 
-        return departmentHourlyCost.multiply(BigDecimal.valueOf(productionTime)).setScale(2, BigDecimal.ROUND_HALF_UP);
+        return departmentHourlyCost.multiply(BigDecimal.valueOf(productionTime)).setScale(2, RoundingMode.HALF_UP);
     }
 
     public double calculateTotalProductionTime(List<ProductionItem> productionItems) {
@@ -127,9 +129,9 @@ public class ProjectService {
         project.setProductionTime(calculateTotalProductionTime(project.getProductionItems()));
         project.setMaterialValue(calculateTotalMaterialValue(project.getProductionItems()));
         project.setToolValue(calculateTotalToolValue(project.getProductionItems()));
-        project.setProductionValue(BigDecimal.valueOf(project.getProductionTime() * project.getHourlyRate()).setScale(2, BigDecimal.ROUND_HALF_UP));
+        project.setProductionValue(BigDecimal.valueOf(project.getProductionTime() * project.getHourlyRate()).setScale(2, RoundingMode.HALF_UP));
         project.setProductionValueBasedOnDepartmentCost(calculateProductionValueBasedOnDepartmentCost((float) project.getProductionTime()));
-        project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()).setScale(2, BigDecimal.ROUND_HALF_UP));
+        project.setTotalProductionValue(project.getProductionValue().add(project.getMaterialValue()).add(project.getToolValue()).setScale(2, RoundingMode.HALF_UP));
 
         projectRepository.save(project);
     }

@@ -17,6 +17,7 @@ public class ToolGroupController {
 
     private final ToolGroupService toolGroupService;
     private final CommonService commonService;
+
     @GetMapping("/get")
     public ResponseEntity<List<ToolGroup>> getToolGroups() {
         try {

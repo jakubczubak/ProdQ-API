@@ -20,7 +20,7 @@ public class CommonService {
             });
 
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid data. Errors: " + errors);
-        }else {
+        } else {
             return ResponseEntity.ok("No errors found.");
         }
     }

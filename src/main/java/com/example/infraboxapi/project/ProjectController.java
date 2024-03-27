@@ -2,15 +2,12 @@ package com.example.infraboxapi.project;
 
 import com.example.infraboxapi.common.CommonService;
 import com.example.infraboxapi.productionItem.ProductionItem;
-import com.example.infraboxapi.productionItem.ProductionItemDTO;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/project")
@@ -20,9 +17,9 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @PostMapping("/create")
-        public ResponseEntity<String> createProject(@Valid @RequestBody ProjectDTO projectDTO, BindingResult bindingResult) {
+    public ResponseEntity<String> createProject(@Valid @RequestBody ProjectDTO projectDTO, BindingResult bindingResult) {
 
-        if(bindingResult.hasErrors()) {
+        if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
 
@@ -64,7 +61,7 @@ public class ProjectController {
 
     @PutMapping("/update")
     public ResponseEntity<String> updateProject(@Valid @RequestBody ProjectDTO projectDTO, BindingResult bindingResult) {
-        if(bindingResult.hasErrors()) {
+        if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
         try {

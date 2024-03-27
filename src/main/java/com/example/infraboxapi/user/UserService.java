@@ -7,7 +7,6 @@ import com.example.infraboxapi.notification.NotificationService;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -24,16 +23,12 @@ import java.util.List;
 @AllArgsConstructor
 public class UserService {
 
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+    private static final String ROOT_EMAIL = "root@gmail.com";
+    private static final String ROOT_PASSWORD = "root";
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
-    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
-
-    private static final String ROOT_EMAIL = "root@gmail.com";
-    private static final String ROOT_PASSWORD = "root";
-
-
-
 
     @Transactional
     public void createRootUser() {
@@ -78,15 +73,15 @@ public class UserService {
     public void updateUser(UserDTO userDTO) {
         User user = userRepository.findById(userDTO.getId()).orElseThrow();
 
-        if(userDTO.getActualPassword() != null && !userDTO.getActualPassword().isEmpty()) {
-            if(!passwordEncoder.matches(userDTO.getActualPassword(), user.getPassword())) {
+        if (userDTO.getActualPassword() != null && !userDTO.getActualPassword().isEmpty()) {
+            if (!passwordEncoder.matches(userDTO.getActualPassword(), user.getPassword())) {
                 throw new RuntimeException("Wrong password!");
             }
         }
 
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
-        if(userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+        if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }
         userRepository.save(user);
@@ -99,7 +94,7 @@ public class UserService {
 
         user.setFirstName(userDTO.getFirstName());
         user.setLastName(userDTO.getLastName());
-        if(userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+        if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }
         userRepository.save(user);
@@ -139,8 +134,7 @@ public class UserService {
     public List<User> getUserListWithoutLoggedUserAndRootUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication != null && authentication.getPrincipal() instanceof User) {
-            User loggedInUser = (User) authentication.getPrincipal();
+        if (authentication != null && authentication.getPrincipal() instanceof User loggedInUser) {
             Integer loggedInUserId = loggedInUser.getId();
 
             User rootUser = userRepository.findByEmail(ROOT_EMAIL).orElseThrow();
@@ -155,6 +149,7 @@ public class UserService {
             return Collections.emptyList(); // or throw an exception, log an error, etc.
         }
     }
+
     public void blockUser(Integer userId) {
         User user = userRepository.findById(userId).orElseThrow();
         user.setBlocked(true);

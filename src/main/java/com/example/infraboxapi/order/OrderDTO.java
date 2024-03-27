@@ -1,10 +1,12 @@
 package com.example.infraboxapi.order;
 
 
-import com.example.infraboxapi.orderItem.OrderItem;
 import com.example.infraboxapi.orderItem.OrderItemDTO;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

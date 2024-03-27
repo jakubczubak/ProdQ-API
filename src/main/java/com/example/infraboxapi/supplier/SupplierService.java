@@ -1,10 +1,10 @@
 package com.example.infraboxapi.supplier;
 
 
+import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-import com.example.infraboxapi.notification.NotificationDescription;
 
 import java.util.List;
 
@@ -14,6 +14,7 @@ public class SupplierService {
 
     private final SupplierRepository supplierRepository;
     private final NotificationService notificationService;
+
     public void deleteSupplier(Integer id) {
 
         Supplier supplier = supplierRepository.findById(id).orElseThrow(() -> new RuntimeException("Supplier not found"));
@@ -29,22 +30,22 @@ public class SupplierService {
 
     public void createSupplier(SupplierDTO supplierDTO) {
 
-            Supplier supplier = Supplier.builder()
-                    .name(supplierDTO.getName())
-                    .surname(supplierDTO.getSurname())
-                    .phoneNumber(supplierDTO.getPhoneNumber())
-                    .email(supplierDTO.getEmail())
-                    .companyName(supplierDTO.getCompanyName())
-                    .position(supplierDTO.getPosition())
-                    .companyLogo(supplierDTO.getCompanyLogo())
-                    .companyWebsite(supplierDTO.getCompanyWebsite())
-                    .companyTaxId(supplierDTO.getCompanyTaxId())
-                    .tagList(supplierDTO.getTagList())
-                    .build();
+        Supplier supplier = Supplier.builder()
+                .name(supplierDTO.getName())
+                .surname(supplierDTO.getSurname())
+                .phoneNumber(supplierDTO.getPhoneNumber())
+                .email(supplierDTO.getEmail())
+                .companyName(supplierDTO.getCompanyName())
+                .position(supplierDTO.getPosition())
+                .companyLogo(supplierDTO.getCompanyLogo())
+                .companyWebsite(supplierDTO.getCompanyWebsite())
+                .companyTaxId(supplierDTO.getCompanyTaxId())
+                .tagList(supplierDTO.getTagList())
+                .build();
 
-            supplierRepository.save(supplier);
+        supplierRepository.save(supplier);
 
-            notificationService.createAndSendNotification("A new supplier has been added: " + supplier.getCompanyName(), NotificationDescription.SupplierAdded);
+        notificationService.createAndSendNotification("A new supplier has been added: " + supplier.getCompanyName(), NotificationDescription.SupplierAdded);
     }
 
     public void updateSupplier(SupplierDTO supplierDTO) {

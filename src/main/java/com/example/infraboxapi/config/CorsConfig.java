@@ -12,6 +12,7 @@ public class CorsConfig {
 
     @Value("${cors.allowed-origins}")
     private String[] allowedOrigin;
+
     @Bean
     public CorsFilter corsFilter() {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

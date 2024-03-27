@@ -17,6 +17,7 @@ public class RecyclingService {
 
     private final RecyclingRepository recyclingRepository;
     private final NotificationService notificationService;
+
     public List<Recycling> getAllRecycling() {
         return recyclingRepository.findAll();
     }
@@ -25,7 +26,7 @@ public class RecyclingService {
 
         List<RecyclingItem> recyclingItems = new ArrayList<>();
 
-        for (RecyclingItemDTO recyclingItemDTO : recyclingDTO.getRecyclingItems()){
+        for (RecyclingItemDTO recyclingItemDTO : recyclingDTO.getRecyclingItems()) {
             RecyclingItem recyclingItem = createRecyclingItemFromDTO(recyclingItemDTO);
             recyclingItems.add(recyclingItem);
         }
@@ -68,7 +69,7 @@ public class RecyclingService {
 
         Optional<Recycling> recyclingOptional = recyclingRepository.findById(recyclingDTO.getId());
 
-        if(recyclingOptional.isPresent()){
+        if (recyclingOptional.isPresent()) {
             Recycling recycling = recyclingOptional.get();
 
             recycling.setCarID(recyclingDTO.getCarID());
@@ -82,7 +83,7 @@ public class RecyclingService {
 
             List<RecyclingItem> recyclingItems = new ArrayList<>();
 
-            for (RecyclingItemDTO recyclingItemDTO : recyclingDTO.getRecyclingItems()){
+            for (RecyclingItemDTO recyclingItemDTO : recyclingDTO.getRecyclingItems()) {
                 RecyclingItem recyclingItem = createRecyclingItemFromDTO(recyclingItemDTO);
                 recyclingItems.add(recyclingItem);
             }
@@ -98,8 +99,8 @@ public class RecyclingService {
         List<Recycling> recyclingList = recyclingRepository.findAll();
         double totalQuantity = 0;
 
-        for (Recycling recycling : recyclingList){
-            for (RecyclingItem recyclingItem : recycling.getRecyclingItems()){
+        for (Recycling recycling : recyclingList) {
+            for (RecyclingItem recyclingItem : recycling.getRecyclingItems()) {
                 totalQuantity += Math.round(recyclingItem.getQuantity() * 100.0) / 100.0;
             }
         }
@@ -112,7 +113,7 @@ public class RecyclingService {
         List<Recycling> recyclingList = recyclingRepository.findAll();
         double totalRefund = 0;
 
-        for (Recycling recycling : recyclingList){
+        for (Recycling recycling : recyclingList) {
             totalRefund += Math.round(recycling.getTotalPrice().doubleValue() * 100.0) / 100.0;
         }
 

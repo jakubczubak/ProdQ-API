@@ -2,10 +2,8 @@ package com.example.infraboxapi.notification;
 
 import com.example.infraboxapi.user.User;
 import com.example.infraboxapi.user.UserRepository;
-import com.example.infraboxapi.user.UserService;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -34,6 +32,7 @@ public class NotificationService {
         notification.setRead(!notification.isRead());
         notificationRepository.save(notification);
     }
+
     public void createAndSendNotification(String description, NotificationDescription notificationDescription) {
         // Pobierz nazwę zalogowanego użytkownika z SecurityContextHolder
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -55,6 +54,7 @@ public class NotificationService {
             userRepository.save(user);
         }
     }
+
     public void createAndSendSystemNotification(String description, NotificationDescription notificationDescription) {
         // Tworzenie nowego powiadomienia
         Notification notification = new Notification();
@@ -71,6 +71,7 @@ public class NotificationService {
             userRepository.save(user);
         }
     }
+
     public Integer getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication.getPrincipal() instanceof User user) {
@@ -79,6 +80,7 @@ public class NotificationService {
             return null;
         }
     }
+
     public List<User> findAllUsersExceptUserWithId(Integer userId) {
         return userRepository.findAllUsersExceptUserWithId(userId);
     }

@@ -37,9 +37,9 @@ public class MaterialScannerService {
                     quantityText = String.valueOf(material.getQuantity()); // Wyświetl z miejscami po przecinku
                 }
 
-                if(Objects.equals(material.getType(), "Plate")){ // Jeśli materiał to płyta to wyświetl "sztuk" zamiast "m"
+                if (Objects.equals(material.getType(), "Plate")) { // Jeśli materiał to płyta to wyświetl "sztuk" zamiast "m"
                     endText = " pieces left.";
-                }else {
+                } else {
                     endText = " m left.";
                 }
 

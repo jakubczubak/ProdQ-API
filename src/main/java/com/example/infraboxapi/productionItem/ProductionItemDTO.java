@@ -1,9 +1,5 @@
 package com.example.infraboxapi.productionItem;
 
-import com.example.infraboxapi.FilePDF.FilePDF;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.OneToOne;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;

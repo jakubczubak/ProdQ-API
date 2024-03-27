@@ -14,6 +14,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.math.BigDecimal;
 import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor

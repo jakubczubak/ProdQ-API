@@ -1,7 +1,6 @@
 package com.example.infraboxapi.FileImage;
 
 
-import com.example.infraboxapi.materialGroup.MaterialGroupRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,7 +22,7 @@ public class FileImageService {
 
     public FileImage updateFile(MultipartFile file, FileImage oldFileImage) throws IOException {
 
-        if(oldFileImage == null) {
+        if (oldFileImage == null) {
             return createFile(file);
         }
         oldFileImage.setName(file.getOriginalFilename());

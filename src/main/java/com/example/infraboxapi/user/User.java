@@ -32,7 +32,6 @@ public class User implements UserDetails {
     private boolean blocked;
 
 
-
     @Enumerated(EnumType.STRING)
     private Role role;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)

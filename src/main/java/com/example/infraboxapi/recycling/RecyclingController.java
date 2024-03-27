@@ -21,7 +21,7 @@ public class RecyclingController {
 
     @GetMapping("/all")
     public ResponseEntity<List<Recycling>> getAllRecycling() {
-        try{
+        try {
             return ResponseEntity.ok(recyclingService.getAllRecycling());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
@@ -34,7 +34,7 @@ public class RecyclingController {
         if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
-        try{
+        try {
             recyclingService.addRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling added");
         } catch (Exception e) {
@@ -44,7 +44,7 @@ public class RecyclingController {
 
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<String> deleteRecycling(@PathVariable Integer id) {
-        try{
+        try {
             recyclingService.deleteRecycling(id);
             return ResponseEntity.ok("Recycling deleted");
         } catch (Exception e) {
@@ -58,7 +58,7 @@ public class RecyclingController {
         if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
-        try{
+        try {
             recyclingService.updateRecycling(recyclingDTO);
             return ResponseEntity.ok("Recycling updated");
         } catch (Exception e) {
@@ -68,15 +68,16 @@ public class RecyclingController {
 
     @GetMapping("/quantity")
     public ResponseEntity<Double> getTotalRecyclingQuantity() {
-        try{
+        try {
             return ResponseEntity.ok(recyclingService.getTotalRecyclingQuantity());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
     @GetMapping("/refund")
     public ResponseEntity<Double> getTotalRefund() {
-        try{
+        try {
             return ResponseEntity.ok(recyclingService.getTotalRefund());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);

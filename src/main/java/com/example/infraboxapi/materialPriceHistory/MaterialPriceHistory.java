@@ -1,6 +1,5 @@
 package com.example.infraboxapi.materialPriceHistory;
 
-import com.example.infraboxapi.material.Material;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

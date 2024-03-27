@@ -23,7 +23,7 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody UserDTO userDTO) {
 
-        try{
+        try {
             userService.createUser(userDTO);
             return ResponseEntity.ok("User registered");
         } catch (Exception e) {
@@ -43,7 +43,6 @@ public class UserController {
 
     @PutMapping("/update")
     public ResponseEntity<String> updateUser(@Valid @RequestBody UserDTO userDTO, BindingResult bindingResult) {
-
 
 
         if (bindingResult.hasErrors()) {
@@ -72,13 +71,14 @@ public class UserController {
     }
 
     @GetMapping("/all")
-    public ResponseEntity<List<User>> getUserList(){
+    public ResponseEntity<List<User>> getUserList() {
         try {
             return ResponseEntity.ok(userService.getUserListWithoutLoggedUserAndRootUser());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
     @PutMapping("/manageUser/{userId}/{action}")
     public ResponseEntity<String> manageUser(@PathVariable Integer userId, @PathVariable String action) {
         try {
@@ -116,7 +116,7 @@ public class UserController {
     @GetMapping("/email/check/{email}")
     public ResponseEntity<Boolean> checkEmail(@PathVariable String email) {
         try {
-            if(userService.checkEmail(email)) {
+            if (userService.checkEmail(email)) {
                 return ResponseEntity.ok(true);
             } else {
                 return ResponseEntity.ok(false);

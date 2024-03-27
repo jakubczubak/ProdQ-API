@@ -18,12 +18,13 @@ public class SupplierController {
 
     private final SupplierService supplierService;
     private final CommonService commonService;
+
     @GetMapping("/all")
     public ResponseEntity<List<Supplier>> getAllSuppliers() {
 
-        try{
+        try {
             return ResponseEntity.ok(supplierService.getAllSuppliers());
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
