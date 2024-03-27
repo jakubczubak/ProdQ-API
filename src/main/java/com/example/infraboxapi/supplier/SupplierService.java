@@ -18,7 +18,7 @@ public class SupplierService {
 
         Supplier supplier = supplierRepository.findById(id).orElseThrow(() -> new RuntimeException("Supplier not found"));
         supplierRepository.delete(supplier);
-        notificationService.createAndSendNotification("The supplier '" + supplier.getName() + "' has been successfully deleted.", NotificationDescription.SupplierDeleted);
+        notificationService.createAndSendNotification("The supplier '" + supplier.getCompanyName() + "' has been successfully deleted.", NotificationDescription.SupplierDeleted);
 
     }
 
@@ -44,7 +44,7 @@ public class SupplierService {
 
             supplierRepository.save(supplier);
 
-            notificationService.createAndSendNotification("A new supplier has been added: " + supplier.getName(), NotificationDescription.SupplierAdded);
+            notificationService.createAndSendNotification("A new supplier has been added: " + supplier.getCompanyName(), NotificationDescription.SupplierAdded);
     }
 
     public void updateSupplier(SupplierDTO supplierDTO) {
@@ -65,7 +65,7 @@ public class SupplierService {
         supplierRepository.save(supplier);
 
         notificationService.createAndSendNotification(
-                "The supplier '" + supplier.getName() + "' has been updated successfully.",
+                "The supplier '" + supplier.getCompanyName() + "' has been updated successfully.",
                 NotificationDescription.SupplierUpdated
         );
     }
