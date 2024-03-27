@@ -4,66 +4,66 @@ import lombok.Getter;
 
 @Getter
 public enum NotificationDescription {
-    MaterialAdded("New material activity."),
-    MaterialUpdated("Material record updated."),
-    MaterialDeleted("Material removed from the system."),
+    MaterialAdded("New material activity"),
+    MaterialUpdated("Material record updated"),
+    MaterialDeleted("Material removed from the system"),
 
     MaterialGroupAdded("New material group activity."),
-    MaterialGroupUpdated("Material group updated."),
-    MaterialGroupDeleted("Material group removed from the system."),
+    MaterialGroupUpdated("Material group updated"),
+    MaterialGroupDeleted("Material group removed from the system"),
 
-    MaterialTypeAdded("New material type activity."),
-    MaterialTypeUpdated("Material type updated."),
-    MaterialTypeDeleted("Material type removed from the system."),
+    MaterialTypeAdded("New material type activity"),
+    MaterialTypeUpdated("Material type updated"),
+    MaterialTypeDeleted("Material type removed from the system"),
 
 
-    MaterialScanner("Material scanned."),
-    ToolScanner("Tool scanned."),
+    MaterialScanner("Material scanned"),
+    ToolScanner("Tool scanned"),
 
-    ToolGroupAdded("New tool group activity."),
-    ToolGroupUpdated("Tool group updated."),
-    ToolGroupDeleted("Tool group removed from the system."),
+    ToolGroupAdded("New tool group activity"),
+    ToolGroupUpdated("Tool group updated"),
+    ToolGroupDeleted("Tool group removed from the system"),
 
-    ToolAdded("New tool activity."),
-    ToolUpdated("Tool record updated."),
-    ToolDeleted("Tool removed from the system."),
+    ToolAdded("New tool activity"),
+    ToolUpdated("Tool record updated"),
+    ToolDeleted("Tool removed from the system"),
 
-    DepartmentCostUpdated("Department cost updated."),
+    DepartmentCostUpdated("Department cost updated"),
 
-    CalculationAdded("New calculation activity."),
-    CalculationUpdated("Calculation record updated."),
-    CalculationDeleted("Calculation removed from the system."),
+    CalculationAdded("New calculation activity"),
+    CalculationUpdated("Calculation record updated"),
+    CalculationDeleted("Calculation removed from the system"),
 
-    OrderAdded("New order activity."),
-    OrderDeleted("Order removed from the system."),
-    OrderUpdated("Order record updated."),
-    OrderOnTheWay("Order is on the way."),
-    OrderDelivered("Order delivered."),
+    OrderAdded("New order activity"),
+    OrderDeleted("Order removed from the system"),
+    OrderUpdated("Order record updated"),
+    OrderOnTheWay("Order is on the way"),
+    OrderDelivered("Order delivered"),
 
-    RecyclingAdded("New recycling activity."),
-    RecyclingUpdated("Recycling record updated."),
-    RecyclingDeleted("Recycling removed from the system."),
+    RecyclingAdded("New recycling activity"),
+    RecyclingUpdated("Recycling record updated"),
+    RecyclingDeleted("Recycling removed from the system"),
 
-    SupplierAdded("New supplier activity."),
-    SupplierUpdated("Supplier record updated."),
-    SupplierDeleted("Supplier removed from the system."),
+    SupplierAdded("New supplier activity"),
+    SupplierUpdated("Supplier record updated"),
+    SupplierDeleted("Supplier removed from the system"),
 
-    BlockUser("User blocked."),
-    UnblockUser("User unblocked."),
-    GrantAdminPermission("Admin privileges granted."),
-    RevokeAdminPermission("Administrator privileges revoked."),
-    DeleteUser("User has been removed from the system."),
-    UserUpdated("User record updated."),
-    UserCreated("New user created."),
+    BlockUser("User blocked"),
+    UnblockUser("User unblocked"),
+    GrantAdminPermission("Admin privileges granted"),
+    RevokeAdminPermission("Administrator privileges revoked"),
+    DeleteUser("User has been removed from the system"),
+    UserUpdated("User record updated"),
+    UserCreated("New user created"),
 
-    ProductionItemAdded("New production item activity."),
-    ProductionItemUpdated("Production item record updated."),
-    ProductionItemDeleted("Production item removed from the system."),
+    ProductionItemAdded("New production item activity"),
+    ProductionItemUpdated("Production item record updated"),
+    ProductionItemDeleted("Production item removed from the system"),
 
-    ProjectAdded("New project activity."),
-    ProjectUpdated("Project record updated."),
-    ProjectDeleted("Project removed from the system."),
-    ProjectStatusUpdated("Project status updated.");
+    ProjectAdded("New project activity"),
+    ProjectUpdated("Project record updated"),
+    ProjectDeleted("Project removed from the system"),
+    ProjectStatusUpdated("Project status updated");
 
     private final String description;
 

@@ -20,13 +20,19 @@ public class ToolScannerService {
         this.toolRepository = toolRepository;
     }
 
-    @Scheduled(fixedRate = 24 * 60 * 60 * 1000) // Uruchom co 24 godziny (1 dzień)
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000) // Uruchom co 24 godziny (1 dzień)
     public void scanToolsAndNotify() {
         List<Tool> tools = toolRepository.findAll();
 
         for (Tool tool : tools) {
             if (tool.getQuantity() < tool.getMinQuantity()) {
-                String description = "Tool " + tool.getName() + " is running low. There are " + tool.getQuantity() + " pieces left.";
+                String quantityText;
+                if(tool.getQuantity() % 1 == 0) {
+                    quantityText = String.valueOf((int) tool.getQuantity());
+                } else {
+                    quantityText = String.valueOf(tool.getQuantity());
+                }
+                String description = "Tool " + tool.getName() + " is running low. There are " + quantityText + " pieces left.";
                 notificationService.createAndSendSystemNotification(description, NotificationDescription.ToolScanner);
             }
         }
