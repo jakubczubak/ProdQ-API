@@ -46,7 +46,7 @@ public class ToolGroupService {
 
         toolGroupRepository.save(toolGroup);
 
-        notificationService.createAndSendNotification("A new tool group has been added: " + toolGroup.getName(), NotificationDescription.ToolGroupAdded);
+        notificationService.createAndSendNotification("A new tool group has been added: `" + toolGroup.getName() + "`", NotificationDescription.ToolGroupAdded);
 
     }
 
@@ -65,7 +65,7 @@ public class ToolGroupService {
 
         toolGroupRepository.save(toolGroup);
 
-        notificationService.createAndSendNotification("A tool group has been updated: " + toolGroup.getName(), NotificationDescription.ToolGroupUpdated);
+        notificationService.createAndSendNotification("A tool group has been updated: `" + toolGroup.getName() + "`", NotificationDescription.ToolGroupUpdated);
 
     }
 
@@ -77,7 +77,7 @@ public class ToolGroupService {
 
         toolGroupRepository.delete(toolGroup);
 
-        notificationService.createAndSendNotification("A tool group has been deleted: " + toolGroup.getName(), NotificationDescription.ToolGroupDeleted);
+        notificationService.createAndSendNotification("A tool group has been deleted: `" + toolGroup.getName() + "`", NotificationDescription.ToolGroupDeleted);
 
     }
 

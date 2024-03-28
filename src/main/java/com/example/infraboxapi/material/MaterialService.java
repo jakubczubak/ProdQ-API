@@ -62,7 +62,7 @@ public class MaterialService {
 
         materialGroupRepository.save(materialGroup);
 
-        notificationService.createAndSendNotification("A new material '" + newMaterial.getName() + " has been added successfully.", NotificationDescription.MaterialAdded);
+        notificationService.createAndSendNotification("A new material '" + newMaterial.getName() + "` has been added successfully.", NotificationDescription.MaterialAdded);
     }
 
     @Transactional

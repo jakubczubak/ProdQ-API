@@ -23,7 +23,7 @@ public class MaterialTypeService {
 
         materialTypeRepository.save(materialType);
 
-        notificationService.createAndSendNotification("Material type " + materialType.getName() + " created", NotificationDescription.MaterialTypeAdded);
+        notificationService.createAndSendNotification("Material type `" + materialType.getName() + "` created", NotificationDescription.MaterialTypeAdded);
     }
 
     public List<MaterialType> getAllMaterials() {
@@ -34,7 +34,7 @@ public class MaterialTypeService {
         MaterialType materialType = materialTypeRepository.findById(id).orElseThrow(() -> new RuntimeException("Material type not found"));
 
         materialTypeRepository.deleteById(id);
-        notificationService.createAndSendNotification("Material type " + materialType.getName() + " deleted", NotificationDescription.MaterialTypeDeleted);
+        notificationService.createAndSendNotification("Material type `" + materialType.getName() + "` deleted", NotificationDescription.MaterialTypeDeleted);
     }
 
     public void updateMaterialType(MaterialTypeDTO materialTypeDTO) {
@@ -42,7 +42,7 @@ public class MaterialTypeService {
         materialType.setName(materialTypeDTO.getName());
         materialType.setDensity(materialTypeDTO.getDensity());
         materialTypeRepository.save(materialType);
-        notificationService.createAndSendNotification("Material type " + materialType.getName() + " updated", NotificationDescription.MaterialTypeUpdated);
+        notificationService.createAndSendNotification("Material type `" + materialType.getName() + "` updated", NotificationDescription.MaterialTypeUpdated);
 
     }
 }

@@ -85,7 +85,7 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }
         userRepository.save(user);
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been updated.", NotificationDescription.UserUpdated);
+        notificationService.createAndSendNotification("`" + user.getFirstName() + " " + user.getLastName() + "` has been updated.", NotificationDescription.UserUpdated);
     }
 
 
@@ -98,7 +98,7 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         }
         userRepository.save(user);
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been updated.", NotificationDescription.UserUpdated);
+        notificationService.createAndSendNotification("`" + user.getFirstName() + " " + user.getLastName() + "` has been updated.", NotificationDescription.UserUpdated);
     }
 
     public ResponseEntity<UserDTO> getUserInfo() {
@@ -155,7 +155,7 @@ public class UserService {
         user.setBlocked(true);
         userRepository.save(user);
 
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been blocked.", NotificationDescription.BlockUser);
+        notificationService.createAndSendNotification("`" + user.getFirstName() + " " + user.getLastName() + "` has been blocked.", NotificationDescription.BlockUser);
 
     }
 
@@ -165,7 +165,7 @@ public class UserService {
         user.setBlocked(false);
         userRepository.save(user);
 
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been unblocked.", NotificationDescription.UnblockUser);
+        notificationService.createAndSendNotification("`" + user.getFirstName() + " " + user.getLastName() + "` has been unblocked.", NotificationDescription.UnblockUser);
 
     }
 
@@ -175,7 +175,7 @@ public class UserService {
         user.setRole(Role.ADMIN);
         userRepository.save(user);
 
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been granted admin permission.", NotificationDescription.GrantAdminPermission);
+        notificationService.createAndSendNotification("`" + user.getFirstName() + " " + user.getLastName() + "` has been granted admin permission.", NotificationDescription.GrantAdminPermission);
     }
 
     public void revokeAdminPermission(Integer userId) {
@@ -184,14 +184,14 @@ public class UserService {
         user.setRole(Role.USER);
         userRepository.save(user);
 
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been revoked admin permission.", NotificationDescription.RevokeAdminPermission);
+        notificationService.createAndSendNotification("`" + user.getFirstName() + " " + user.getLastName() + "` has been revoked admin permission.", NotificationDescription.RevokeAdminPermission);
     }
 
     public void deleteUser(Integer userId) {
         User user = userRepository.findById(userId).orElseThrow();
         userRepository.deleteById(userId);
 
-        notificationService.createAndSendNotification(user.getFirstName() + " " + user.getLastName() + " has been deleted.", NotificationDescription.RevokeAdminPermission);
+        notificationService.createAndSendNotification("`" + user.getFirstName() + " " + user.getLastName() + "` has been deleted.", NotificationDescription.RevokeAdminPermission);
     }
 
     public Boolean checkEmail(String email) {

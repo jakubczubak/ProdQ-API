@@ -32,7 +32,7 @@ public class ToolScannerService {
                 } else {
                     quantityText = String.valueOf(tool.getQuantity());
                 }
-                String description = "Tool " + tool.getName() + " is running low. There are " + quantityText + " pieces left.";
+                String description = "Tool `" + tool.getName() + "` is running low. There are `" + quantityText + "` pieces left.";
                 notificationService.createAndSendSystemNotification(description, NotificationDescription.ToolScanner);
             }
         }

@@ -62,6 +62,6 @@ public class DepartmentCostService {
 
         departmentCostRepository.save(departmentCost);
         logger.info("Department cost updated successfully :)");
-        notificationService.createAndSendNotification("Department cost has been successfully  updated :)", NotificationDescription.DepartmentCostUpdated);
+        notificationService.createAndSendNotification("Department cost has been successfully updated :)", NotificationDescription.DepartmentCostUpdated);
     }
 }

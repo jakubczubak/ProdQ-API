@@ -46,7 +46,7 @@ public class ProductionItemService {
         }
         project.getProductionItems().add(productionItem);
         projectRepository.save(project);
-        notificationService.createAndSendNotification("A new production item has been added: " + productionItem.getPartName(), NotificationDescription.ProductionItemAdded);
+        notificationService.createAndSendNotification("A new production item has been added: `" + productionItem.getPartName() + "`", NotificationDescription.ProductionItemAdded);
     }
 
     public Iterable<ProductionItem> getProductionItems() {
@@ -56,7 +56,7 @@ public class ProductionItemService {
     public void deleteProductionItem(Integer id) {
         ProductionItem pr = productionItemRepository.findById(id).orElseThrow(() -> new RuntimeException("Production Item not found"));
         productionItemRepository.deleteById(id);
-        notificationService.createAndSendNotification("A production item has been deleted: " + pr.getPartName(), NotificationDescription.ProductionItemDeleted);
+        notificationService.createAndSendNotification("A production item has been deleted: `" + pr.getPartName() + "`", NotificationDescription.ProductionItemDeleted);
     }
 
     public void updateProductionItem(ProductionItemDTO productionItemDTO) throws IOException {

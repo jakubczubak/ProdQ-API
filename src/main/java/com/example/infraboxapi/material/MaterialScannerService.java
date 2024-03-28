@@ -38,12 +38,12 @@ public class MaterialScannerService {
                 }
 
                 if (Objects.equals(material.getType(), "Plate")) { // Jeśli materiał to płyta to wyświetl "sztuk" zamiast "m"
-                    endText = " pieces left.";
+                    endText = "pieces left.";
                 } else {
-                    endText = " m left.";
+                    endText = "m left.";
                 }
 
-                String description = "Material " + material.getName() + " is running low. There are " + quantityText + endText;
+                String description = "Material `" + material.getName() + "` is running low. There are `" + quantityText + "` " + endText;
                 notificationService.createAndSendSystemNotification(description, NotificationDescription.MaterialScanner);
             }
         }

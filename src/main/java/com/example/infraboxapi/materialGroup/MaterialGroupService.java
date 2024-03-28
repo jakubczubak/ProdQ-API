@@ -45,7 +45,7 @@ public class MaterialGroupService {
 
         materialGroupRepository.save(materialGroup);
 
-        notificationService.createAndSendNotification("A new material group has been added: " + materialGroup.getName(), NotificationDescription.MaterialGroupAdded);
+        notificationService.createAndSendNotification("A new material group has been added: `" + materialGroup.getName() + "`", NotificationDescription.MaterialGroupAdded);
 
     }
 

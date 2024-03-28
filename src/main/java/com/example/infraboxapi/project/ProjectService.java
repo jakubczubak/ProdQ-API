@@ -35,7 +35,7 @@ public class ProjectService {
                 .totalProductionValue(BigDecimal.valueOf(0))
                 .build();
         projectRepository.save(project);
-        notificationService.createAndSendNotification("A new project has been added: " + project.getName(), NotificationDescription.ProjectAdded);
+        notificationService.createAndSendNotification("A new project has been added: `" + project.getName() + "`", NotificationDescription.ProjectAdded);
     }
 
     public Iterable<Project> getProjects() {
@@ -45,7 +45,7 @@ public class ProjectService {
     public void deleteProject(Integer id) {
         Project pr = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
         projectRepository.deleteById(id);
-        notificationService.createAndSendNotification("A project has been deleted: " + pr.getName(), NotificationDescription.ProjectDeleted);
+        notificationService.createAndSendNotification("A project has been deleted: `" + pr.getName() + "`", NotificationDescription.ProjectDeleted);
     }
 
     public void updateProject(ProjectDTO projectDTO) {
@@ -53,7 +53,7 @@ public class ProjectService {
                 .orElseThrow(() -> new RuntimeException("Project not found"));
         project.setName(projectDTO.getName());
         projectRepository.save(project);
-        notificationService.createAndSendNotification("A project has been updated: " + project.getName(), NotificationDescription.ProjectUpdated);
+        notificationService.createAndSendNotification("A project has been updated: `" + project.getName() + "`", NotificationDescription.ProjectUpdated);
     }
 
     public Project getProject(Integer id) {
@@ -69,12 +69,14 @@ public class ProjectService {
             project.setStatus("done");
         }
         projectRepository.save(project);
-        notificationService.createAndSendNotification("Project status has been updated: " + project.getName(), NotificationDescription.ProjectStatusUpdated);
+        notificationService.createAndSendNotification("Project status has been updated: `" + project.getName() + "`", NotificationDescription.ProjectStatusUpdated);
     }
 
     public void updateHourlyRate(Integer id, double hourlyRate) {
         Project project = projectRepository.findById(id).orElseThrow(() -> new RuntimeException("Project not found"));
         project.setHourlyRate(hourlyRate);
+
+        notificationService.createAndSendNotification("Hourly rate has been updated: `" + project.getName() + "`", NotificationDescription.HourlyRateUpdated);
         projectRepository.save(project);
     }
 

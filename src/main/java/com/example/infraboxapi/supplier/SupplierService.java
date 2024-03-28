@@ -45,7 +45,7 @@ public class SupplierService {
 
         supplierRepository.save(supplier);
 
-        notificationService.createAndSendNotification("A new supplier has been added: " + supplier.getCompanyName(), NotificationDescription.SupplierAdded);
+        notificationService.createAndSendNotification("A new supplier has been added: `" + supplier.getCompanyName() + "`", NotificationDescription.SupplierAdded);
     }
 
     public void updateSupplier(SupplierDTO supplierDTO) {
