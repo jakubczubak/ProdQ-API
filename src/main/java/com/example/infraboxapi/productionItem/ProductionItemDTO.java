@@ -21,7 +21,7 @@ public class ProductionItemDTO {
     @Size(min = 2, max = 100, message = "Field 'part name' must have a length between 2 and 100 characters")
     private String partName;
     @PositiveOrZero(message = "Value must be a positive number or zero")
-    private Integer quantity;
+    private float quantity;
     @NotBlank(message = "Field 'status' cannot be blank")
     @Size(min = 2, max = 100, message = "Field 'status' must have a length between 2 and 100 characters")
     private String status;
