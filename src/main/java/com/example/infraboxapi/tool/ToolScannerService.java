@@ -20,7 +20,7 @@ public class ToolScannerService {
         this.toolRepository = toolRepository;
     }
 
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000) // Uruchom co 24 godziny (1 dzień)
+    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
     public void scanToolsAndNotify() {
         List<Tool> tools = toolRepository.findAll();
 
