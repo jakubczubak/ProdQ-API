@@ -29,7 +29,6 @@ public class MaterialService {
 
 
         Material newMaterial = Material.builder()
-
                 .diameter(materialDTO.getDiameter())
                 .length(materialDTO.getLength())
                 .thickness(materialDTO.getThickness())
@@ -43,7 +42,6 @@ public class MaterialService {
                 .x(materialDTO.getX())
                 .type(materialDTO.getType())
                 .quantityInTransit(materialDTO.getQuantityInTransit())
-
                 .build();
 
         LocalDateTime currentDateTime = LocalDateTime.now();
@@ -94,6 +92,11 @@ public class MaterialService {
             material.getMaterialPriceHistoryList().add(materialPriceHistory);
         }
 
+        //Check if quantity is changed, if yes, send notification to all users
+        if (material.getQuantity() != materialDTO.getQuantity()) {
+            checkAndNotifyQuantityChange(material, materialDTO);
+        }
+
         material.setPricePerKg(materialDTO.getPricePerKg());
         material.setPrice(materialDTO.getPrice());
         material.setMinQuantity(materialDTO.getMinQuantity());
@@ -113,5 +116,18 @@ public class MaterialService {
         notificationService.createAndSendNotification("The material '" + material.getName() + "' has been successfully updated.", NotificationDescription.MaterialUpdated);
     }
 
+    public void checkAndNotifyQuantityChange(Material material, MaterialDTO materialDTO) {
+        float oldQuantity = material.getQuantity();
+        float newQuantity = materialDTO.getQuantity();
 
+        if (oldQuantity != newQuantity) {
+            String message;
+            if (newQuantity > oldQuantity) {
+                message = "The quantity of material '" + material.getName() + "' has been increased from " + oldQuantity + " to " + newQuantity + ".";
+            } else {
+                message = "The quantity of material '" + material.getName() + "' has been decreased from " + oldQuantity + " to " + newQuantity + ".";
+            }
+            notificationService.createAndSendSystemNotification(message, NotificationDescription.MaterialQuantityUpdated);
+        }
+    }
 }
