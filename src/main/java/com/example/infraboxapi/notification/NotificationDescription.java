@@ -64,7 +64,10 @@ public enum NotificationDescription {
     ProjectUpdated("Project record updated"),
     ProjectDeleted("Project removed from the system"),
     ProjectStatusUpdated("Project status updated"),
-    HourlyRateUpdated("Hourly rate updated");
+    HourlyRateUpdated("Hourly rate updated"),
+
+    ToolQuantityUpdated("Tool quantity updated"),
+    MaterialQuantityUpdated("Material quantity updated");
 
     private final String description;
 

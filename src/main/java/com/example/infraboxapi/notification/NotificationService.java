@@ -71,6 +71,7 @@ public class NotificationService {
             userRepository.save(user);
         }
     }
+    
 
     public Integer getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
