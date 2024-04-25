@@ -71,6 +71,30 @@ public class NotificationService {
             userRepository.save(user);
         }
     }
+
+    public void createAndSendQuantityNotification(String description, NotificationDescription notificationDescription) {
+        // Pobierz nazwę zalogowanego użytkownika z SecurityContextHolder
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User currentUser = (User) authentication.getPrincipal();
+        // Pobierz użytkownika, który tworzy powiadomienie
+        User user = userRepository.findById(currentUser.getId()).orElseThrow(() -> new RuntimeException("User not found"));
+        // Tworzenie nowego powiadomienia
+        Notification notification = new Notification();
+        notification.setDescription(description);
+        notification.setTitle(notificationDescription.getDescription());
+        notification.setRead(false);
+        notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName());
+
+        List<User> allUsers = userRepository.findAll();
+        // Wyślij powiadomienie do wszystkich użytkowników
+        for (User u : allUsers) {
+            notification.setUser(u);
+            u.getNotifications().add(notification);
+            notificationRepository.save(notification);
+            userRepository.save(u);
+        }
+
+    }
     
 
     public Integer getUserId() {

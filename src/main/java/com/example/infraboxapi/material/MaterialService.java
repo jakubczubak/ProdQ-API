@@ -127,7 +127,7 @@ public class MaterialService {
             } else {
                 message = "The quantity of material '" + material.getName() + "' has been decreased from " + oldQuantity + " to " + newQuantity + ".";
             }
-            notificationService.createAndSendSystemNotification(message, NotificationDescription.MaterialQuantityUpdated);
+            notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
         }
     }
 }
