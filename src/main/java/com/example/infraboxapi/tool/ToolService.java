@@ -1,6 +1,8 @@
 package com.example.infraboxapi.tool;
 
 
+import com.example.infraboxapi.material.Material;
+import com.example.infraboxapi.material.MaterialDTO;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.toolGroup.ToolGroup;
@@ -70,6 +72,10 @@ public class ToolService {
 
         Tool tool = toolRepository.findById(toolDTO.getId()).orElseThrow(() -> new RuntimeException("Tool not found"));
 
+        if(tool.getQuantity() != toolDTO.getQuantity()) {
+            checkAndNotifyQuantityChange(tool, toolDTO);
+        }
+
         tool.setDc(toolDTO.getDc());
         tool.setCfl(toolDTO.getCfl());
         tool.setOal(toolDTO.getOal());
@@ -89,5 +95,18 @@ public class ToolService {
         notificationService.createAndSendNotification("Tool '" + toolDTO.getName() + "' has been successfully updated", NotificationDescription.ToolUpdated);
     }
 
+    public void checkAndNotifyQuantityChange(Tool tool, ToolDTO toolDTO) {
+        float oldQuantity = tool.getQuantity();
+        float newQuantity = toolDTO.getQuantity();
 
+        if (oldQuantity != newQuantity) {
+            String message;
+            if (newQuantity > oldQuantity) {
+                message = "The quantity of tool '" + tool.getName() + "' has been increased from " + oldQuantity + " to " + newQuantity + ".";
+            } else {
+                message = "The quantity of tool '" + tool.getName() + "' has been decreased from " + oldQuantity + " to " + newQuantity + ".";
+            }
+            notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
+        }
+    }
 }
