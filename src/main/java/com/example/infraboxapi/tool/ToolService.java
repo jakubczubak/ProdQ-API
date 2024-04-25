@@ -99,12 +99,19 @@ public class ToolService {
         float oldQuantity = tool.getQuantity();
         float newQuantity = toolDTO.getQuantity();
 
+        // Sprawdzenie, czy liczba jest całkowita
+        boolean isOldQuantityInteger = (oldQuantity % 1 == 0);
+        boolean isNewQuantityInteger = (newQuantity % 1 == 0);
+
+        String oldQuantityStr = isOldQuantityInteger ? String.valueOf((int) oldQuantity) : String.valueOf(oldQuantity);
+        String newQuantityStr = isNewQuantityInteger ? String.valueOf((int) newQuantity) : String.valueOf(newQuantity);
+
         if (oldQuantity != newQuantity) {
             String message;
             if (newQuantity > oldQuantity) {
-                message = "The quantity of tool '" + tool.getName() + "' has been increased from " + oldQuantity + " to " + newQuantity + ".";
+                message = "The quantity of tool '" + tool.getName() + "' has been increased from " + oldQuantityStr + " to " + newQuantityStr + ".";
             } else {
-                message = "The quantity of tool '" + tool.getName() + "' has been decreased from " + oldQuantity + " to " + newQuantity + ".";
+                message = "The quantity of tool '" + tool.getName() + "' has been decreased from " + oldQuantityStr + " to " + newQuantityStr + ".";
             }
             notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
         }
