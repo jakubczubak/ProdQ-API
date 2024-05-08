@@ -42,6 +42,7 @@ public class MaterialService {
                 .x(materialDTO.getX())
                 .type(materialDTO.getType())
                 .quantityInTransit(materialDTO.getQuantityInTransit())
+                .additionalInfo(materialDTO.getAdditionalInfo())
                 .build();
 
         LocalDateTime currentDateTime = LocalDateTime.now();
@@ -110,6 +111,7 @@ public class MaterialService {
         material.setName(materialDTO.getName());
         material.setType(materialDTO.getType());
         material.setQuantityInTransit(materialDTO.getQuantityInTransit());
+        material.setAdditionalInfo(materialDTO.getAdditionalInfo());
 
         materialRepository.save(material);
 

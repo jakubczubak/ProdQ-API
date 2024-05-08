@@ -64,6 +64,8 @@ public class MaterialDTO {
 
     private String updatedOn;
 
+    @Size(max = 100, message = "Field 'additionalInfo' must have a length less than or equal to 100 characters")
+    private String additionalInfo;
 
     private Integer materialGroupID;
 

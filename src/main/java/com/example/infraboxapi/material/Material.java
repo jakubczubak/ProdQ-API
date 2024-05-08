@@ -42,6 +42,7 @@ public class Material {
     private String type;
 
     private float quantityInTransit;
+    private String additionalInfo;
 
     @Column(name = "updated_on")
     private String updatedOn;
