@@ -44,6 +44,8 @@ public class ProductionItemDTO {
     @NotBlank(message = "Field 'part type' cannot be blank")
     @Size(min = 2, max = 100, message = "Field 'part type' must have a length between 2 and 100 characters")
     private String partType;
+    @NotBlank(message = "Field 'type of processing' cannot be blank")
+    private String typeOfProcessing;
     private MultipartFile filePDF;
     private Integer projectID;
 }

@@ -39,6 +39,7 @@ public class ProductionItemService {
                 .totalTime(productionItemDTO.getTotalTime())
                 .factor(productionItemDTO.getFactor())
                 .fixtureTime(productionItemDTO.getFixtureTime())
+                .typeOfProcessing(productionItemDTO.getTypeOfProcessing())
                 .build();
         if (productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.createFile(productionItemDTO.getFilePDF());
@@ -73,6 +74,7 @@ public class ProductionItemService {
         productionItem.setFixtureTime(productionItemDTO.getFixtureTime());
         productionItem.setFinishingTime(productionItemDTO.getFinishingTime());
         productionItem.setTotalTime(productionItemDTO.getTotalTime());
+        productionItem.setTypeOfProcessing(productionItemDTO.getTypeOfProcessing());
         if (productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.updateFile(productionItemDTO.getFilePDF(), productionItem.getFilePDF());
             productionItem.setFilePDF(filePDF);

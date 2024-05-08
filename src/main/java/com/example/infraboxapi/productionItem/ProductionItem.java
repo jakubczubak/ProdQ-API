@@ -38,6 +38,7 @@ public class ProductionItem {
     private BigDecimal materialValue;
     private BigDecimal toolValue;
     private String partType;
+    private String typeOfProcessing;
     @OneToOne(cascade = CascadeType.ALL)
     private FilePDF filePDF;
 
