@@ -1,5 +1,7 @@
 package com.example.infraboxapi.recycling;
 
+import com.example.infraboxapi.FilePDF.FilePDF;
+import com.example.infraboxapi.FilePDF.FilePDFService;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.recyclingItem.RecyclingItem;
@@ -7,6 +9,7 @@ import com.example.infraboxapi.recyclingItem.RecyclingItemDTO;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +20,7 @@ public class RecyclingService {
 
     private final RecyclingRepository recyclingRepository;
     private final NotificationService notificationService;
+    private final FilePDFService filePDFService;
 
     public List<Recycling> getAllRecycling() {
         return recyclingRepository.findAll();
@@ -120,4 +124,32 @@ public class RecyclingService {
         return totalRefund;
     }
 
+    public void uploadRecyclePDF(RecyclingDTO recyclingDTO) throws IOException {
+
+        Optional<Recycling> recyclingOptional = recyclingRepository.findById(recyclingDTO.getId());
+
+        if (recyclingOptional.isPresent()) {
+            Recycling recycling = recyclingOptional.get();
+
+            if(recyclingDTO.getFilePDF() != null) {
+                FilePDF filePDF = filePDFService.updateFile(recyclingDTO.getFilePDF(), recycling.getFilePDF());
+                recycling.setFilePDF(filePDF);
+            }
+            recyclingRepository.save(recycling);
+        }
+
+
+
+    }
+
+    public void deleteRecyclePDF(Integer id) {
+
+            Optional<Recycling> recyclingOptional = recyclingRepository.findById(id);
+
+            if (recyclingOptional.isPresent()) {
+                Recycling recycling = recyclingOptional.get();
+                recycling.setFilePDF(null);
+                recyclingRepository.save(recycling);
+            }
+    }
 }

@@ -83,4 +83,27 @@ public class RecyclingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
+
+    @PostMapping("/upload/pdf")
+    public ResponseEntity<String> uploadRecyclePDF(@ModelAttribute @Valid RecyclingDTO recyclingDTO, BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            return commonService.handleBindingResult(bindingResult);
+        }
+        try {
+            recyclingService.uploadRecyclePDF(recyclingDTO);
+            return ResponseEntity.ok("Recycling PDF uploaded");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/delete/pdf/{id}")
+    public ResponseEntity<String> deleteRecyclePDF(@PathVariable Integer id) {
+        try {
+            recyclingService.deleteRecyclePDF(id);
+            return ResponseEntity.ok("Recycling PDF deleted");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
 }

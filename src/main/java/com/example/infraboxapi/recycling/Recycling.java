@@ -1,5 +1,6 @@
 package com.example.infraboxapi.recycling;
 
+import com.example.infraboxapi.FilePDF.FilePDF;
 import com.example.infraboxapi.recyclingItem.RecyclingItem;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -33,6 +34,8 @@ public class Recycling {
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "recycling_id")
     private List<RecyclingItem> recyclingItems;
+    @OneToOne(cascade = CascadeType.ALL)
+    private FilePDF filePDF;
 }
 
 
