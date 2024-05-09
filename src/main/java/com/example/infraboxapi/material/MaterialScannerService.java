@@ -21,7 +21,7 @@ public class MaterialScannerService {
         this.materialRepository = materialRepository;
     }
 
-    @Scheduled(fixedRate = 7 * 24 * 60 * 60 * 1000)
+    @Scheduled(fixedRate = 30 * 24 * 60 * 60 * 1000)
     public void scanMaterialsAndNotify() {
         List<Material> materials = materialRepository.findAll();
 
