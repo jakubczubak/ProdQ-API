@@ -20,7 +20,7 @@ public class ToolScannerService {
         this.toolRepository = toolRepository;
     }
 
-    @Scheduled(fixedRate = 30 * 24 * 60 * 60 * 1000)
+    @Scheduled(fixedRate = 20 * 24 * 60 * 60 * 1000)
     public void scanToolsAndNotify() {
         List<Tool> tools = toolRepository.findAll();
 
