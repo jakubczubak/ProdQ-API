@@ -78,6 +78,9 @@ public class ProductionItemService {
         if (productionItemDTO.getFilePDF() != null) {
             FilePDF filePDF = filePDFService.updateFile(productionItemDTO.getFilePDF(), productionItem.getFilePDF());
             productionItem.setFilePDF(filePDF);
+        }else{
+            productionItem.setFilePDF(null);
+
         }
         productionItemRepository.save(productionItem);
         notificationService.createAndSendNotification(
