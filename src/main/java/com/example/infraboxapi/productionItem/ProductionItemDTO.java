@@ -46,6 +46,7 @@ public class ProductionItemDTO {
     private String partType;
     @NotBlank(message = "Field 'type of processing' cannot be blank")
     private String typeOfProcessing;
+
     private MultipartFile filePDF;
     private Integer projectID;
 }
