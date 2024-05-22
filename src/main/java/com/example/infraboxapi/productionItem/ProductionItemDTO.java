@@ -1,5 +1,6 @@
 package com.example.infraboxapi.productionItem;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -49,4 +50,25 @@ public class ProductionItemDTO {
 
     private MultipartFile filePDF;
     private Integer projectID;
+
+
+    // Pola dla dodatkowych danych
+    private Integer materialTypeID;
+    @DecimalMin(value = "0", message = "Price per kg must be greater than or equal to 0")
+    private BigDecimal pricePerKg;
+    @NotBlank(message = "Field 'type' cannot be blank")
+    @Size(min = 1, max = 50, message = "Field 'type' must have a length between 1 and 50 characters")
+    private String type;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private float z;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private float y;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private float x;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private float diameter;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private float length;
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private float thickness;
 }

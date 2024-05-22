@@ -4,6 +4,7 @@ import com.example.infraboxapi.FilePDF.FilePDF;
 import com.example.infraboxapi.FilePDF.FilePDFService;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
+import com.example.infraboxapi.productionItemMaterial.ProductionItemMaterial;
 import com.example.infraboxapi.project.Project;
 import com.example.infraboxapi.project.ProjectRepository;
 import com.example.infraboxapi.project.ProjectService;
@@ -25,6 +26,8 @@ public class ProductionItemService {
 
     @Transactional
     public void createProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
+
+        //Stworzenie obiektu productionitemmaterial i przypisanie go do productionitem
         Project project = projectRepository.findById(productionItemDTO.getProjectID()).orElseThrow(() -> new RuntimeException("Project not found"));
         ProductionItem productionItem = ProductionItem.builder()
                 .partName(productionItemDTO.getPartName())
