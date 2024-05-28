@@ -123,7 +123,6 @@ public class ProductionItemService {
             productionItem.setFilePDF(filePDF);
         }else{
             productionItem.setFilePDF(null);
-
         }
 
         productionItemRepository.save(productionItem);
