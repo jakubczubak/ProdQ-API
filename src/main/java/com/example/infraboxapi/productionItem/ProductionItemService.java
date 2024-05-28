@@ -75,6 +75,10 @@ public class ProductionItemService {
 
 
         notificationService.createAndSendNotification("A new production item has been added: `" + productionItem.getPartName() + "`", NotificationDescription.ProductionItemAdded);
+
+
+        System.out.println("Production Item created successfully");
+        System.out.println(productionItem);
     }
 
     public Iterable<ProductionItem> getProductionItems() {
@@ -88,6 +92,7 @@ public class ProductionItemService {
     }
 
     public void updateProductionItem(ProductionItemDTO productionItemDTO) throws IOException {
+
         ProductionItem productionItem = productionItemRepository.findById(productionItemDTO.getId()).orElseThrow(() -> new RuntimeException("Production Item not found"));
         productionItem.setPartName(productionItemDTO.getPartName());
         productionItem.setQuantity(productionItemDTO.getQuantity());
@@ -130,6 +135,9 @@ public class ProductionItemService {
                 "The production item '" + productionItem.getPartName() + "' has been updated successfully.",
                 NotificationDescription.ProductionItemUpdated
         );
+
+        System.out.println("Production Item updated successfully");
+        System.out.println(productionItem);
     }
 
 }
