@@ -73,7 +73,6 @@ public class ProductionItemService {
 
         projectRepository.save(project);
 
-        System.out.println(project);
 
         notificationService.createAndSendNotification("A new production item has been added: `" + productionItem.getPartName() + "`", NotificationDescription.ProductionItemAdded);
     }
@@ -127,7 +126,6 @@ public class ProductionItemService {
 
         }
 
-        System.out.println(productionItem);
         productionItemRepository.save(productionItem);
         notificationService.createAndSendNotification(
                 "The production item '" + productionItem.getPartName() + "' has been updated successfully.",
