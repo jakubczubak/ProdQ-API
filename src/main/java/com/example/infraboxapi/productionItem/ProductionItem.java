@@ -1,7 +1,6 @@
 package com.example.infraboxapi.productionItem;
 
 import com.example.infraboxapi.FilePDF.FilePDF;
-import com.example.infraboxapi.productionItemMaterial.ProductionItemMaterial;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,8 +41,7 @@ public class ProductionItem {
     private String typeOfProcessing;
     @OneToOne(cascade = CascadeType.ALL)
     private FilePDF filePDF;
-    @OneToOne(cascade = CascadeType.ALL)
-    private ProductionItemMaterial productionItemMaterial;
+
 
 
     @PreUpdate

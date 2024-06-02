@@ -52,12 +52,11 @@ public class ProductionItemDTO {
     private Integer projectID;
 
 
-    // Pola dla dodatkowych danych
+
     private Integer materialTypeID;
     @DecimalMin(value = "0", message = "Price per kg must be greater than or equal to 0")
     private BigDecimal pricePerKg;
-    @NotBlank(message = "Field 'type' cannot be blank")
-    @Size(min = 1, max = 50, message = "Field 'type' must have a length between 1 and 50 characters")
+
     private String type;
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private float z;
