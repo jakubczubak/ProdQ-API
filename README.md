@@ -44,7 +44,17 @@ INFRABOX offers a rich set of features tailored to meet the demands of effective
 
 ## Screenshots
 
-(Include relevant screenshots of your application here to provide a visual reference for users. You can include images directly within your README.)
+![img](./src/main/resources/static/screenshots/infrabox_1.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_2.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_3.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_4.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_5.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_6.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_7.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_8.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_9.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_10.JPG)
+![img](./src/main/resources/static/screenshots/infrabox_11.JPG)
 
 ## Configuration
 
