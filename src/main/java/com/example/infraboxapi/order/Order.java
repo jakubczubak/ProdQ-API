@@ -1,6 +1,5 @@
 package com.example.infraboxapi.order;
 
-
 import com.example.infraboxapi.orderItem.OrderItem;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -21,15 +20,18 @@ public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
     private String name;
     private String date;
     private String status;
     private String supplierEmail;
+
+    @Lob  // Oznaczenie pola jako typu Lob (Large Object)
     private String supplierMessage;
+
     private double totalPrice;
     private boolean externalQuantityUpdated;
     private boolean transitQuantitySet;
-
 
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "order_id")
