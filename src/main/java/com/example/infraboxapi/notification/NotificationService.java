@@ -37,65 +37,76 @@ public class NotificationService {
         // Pobierz nazwę zalogowanego użytkownika z SecurityContextHolder
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        // Pobierz użytkownika, który tworzy powiadomienie
-        // Tworzenie nowego powiadomienia
-        Notification notification = new Notification();
-        notification.setDescription(description);
-        notification.setTitle(notificationDescription.getDescription());
-        notification.setRead(false);
-        notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName()); // Ustaw autora na nazwę zalogowanego użytkownika
+
         // Pobierz listę wszystkich użytkowników z wyjątkiem autora
         List<User> allUsersExceptAuthor = findAllUsersExceptUserWithId(currentUser.getId());
-        // Wyślij powiadomienie do wszystkich użytkowników
+
+        // Tworzenie i wysyłanie powiadomień do wszystkich użytkowników
         for (User user : allUsersExceptAuthor) {
+            // Twórz nową instancję powiadomienia dla każdego użytkownika
+            Notification notification = new Notification();
+            notification.setDescription(description);
+            notification.setTitle(notificationDescription.getDescription());
+            notification.setRead(false);
+            notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName()); // Ustaw autora na nazwę zalogowanego użytkownika
             notification.setUser(user);
+
+            // Dodaj powiadomienie do użytkownika i zapisz
             user.getNotifications().add(notification);
             notificationRepository.save(notification);
             userRepository.save(user);
         }
     }
 
+
     public void createAndSendSystemNotification(String description, NotificationDescription notificationDescription) {
-        // Tworzenie nowego powiadomienia
-        Notification notification = new Notification();
-        notification.setDescription(description);
-        notification.setTitle(notificationDescription.getDescription());
-        notification.setRead(false);
-        notification.setAuthor("Infrabox");
+        // Pobierz wszystkich użytkowników
         List<User> allUsers = userRepository.findAll();
-        // Wyślij powiadomienie do wszystkich użytkowników
+
+        // Tworzenie i wysyłanie powiadomień do wszystkich użytkowników
         for (User user : allUsers) {
+            // Twórz nową instancję powiadomienia dla każdego użytkownika
+            Notification notification = new Notification();
+            notification.setDescription(description);
+            notification.setTitle(notificationDescription.getDescription());
+            notification.setRead(false);
+            notification.setAuthor("Infrabox");
             notification.setUser(user);
+
+            // Dodaj powiadomienie do użytkownika i zapisz
             user.getNotifications().add(notification);
             notificationRepository.save(notification);
             userRepository.save(user);
         }
     }
+
 
     public void createAndSendQuantityNotification(String description, NotificationDescription notificationDescription) {
         // Pobierz nazwę zalogowanego użytkownika z SecurityContextHolder
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-        // Pobierz użytkownika, który tworzy powiadomienie
-        User user = userRepository.findById(currentUser.getId()).orElseThrow(() -> new RuntimeException("User not found"));
-        // Tworzenie nowego powiadomienia
-        Notification notification = new Notification();
-        notification.setDescription(description);
-        notification.setTitle(notificationDescription.getDescription());
-        notification.setRead(false);
-        notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName());
 
+        // Pobierz wszystkich użytkowników
         List<User> allUsers = userRepository.findAll();
-        // Wyślij powiadomienie do wszystkich użytkowników
+
+        // Tworzenie i wysyłanie powiadomień do wszystkich użytkowników
         for (User u : allUsers) {
+            // Twórz nową instancję powiadomienia dla każdego użytkownika
+            Notification notification = new Notification();
+            notification.setDescription(description);
+            notification.setTitle(notificationDescription.getDescription());
+            notification.setRead(false);
+            notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName());
             notification.setUser(u);
+
+            // Dodaj powiadomienie do użytkownika i zapisz
             u.getNotifications().add(notification);
             notificationRepository.save(notification);
             userRepository.save(u);
         }
-
     }
-    
+
+
 
     public Integer getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
