@@ -1,16 +1,16 @@
 package com.example.infraboxapi.material;
-
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
+
 
 @Data
 @Builder
@@ -55,7 +55,7 @@ public class Material {
 
     @PreUpdate
     public void preUpdate() {
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 

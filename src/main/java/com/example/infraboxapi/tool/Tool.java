@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Data
@@ -41,10 +43,8 @@ public class Tool {
 
     @PreUpdate
     public void preUpdate() {
-        LocalDateTime now = LocalDateTime.now();
-
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw")); // Określ strefę czasową
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
         updatedOn = now.format(formatter);
     }
 }

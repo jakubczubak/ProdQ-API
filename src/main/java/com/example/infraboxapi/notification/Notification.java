@@ -8,7 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
 @Entity
@@ -34,7 +35,7 @@ public class Notification {
 
     @PrePersist
     public void prePersist() {
-        LocalDateTime currentDateTime = LocalDateTime.now();
+        ZonedDateTime currentDateTime = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         createdOn = currentDateTime.format(formatter);
     }
