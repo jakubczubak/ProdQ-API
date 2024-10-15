@@ -66,7 +66,11 @@ public enum NotificationDescription {
     HourlyRateUpdated("Hourly rate has been updated"),
 
     ToolQuantityUpdated("Tool quantity adjusted"),
-    MaterialQuantityUpdated("Material quantity adjusted");
+    MaterialQuantityUpdated("Material quantity adjusted"),
+
+    AccessorieAdded("New accessorie added"),
+    AccessorieUpdated("Accessorie details updated"),
+    AccessorieDeleted("Accessorie removed");
 
     private final String description;
 

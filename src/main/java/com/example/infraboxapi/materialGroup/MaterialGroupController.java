@@ -17,7 +17,6 @@ public class MaterialGroupController {
 
     private final MaterialGroupService materialGroupService;
     private final CommonService commonService;
-    private final FileImageService fileImageService;
 
     @PostMapping("/create")
     public ResponseEntity<String> createMaterialGroup(@ModelAttribute @Valid MaterialGroupDTO materialGroupDTO,
