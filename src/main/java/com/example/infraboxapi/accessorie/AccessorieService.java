@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 @Service
 @AllArgsConstructor
@@ -26,6 +27,7 @@ public class AccessorieService {
 
         Accessorie accessorie = Accessorie.builder()
                 .name(accessorieDTO.getName())
+                .accessorieItems(new ArrayList<>())
                 .build();
 
         if (accessorieDTO.getFile() != null) {
