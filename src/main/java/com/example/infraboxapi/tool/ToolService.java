@@ -45,12 +45,6 @@ public class ToolService {
                 .build();
 
 
-        LocalDateTime now = LocalDateTime.now();
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-        newTool.setUpdatedOn(now.format(formatter));
-
         toolGroup.getTools().add(newTool);
 
         toolGroupRepository.save(toolGroup);
@@ -95,25 +89,11 @@ public class ToolService {
         notificationService.createAndSendNotification("Tool '" + toolDTO.getName() + "' has been successfully updated", NotificationDescription.ToolUpdated);
     }
 
-    public void checkAndNotifyQuantityChange(Tool tool, ToolDTO toolDTO) {
-        float oldQuantity = tool.getQuantity();
-        float newQuantity = toolDTO.getQuantity();
-
-        // Sprawdzenie, czy liczba jest całkowita
-        boolean isOldQuantityInteger = (oldQuantity % 1 == 0);
-        boolean isNewQuantityInteger = (newQuantity % 1 == 0);
-
-        String oldQuantityStr = isOldQuantityInteger ? String.valueOf((int) oldQuantity) : String.valueOf(oldQuantity);
-        String newQuantityStr = isNewQuantityInteger ? String.valueOf((int) newQuantity) : String.valueOf(newQuantity);
-
-        if (oldQuantity != newQuantity) {
-            String message;
-            if (newQuantity > oldQuantity) {
-                message = "The quantity of tool '" + tool.getName() + "' has been increased from " + oldQuantityStr + " to " + newQuantityStr + ".";
+   public void checkAndNotifyQuantityChange(Tool tool, ToolDTO toolDTO) {
+            if(tool.getQuantity() < toolDTO.getQuantity()) {
+                notificationService.createAndSendNotification("Tool '" + tool.getName() + "' quantity increased from " + tool.getQuantity() + " to " + toolDTO.getQuantity(), NotificationDescription.ToolUpdated);
             } else {
-                message = "The quantity of tool '" + tool.getName() + "' has been decreased from " + oldQuantityStr + " to " + newQuantityStr + ".";
+                notificationService.createAndSendNotification("Tool '" + tool.getName() + "' quantity decreased from " + tool.getQuantity() + " to " + toolDTO.getQuantity(), NotificationDescription.ToolUpdated);
             }
-            notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
         }
-    }
 }

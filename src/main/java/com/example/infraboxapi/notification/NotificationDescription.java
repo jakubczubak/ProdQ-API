@@ -70,7 +70,12 @@ public enum NotificationDescription {
 
     AccessorieAdded("New accessorie added"),
     AccessorieUpdated("Accessorie details updated"),
-    AccessorieDeleted("Accessorie removed");
+    AccessorieDeleted("Accessorie removed"),
+
+    AccessorieItemAdded("New accessorie item added"),
+    AccessorieItemUpdated("Accessorie item details updated"),
+    AccessorieItemDeleted("Accessorie item removed");
+
 
     private final String description;
 

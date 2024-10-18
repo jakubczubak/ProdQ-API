@@ -1,9 +1,10 @@
-package com.example.infraboxapi.accessorie;
+package com.example.infraboxapi.accessorieItem;
+
 
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
-public class AccessorieScannerService {
+public class AccessorieItemScannerService {
 }

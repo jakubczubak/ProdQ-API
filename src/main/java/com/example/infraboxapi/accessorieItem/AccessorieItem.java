@@ -24,12 +24,14 @@ public class AccessorieItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
-
+    private String type;
     private float quantity;
     private float minQuantity;
     private BigDecimal price;
     private String link;
     private String additionalInfo;
+    private float length;
+    private float diameter;
 
     @Column(name = "updated_on")
     private String updatedOn;
