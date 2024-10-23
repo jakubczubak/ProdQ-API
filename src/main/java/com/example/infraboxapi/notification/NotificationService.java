@@ -14,58 +14,66 @@ import java.util.List;
 @AllArgsConstructor
 public class NotificationService {
 
+    private static final String ROOT_EMAIL = "root@gmail.com"; // Użytkownik root
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
     @Transactional
     public void deleteNotification(Long id) {
         User user = userRepository.findById(getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Sprawdź, czy użytkownik to root
+        if (isRootUser(user)) {
+            return; // Nie zapisuj zmian
+        }
+
         Notification notification = notificationRepository.findById(id).orElseThrow(() -> new RuntimeException("Notification not found"));
         user.getNotifications().remove(notification);
         userRepository.save(user);
         notificationRepository.delete(notification);
     }
 
-    //This method is used to update the notification to read or unread
     public void updateNotification(Long id) {
         Notification notification = notificationRepository.findById(id).orElseThrow(() -> new RuntimeException("Notification not found"));
+
+        // Sprawdź, czy autor to root
+        if (isRootUser(notification.getAuthor())) {
+            return; // Nie zapisuj zmian
+        }
+
         notification.setRead(!notification.isRead());
         notificationRepository.save(notification);
     }
 
     public void createAndSendNotification(String description, NotificationDescription notificationDescription) {
-        // Pobierz nazwę zalogowanego użytkownika z SecurityContextHolder
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
 
-        // Pobierz listę wszystkich użytkowników z wyjątkiem autora
+        // Sprawdź, czy użytkownik to root
+        if (isRootUser(currentUser)) {
+            return; // Nie twórz powiadomień
+        }
+
         List<User> allUsersExceptAuthor = findAllUsersExceptUserWithId(currentUser.getId());
 
-        // Tworzenie i wysyłanie powiadomień do wszystkich użytkowników
         for (User user : allUsersExceptAuthor) {
-            // Twórz nową instancję powiadomienia dla każdego użytkownika
             Notification notification = new Notification();
             notification.setDescription(description);
             notification.setTitle(notificationDescription.getDescription());
             notification.setRead(false);
-            notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName()); // Ustaw autora na nazwę zalogowanego użytkownika
+            notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName());
             notification.setUser(user);
 
-            // Dodaj powiadomienie do użytkownika i zapisz
             user.getNotifications().add(notification);
             notificationRepository.save(notification);
             userRepository.save(user);
         }
     }
 
-
     public void createAndSendSystemNotification(String description, NotificationDescription notificationDescription) {
-        // Pobierz wszystkich użytkowników
         List<User> allUsers = userRepository.findAll();
 
-        // Tworzenie i wysyłanie powiadomień do wszystkich użytkowników
         for (User user : allUsers) {
-            // Twórz nową instancję powiadomienia dla każdego użytkownika
             Notification notification = new Notification();
             notification.setDescription(description);
             notification.setTitle(notificationDescription.getDescription());
@@ -73,25 +81,24 @@ public class NotificationService {
             notification.setAuthor("Infrabox");
             notification.setUser(user);
 
-            // Dodaj powiadomienie do użytkownika i zapisz
             user.getNotifications().add(notification);
             notificationRepository.save(notification);
             userRepository.save(user);
         }
     }
 
-
     public void createAndSendQuantityNotification(String description, NotificationDescription notificationDescription) {
-        // Pobierz nazwę zalogowanego użytkownika z SecurityContextHolder
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
 
-        // Pobierz wszystkich użytkowników
+        // Sprawdź, czy użytkownik to root
+        if (isRootUser(currentUser)) {
+            return; // Nie twórz powiadomień
+        }
+
         List<User> allUsers = userRepository.findAll();
 
-        // Tworzenie i wysyłanie powiadomień do wszystkich użytkowników
         for (User u : allUsers) {
-            // Twórz nową instancję powiadomienia dla każdego użytkownika
             Notification notification = new Notification();
             notification.setDescription(description);
             notification.setTitle(notificationDescription.getDescription());
@@ -99,14 +106,19 @@ public class NotificationService {
             notification.setAuthor(currentUser.getFirstName() + " " + currentUser.getLastName());
             notification.setUser(u);
 
-            // Dodaj powiadomienie do użytkownika i zapisz
             u.getNotifications().add(notification);
             notificationRepository.save(notification);
             userRepository.save(u);
         }
     }
 
+    private boolean isRootUser(User user) {
+        return user != null && ROOT_EMAIL.equals(user.getEmail());
+    }
 
+    private boolean isRootUser(String author) {
+        return "root".equalsIgnoreCase(author);
+    }
 
     public Integer getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
