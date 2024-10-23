@@ -34,66 +34,94 @@ public class SecurityConfiguration {
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/va/auth/**").permitAll()
 
-                        //MATERIAL GROUP,
-                        .requestMatchers("/api/material_group/create").hasAuthority("ADMIN")
-                        .requestMatchers("/api/material_group/update").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/material_group/delete/*").hasAuthority("ADMIN")
+                        // MATERIAL TYPE
+                        .requestMatchers("/api/material_type/all").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/material_type/create").hasAuthority("ADMIN")
+                        .requestMatchers("/api/material_type/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/material_type/delete/*").hasAuthority("ADMIN")
+
+                        // MATERIAL GROUP
                         .requestMatchers("/api/material_group/get/*").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/material_group/get").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/material_group/create").hasAuthority("ADMIN")
+                        .requestMatchers("/api/material_group/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/material_group/delete/*").hasAuthority("ADMIN")
 
-                        //MATERIAL
+                        // MATERIAL
+                        .requestMatchers("/api/material/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/material/get").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/material/create").hasAuthority("ADMIN")
-                        .requestMatchers("/api/material/update").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/material/update").hasAuthority("ADMIN")
                         .requestMatchers("/api/material/delete/*").hasAuthority("ADMIN")
 
-                        //TOOL GROUP
-                        .requestMatchers("/api/tool_group/get").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/tool_group/update").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/tool_group/create").hasAuthority("ADMIN")
-                        .requestMatchers("/api/tool_group/delete/*").hasAuthority("ADMIN")
+                        // TOOL GROUP
                         .requestMatchers("/api/tool_group/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/tool_group/get").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/tool_group/create").hasAuthority("ADMIN")
+                        .requestMatchers("/api/tool_group/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/tool_group/delete/*").hasAuthority("ADMIN")
 
-                        //TOOL
+                        // TOOL
+                        .requestMatchers("/api/tool/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/tool/get").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/tool/create").hasAuthority("ADMIN")
-                        .requestMatchers("/api/tool/update").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/tool/update").hasAuthority("ADMIN")
                         .requestMatchers("/api/tool/delete/*").hasAuthority("ADMIN")
 
-                        //CALCULATION
+                        // CALCULATION
                         .requestMatchers("/api/calculation/all").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/calculation/add").hasAnyAuthority("ADMIN")
-                        .requestMatchers("/api/calculation/update").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/calculation/delete/*").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/calculation/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/calculation/add").hasAuthority("ADMIN")
+                        .requestMatchers("/api/calculation/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/calculation/delete/*").hasAuthority("ADMIN")
 
-                        //ORDER
+                        // ORDER
                         .requestMatchers("/api/order/all").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/order/add").hasAnyAuthority("ADMIN")
-                        .requestMatchers("/api/order/update").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/order/delete/*").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/order/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/order/add").hasAuthority("ADMIN")
+                        .requestMatchers("/api/order/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/order/delete/*").hasAuthority("ADMIN")
 
-                        //RECYCLING
+                        // RECYCLING
                         .requestMatchers("/api/recycling/all").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/recycling/add").hasAnyAuthority("ADMIN")
-                        .requestMatchers("/api/recycling/update").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/recycling/delete/*").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/recycling/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/recycling/add").hasAuthority("ADMIN")
+                        .requestMatchers("/api/recycling/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/recycling/delete/*").hasAuthority("ADMIN")
 
-                        //CONTACT
+                        // CONTACT (SUPPLIER)
                         .requestMatchers("/api/supplier/all").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/supplier/create").hasAnyAuthority("ADMIN")
-                        .requestMatchers("/api/supplier/update").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/supplier/delete/*").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/supplier/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/supplier/create").hasAuthority("ADMIN")
+                        .requestMatchers("/api/supplier/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/supplier/delete/*").hasAuthority("ADMIN")
 
-                        //USER
+                        // USER
                         .requestMatchers("/api/user/all").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/user/register").hasAnyAuthority("ADMIN")
-                        .requestMatchers("/api/user/update").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/user/update/user_account").hasAnyAuthority("ADMIN")
-                        .requestMatchers("/api/user/manageUser/*/*").hasAnyAuthority("ADMIN")
-                        .requestMatchers("/api/user/delete/*").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/user/get/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/user/register").hasAuthority("ADMIN")
+                        .requestMatchers("/api/user/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/user/update/user_account").hasAuthority("ADMIN")
+                        .requestMatchers("/api/user/manageUser/*/*").hasAuthority("ADMIN")
+                        .requestMatchers("/api/user/delete/*").hasAuthority("ADMIN")
 
-                        //DEPARTMENT COST
+                        // DEPARTMENT COST
                         .requestMatchers("/api/department_cost/get").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/department_cost/update").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/department_cost/update").hasAuthority("ADMIN")
 
+                        // ACCESSORIES GROUP
+                        .requestMatchers("/api/accessorie/get").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/accessorie/create").hasAuthority("ADMIN")
+                        .requestMatchers("/api/accessorie/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/accessorie/delete/*").hasAuthority("ADMIN")
+
+                        // ACCESSORIES
+                        .requestMatchers("/api/accessorie/item/get").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/accessorie/item/create").hasAuthority("ADMIN")
+                        .requestMatchers("/api/accessorie/item/update").hasAuthority("ADMIN")
+                        .requestMatchers("/api/accessorie/item/delete/*").hasAuthority("ADMIN")
+
+                        // OTHER
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
