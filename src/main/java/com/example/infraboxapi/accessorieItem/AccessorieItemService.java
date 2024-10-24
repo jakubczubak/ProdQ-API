@@ -75,12 +75,31 @@ public class AccessorieItemService {
     }
 
     public void checkAndNotifyQuantityChange(AccessorieItem accessorieItem, AccessorieItemDTO accessorieItemDTO) {
-        if(accessorieItem.getQuantity() < accessorieItemDTO.getQuantity()) {
-            notificationService.createAndSendNotification("Quantity of accessorie item '" + accessorieItem.getName() + "' increased from " + accessorieItem.getQuantity()  + " to " + accessorieItemDTO.getQuantity(), NotificationDescription.AccessorieItemUpdated);
-        } else if(accessorieItem.getQuantity() > accessorieItemDTO.getQuantity()) {
-            notificationService.createAndSendNotification("Quantity of accessorie item '" + accessorieItem.getName() + "' decreased from " + accessorieItem.getQuantity()  + " to " + accessorieItemDTO.getQuantity(), NotificationDescription.AccessorieItemUpdated);
+        float oldQuantity = accessorieItem.getQuantity();
+        float newQuantity = accessorieItemDTO.getQuantity();
+
+        // Sprawdzenie, czy liczby są całkowite
+        boolean isOldQuantityInteger = (oldQuantity % 1 == 0);
+        boolean isNewQuantityInteger = (newQuantity % 1 == 0);
+
+        // Konwersja do ciągu znaków
+        String oldQuantityStr = isOldQuantityInteger ? String.valueOf((int) oldQuantity) : String.valueOf(oldQuantity);
+        String newQuantityStr = isNewQuantityInteger ? String.valueOf((int) newQuantity) : String.valueOf(newQuantity);
+
+        // Sprawdzenie zmiany ilości
+        if (oldQuantity != newQuantity) {
+            String message;
+            if (newQuantity > oldQuantity) {
+                message = "Quantity of accessorie item '" + accessorieItem.getName() + "' increased from " + oldQuantityStr + " to " + newQuantityStr + ".";
+            } else {
+                message = "Quantity of accessorie item '" + accessorieItem.getName() + "' decreased from " + oldQuantityStr + " to " + newQuantityStr + ".";
+            }
+
+            // Wysyłanie powiadomienia
+            notificationService.createAndSendQuantityNotification(message, NotificationDescription.AccessorieItemUpdated);
         }
     }
+
 
 }
 

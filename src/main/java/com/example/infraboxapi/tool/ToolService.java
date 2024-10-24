@@ -89,11 +89,32 @@ public class ToolService {
         notificationService.createAndSendNotification("Tool '" + toolDTO.getName() + "' has been successfully updated", NotificationDescription.ToolUpdated);
     }
 
-   public void checkAndNotifyQuantityChange(Tool tool, ToolDTO toolDTO) {
-            if(tool.getQuantity() < toolDTO.getQuantity()) {
-                notificationService.createAndSendNotification("Tool '" + tool.getName() + "' quantity increased from " + tool.getQuantity() + " to " + toolDTO.getQuantity(), NotificationDescription.ToolUpdated);
+    public void checkAndNotifyQuantityChange(Tool tool, ToolDTO toolDTO) {
+        float oldQuantity = tool.getQuantity();
+        float newQuantity = toolDTO.getQuantity();
+
+        // Sprawdzenie, czy liczby są całkowite
+        boolean isOldQuantityInteger = (oldQuantity % 1 == 0);
+        boolean isNewQuantityInteger = (newQuantity % 1 == 0);
+
+        // Konwersja do ciągu znaków
+        String oldQuantityStr = isOldQuantityInteger ? String.valueOf((int) oldQuantity) : String.valueOf(oldQuantity);
+        String newQuantityStr = isNewQuantityInteger ? String.valueOf((int) newQuantity) : String.valueOf(newQuantity);
+
+        // Sprawdzenie zmiany ilości
+        if (oldQuantity != newQuantity) {
+            String message;
+            if (newQuantity > oldQuantity) {
+                message = "Tool '" + tool.getName() + "' quantity increased from " + oldQuantityStr + " to " + newQuantityStr + ".";
             } else {
-                notificationService.createAndSendNotification("Tool '" + tool.getName() + "' quantity decreased from " + tool.getQuantity() + " to " + toolDTO.getQuantity(), NotificationDescription.ToolUpdated);
+                message = "Tool '" + tool.getName() + "' quantity decreased from " + oldQuantityStr + " to " + newQuantityStr + ".";
             }
+
+            // Wysyłanie powiadomienia
+            notificationService.createAndSendQuantityNotification(
+                    message,
+                    NotificationDescription.ToolQuantityUpdated);
         }
+    }
+
 }
