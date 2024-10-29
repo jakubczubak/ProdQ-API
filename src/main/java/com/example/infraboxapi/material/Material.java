@@ -26,7 +26,7 @@ public class Material {
     private BigDecimal pricePerKg;
     private float minQuantity; // Rzeczywista minimalna ilość na stanie
     private float proposedMinQuantity; // Proponowany minimalny stan na podstawie analizy zużycia
-    private float quantity;
+    private float quantity; // Rzeczywista ilość na stanie
 
     private float z;
     private float y;
