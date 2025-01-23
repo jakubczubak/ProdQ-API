@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -43,8 +45,15 @@ public class Tool {
 
     @PreUpdate
     public void preUpdate() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw")); // Określ strefę czasową
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-        updatedOn = now.format(formatter);
+        // Pobranie aktualnego użytkownika
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String currentUsername = userDetails.getUsername();  // Zakładając, że username to email użytkownika
+
+        // Jeśli użytkownik to root, nie aktualizuj pola updatedOn
+        if (!"root@gmail.com".equals(currentUsername)) {
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            updatedOn = now.format(formatter);
+        }
     }
 }
