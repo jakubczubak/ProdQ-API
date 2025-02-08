@@ -40,7 +40,7 @@ public class AccessorieItemService {
 
         accessorieReposotory.save(accessorie);
 
-        notificationService.createAndSendNotification("Accessorie item '" + accessorieItemDTO.getName() + "' created", NotificationDescription.AccessorieItemAdded);
+        notificationService.createAndSendNotification("Accessorie item '" + accessorieItemDTO.getName() + "' created", NotificationDescription.AccessoriesItemAdded);
 }
 
     @Transactional
@@ -48,7 +48,7 @@ public class AccessorieItemService {
 
         String accessorieItemName = accessorieItemRepository.findById(id).orElseThrow(() -> new RuntimeException("Accessorie item not found")).getName();
         accessorieItemRepository.deleteById(id);
-        notificationService.createAndSendNotification("Accessorie item '" + accessorieItemName + "' deleted", NotificationDescription.AccessorieItemDeleted);
+        notificationService.createAndSendNotification("Accessorie item '" + accessorieItemName + "' deleted", NotificationDescription.AccessoriesItemDeleted);
 
     }
 
@@ -71,7 +71,7 @@ public class AccessorieItemService {
 
         accessorieItemRepository.save(accessorieItem);
 
-        notificationService.createAndSendNotification("Accessorie item '" + accessorieItemDTO.getName() + "' updated", NotificationDescription.AccessorieItemUpdated);
+        notificationService.createAndSendNotification("Accessorie item '" + accessorieItemDTO.getName() + "' updated", NotificationDescription.AccessoriesItemUpdated);
     }
 
     public void checkAndNotifyQuantityChange(AccessorieItem accessorieItem, AccessorieItemDTO accessorieItemDTO) {
@@ -96,7 +96,7 @@ public class AccessorieItemService {
             }
 
             // Wysyłanie powiadomienia
-            notificationService.createAndSendQuantityNotification(message, NotificationDescription.AccessorieItemUpdated);
+            notificationService.createAndSendQuantityNotification(message, NotificationDescription.AccessoriesItemUpdated);
         }
     }
 

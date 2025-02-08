@@ -16,8 +16,8 @@ public enum NotificationDescription {
     MaterialTypeUpdated("Material type details updated"),
     MaterialTypeDeleted("Material type deleted"),
 
-    MaterialScanner("Material successfully scanned"),
-    ToolScanner("Tool successfully scanned"),
+    MaterialScanner("Materials have been successfully scanned"),
+    ToolScanner("Tool has been successfully scanned"),
 
     ToolGroupAdded("New tool group created"),
     ToolGroupUpdated("Tool group details updated"),
@@ -29,9 +29,6 @@ public enum NotificationDescription {
 
     DepartmentCostUpdated("Department cost adjusted"),
 
-    CalculationAdded("New calculation created"),
-    CalculationUpdated("Calculation details updated"),
-    CalculationDeleted("Calculation removed from records"),
 
     OrderAdded("New order placed"),
     OrderDeleted("Order removed from records"),
@@ -68,13 +65,13 @@ public enum NotificationDescription {
     ToolQuantityUpdated("Tool quantity adjusted"),
     MaterialQuantityUpdated("Material quantity adjusted"),
 
-    AccessorieAdded("New accessorie added"),
-    AccessorieUpdated("Accessorie details updated"),
-    AccessorieDeleted("Accessorie removed"),
+    AccessoriesAdded("New accessories added"),
+    AccessoriesUpdated("Accessories details updated"),
+    AccessoriesDeleted("Accessories removed"),
 
-    AccessorieItemAdded("New accessorie item added"),
-    AccessorieItemUpdated("Accessorie item details updated"),
-    AccessorieItemDeleted("Accessorie item removed");
+    AccessoriesItemAdded("New accessories item added"),
+    AccessoriesItemUpdated("Accessories item details updated"),
+    AccessoriesItemDeleted("Accessories item removed");
 
 
     private final String description;

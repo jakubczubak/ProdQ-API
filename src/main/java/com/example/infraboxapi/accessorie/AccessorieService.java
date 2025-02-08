@@ -36,7 +36,7 @@ public class AccessorieService {
         }
 
         accessorieReposotory.save(accessorie);
-        notificationService.createAndSendNotification("A new accessorie has been added: `" + accessorie.getName() + "`", NotificationDescription.AccessorieAdded);
+        notificationService.createAndSendNotification("A new accessorie has been added: `" + accessorie.getName() + "`", NotificationDescription.AccessoriesAdded);
     }
 
     @Transactional
@@ -51,14 +51,14 @@ public class AccessorieService {
         }
 
         accessorieReposotory.save(accessorie);
-        notificationService.createAndSendNotification("Accessorie updated: `" + accessorie.getName() + "`", NotificationDescription.AccessorieUpdated);
+        notificationService.createAndSendNotification("Accessorie updated: `" + accessorie.getName() + "`", NotificationDescription.AccessoriesUpdated);
     }
 
     public void deleteAccessorie(Integer id) {
 
         Accessorie accessorie = accessorieReposotory.findById(id).orElseThrow(() -> new RuntimeException("Accessorie not found"));
         accessorieReposotory.delete(accessorie);
-        notificationService.createAndSendNotification("Accessorie deleted: `" + accessorie.getName() + "`", NotificationDescription.AccessorieDeleted);
+        notificationService.createAndSendNotification("Accessorie deleted: `" + accessorie.getName() + "`", NotificationDescription.AccessoriesDeleted);
     }
 
     public Accessorie getAccessorie(Integer id) {
