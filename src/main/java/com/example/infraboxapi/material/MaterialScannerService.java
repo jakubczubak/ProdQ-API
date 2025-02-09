@@ -3,6 +3,7 @@ package com.example.infraboxapi.material;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.BaseFont;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.itextpdf.text.pdf.draw.LineSeparator;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +45,7 @@ public class MaterialScannerService {
         }
     }
 
-    @Scheduled(fixedRate = 14L * 24 * 60 * 60 * 1000)
+    @Scheduled(cron = "0 0 12 ? * WED")
     public void scanMaterialsAndNotify() {
         List<Material> materials = materialRepository.findAll();
 
@@ -88,25 +89,29 @@ public class MaterialScannerService {
         PdfWriter.getInstance(document, new FileOutputStream(new File(filePath)));
         document.open();
 
-        // Add INFRABOX header
-        Font headerFont = new Font(Font.FontFamily.COURIER, 22, Font.BOLD, BaseColor.LIGHT_GRAY);
-        Paragraph header = new Paragraph("INFRABOX", headerFont);
+        // Nagłówek INFRABOX z czcionką Lucida Handwriting
+        BaseFont lucidaBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        Font headerFont = new Font(lucidaBase, 20, Font.BOLD);
+
+        Paragraph header = new Paragraph("I N F R A B O X", headerFont);
         header.setAlignment(Element.ALIGN_CENTER);
         header.setSpacingAfter(20);
         document.add(header);
 
-        // Title with date
+        // Czcionka Roboto dla reszty dokumentu
+        BaseFont robotoBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        Font titleFont = new Font(robotoBase, 14, Font.BOLD);
+        Font contentFont = new Font(robotoBase, 10);
+        Font boldFont = new Font(robotoBase, 10, Font.BOLD);
+
+        // Tytuł z datą
         String date = new SimpleDateFormat("dd/MM/yyyy").format(new Date());
-        Font titleFont = new Font(Font.FontFamily.COURIER, 14, Font.BOLD);
         Paragraph title = new Paragraph("Material report - " + date, titleFont);
         title.setAlignment(Element.ALIGN_LEFT);
         title.setSpacingAfter(15);
         document.add(title);
 
-        // Text content
-        Font contentFont = new Font(Font.FontFamily.COURIER, 10);
-        Font boldFont = new Font(Font.FontFamily.COURIER, 10, Font.BOLD);
-
+        // Treść dokumentu
         int counter = 1;
         for (Material material : materials) {
             if (material.getQuantity() < material.getMinQuantity()) {
@@ -120,7 +125,6 @@ public class MaterialScannerService {
                 materialInfo.setSpacingAfter(8);
                 document.add(materialInfo);
 
-                // Add spacing line
                 LineSeparator separator = new LineSeparator();
                 separator.setLineColor(BaseColor.LIGHT_GRAY);
                 document.add(separator);
