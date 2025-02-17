@@ -57,8 +57,47 @@ public class AccessorieItemService {
         AccessorieItem accessorieItem = accessorieItemRepository.findById(accessorieItemDTO.getId())
                 .orElseThrow(() -> new RuntimeException("Accessorie item not found"));
 
+        StringBuilder notificationMessage = new StringBuilder("The accessory item ")
+                .append(accessorieItem.getName())
+                .append(" has been updated. Changes:");
+
         checkAndNotifyQuantityChange(accessorieItem, accessorieItemDTO);
 
+        // Check for price change
+        if (accessorieItem.getPrice().compareTo(accessorieItemDTO.getPrice()) != 0) {
+            notificationMessage.append("\nPrice: from ")
+                    .append(accessorieItem.getPrice())
+                    .append(" to ")
+                    .append(accessorieItemDTO.getPrice());
+        }
+
+        // Update other fields and append changes to notification message
+        if (accessorieItem.getMinQuantity() != accessorieItemDTO.getMinQuantity()) {
+            notificationMessage.append("\nMin Quantity: from ")
+                    .append(accessorieItem.getMinQuantity())
+                    .append(" to ")
+                    .append(accessorieItemDTO.getMinQuantity());
+        }
+        if (accessorieItem.getLength() != accessorieItemDTO.getLength()) {
+            notificationMessage.append("\nLength: from ")
+                    .append(accessorieItem.getLength())
+                    .append(" to ")
+                    .append(accessorieItemDTO.getLength());
+        }
+        if (accessorieItem.getDiameter() != accessorieItemDTO.getDiameter()) {
+            notificationMessage.append("\nDiameter: from ")
+                    .append(accessorieItem.getDiameter())
+                    .append(" to ")
+                    .append(accessorieItemDTO.getDiameter());
+        }
+        if (!accessorieItem.getAdditionalInfo().equals(accessorieItemDTO.getAdditionalInfo())) {
+            notificationMessage.append("\nAdditional Info: from ")
+                    .append(accessorieItem.getAdditionalInfo())
+                    .append(" to ")
+                    .append(accessorieItemDTO.getAdditionalInfo());
+        }
+
+        // Now, update the AccessorieItem entity with the new values
         accessorieItem.setDiameter(accessorieItemDTO.getDiameter());
         accessorieItem.setLength(accessorieItemDTO.getLength());
         accessorieItem.setName(accessorieItemDTO.getName());
@@ -69,24 +108,26 @@ public class AccessorieItemService {
         accessorieItem.setLink(accessorieItemDTO.getLink());
         accessorieItem.setAdditionalInfo(accessorieItemDTO.getAdditionalInfo());
 
+        // Save updated AccessorieItem
         accessorieItemRepository.save(accessorieItem);
 
-        notificationService.createAndSendNotification("Accessorie item '" + accessorieItemDTO.getName() + "' updated", NotificationDescription.AccessoriesItemUpdated);
+        // Send notification for the updated accessory item
+        notificationService.createAndSendNotification(notificationMessage.toString(), NotificationDescription.AccessoriesItemUpdated);
     }
 
     public void checkAndNotifyQuantityChange(AccessorieItem accessorieItem, AccessorieItemDTO accessorieItemDTO) {
         float oldQuantity = accessorieItem.getQuantity();
         float newQuantity = accessorieItemDTO.getQuantity();
 
-        // Sprawdzenie, czy liczby są całkowite
+        // Check if quantities are integers
         boolean isOldQuantityInteger = (oldQuantity % 1 == 0);
         boolean isNewQuantityInteger = (newQuantity % 1 == 0);
 
-        // Konwersja do ciągu znaków
+        // Convert to string representation
         String oldQuantityStr = isOldQuantityInteger ? String.valueOf((int) oldQuantity) : String.valueOf(oldQuantity);
         String newQuantityStr = isNewQuantityInteger ? String.valueOf((int) newQuantity) : String.valueOf(newQuantity);
 
-        // Sprawdzenie zmiany ilości
+        // Check for quantity change
         if (oldQuantity != newQuantity) {
             String message;
             if (newQuantity > oldQuantity) {
@@ -95,10 +136,11 @@ public class AccessorieItemService {
                 message = "Quantity of accessorie item '" + accessorieItem.getName() + "' decreased from " + oldQuantityStr + " to " + newQuantityStr + ".";
             }
 
-            // Wysyłanie powiadomienia
+            // Send quantity change notification
             notificationService.createAndSendQuantityNotification(message, NotificationDescription.AccessoriesItemUpdated);
         }
     }
+
 
 
 }

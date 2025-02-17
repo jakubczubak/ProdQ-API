@@ -71,7 +71,8 @@ public enum NotificationDescription {
 
     AccessoriesItemAdded("New accessories item added"),
     AccessoriesItemUpdated("Accessories item details updated"),
-    AccessoriesItemDeleted("Accessories item removed");
+    AccessoriesItemDeleted("Accessories item removed"),
+    AccessorieItemScanner("Accessories have been successfully scanned");
 
 
     private final String description;
