@@ -33,7 +33,8 @@ public class SecurityConfiguration {
                         //AUTH
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/va/auth/**").permitAll()
-                        .requestMatchers("/reports/**").permitAll()// Dostęp do raportów PDF
+                        .requestMatchers("/material_reports/**").permitAll()// Dostęp do raportów PDF
+                        .requestMatchers("/tool_reports/**").permitAll()// Dostęp do raportów PDF
 
                         // MATERIAL TYPE
                         .requestMatchers("/api/material_type/all").hasAnyAuthority("ADMIN", "USER")

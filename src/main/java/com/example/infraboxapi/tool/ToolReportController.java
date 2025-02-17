@@ -1,4 +1,5 @@
-package com.example.infraboxapi.material;
+package com.example.infraboxapi.tool;
+
 
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -14,10 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.File;
 
 @RestController
-@RequestMapping("/material_reports")
-public class MaterialReportController {
-
-    private final String pdfDirectory = System.getProperty("user.dir") + "/material_reports/";
+@RequestMapping("/tool_reports")
+public class ToolReportController {
+    private final String pdfDirectory = System.getProperty("user.dir") + "/tool_reports/";
 
     @GetMapping("/{fileName:.+}")
     public ResponseEntity<Resource> downloadReport(@PathVariable String fileName) {

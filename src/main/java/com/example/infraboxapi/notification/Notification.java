@@ -23,7 +23,10 @@ public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(length = 1000)  // Ustalamy maksymalną długość na 1000 znaków
     private String description;
+
     private String title;
     private boolean isRead;
     private String createdOn;

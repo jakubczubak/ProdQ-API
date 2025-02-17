@@ -70,34 +70,99 @@ public class MaterialService {
         materialRepository.deleteById(id);
         notificationService.createAndSendNotification("The material '" + materialName + "' has been successfully deleted.", NotificationDescription.MaterialDeleted);
     }
-
     @Transactional
     public void updateMaterial(MaterialDTO materialDTO) {
 
         Material material = materialRepository.findById(materialDTO.getId())
                 .orElseThrow(() -> new RuntimeException("Material not found"));
 
+        StringBuilder notificationMessage = new StringBuilder("The material ")
+                .append(material.getName())
+                .append(" has been updated. Changes:");
 
-        //Check if pricePerKg is changed, if yes, add new price to history, if not, do nothing, just update the material
-
+        // Sprawdzenie zmiany ceny na kg
         if (material.getPricePerKg().compareTo(materialDTO.getPricePerKg()) != 0) {
+            notificationMessage.append("\nPrice per kg: from ")
+                    .append(material.getPricePerKg())
+                    .append(" to ")
+                    .append(materialDTO.getPricePerKg());
+
             LocalDateTime currentDateTime = LocalDateTime.now();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
             MaterialPriceHistory materialPriceHistory = MaterialPriceHistory.builder()
                     .price(materialDTO.getPricePerKg())
-                    .date(currentDateTime.format(formatter)).
-
-                    build();
+                    .date(currentDateTime.format(formatter))
+                    .build();
 
             material.getMaterialPriceHistoryList().add(materialPriceHistory);
         }
 
-        //Check if quantity is changed, if yes, send notification to all users
+        // Zmiana quantity
         if (material.getQuantity() != materialDTO.getQuantity()) {
-            checkAndNotifyQuantityChange(material, materialDTO);
+            // Tworzymy jedno powiadomienie dla zmiany quantity
+            String message;
+            if (materialDTO.getQuantity() > material.getQuantity()) {
+                message = "The quantity of material " + material.getName() + " has been increased from "
+                        + material.getQuantity() + " to " + materialDTO.getQuantity() + ".";
+            } else {
+                message = "The quantity of material " + material.getName() + " has been decreased from "
+                        + material.getQuantity() + " to " + materialDTO.getQuantity() + ".";
+            }
+            notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
         }
 
+        // Pozostałe zmiany
+        if (material.getMinQuantity() != materialDTO.getMinQuantity()) {
+            notificationMessage.append("\nMin Quantity: from ")
+                    .append(material.getMinQuantity())
+                    .append(" to ")
+                    .append(materialDTO.getMinQuantity());
+        }
+        if (material.getZ() != materialDTO.getZ()) {
+            notificationMessage.append("\nThickness (Z): from ")
+                    .append(material.getZ())
+                    .append(" to ")
+                    .append(materialDTO.getZ());
+        }
+        if (material.getY() != materialDTO.getY()) {
+            notificationMessage.append("\nHeight (Y): from ")
+                    .append(material.getY())
+                    .append(" to ")
+                    .append(materialDTO.getY());
+        }
+        if (material.getX() != materialDTO.getX()) {
+            notificationMessage.append("\nWidth (X): from ")
+                    .append(material.getX())
+                    .append(" to ")
+                    .append(materialDTO.getX());
+        }
+        if (material.getDiameter() != materialDTO.getDiameter()) {
+            notificationMessage.append("\nDiameter: from ")
+                    .append(material.getDiameter())
+                    .append(" to ")
+                    .append(materialDTO.getDiameter());
+        }
+        if (material.getLength() != materialDTO.getLength()) {
+            notificationMessage.append("\nLength: from ")
+                    .append(material.getLength())
+                    .append(" to ")
+                    .append(materialDTO.getLength());
+        }
+        if (material.getThickness() != materialDTO.getThickness()) {
+            notificationMessage.append("\nThickness: from ")
+                    .append(material.getThickness())
+                    .append(" to ")
+                    .append(materialDTO.getThickness());
+        }
+        if (!material.getAdditionalInfo().equals(materialDTO.getAdditionalInfo())) {
+            notificationMessage.append("\nAdditional info: from ")
+                    .append(material.getAdditionalInfo())
+                    .append(" to ")
+                    .append(materialDTO.getAdditionalInfo());
+        }
+
+        // Teraz aktualizujemy materiał z nowymi wartościami
         material.setPricePerKg(materialDTO.getPricePerKg());
         material.setPrice(materialDTO.getPrice());
         material.setMinQuantity(materialDTO.getMinQuantity());
@@ -113,37 +178,11 @@ public class MaterialService {
         material.setQuantityInTransit(materialDTO.getQuantityInTransit());
         material.setAdditionalInfo(materialDTO.getAdditionalInfo());
 
+        // Zapisujemy zaktualizowany materiał
         materialRepository.save(material);
 
-        notificationService.createAndSendNotification("The material '" + material.getName() + "' has been successfully updated.", NotificationDescription.MaterialUpdated);
-    }
-
-    public void checkAndNotifyQuantityChange(Material material, MaterialDTO materialDTO) {
-        float oldQuantity = material.getQuantity();
-        float newQuantity = materialDTO.getQuantity();
-
-        // Sprawdzenie, czy liczby są całkowite
-        boolean isOldQuantityInteger = (oldQuantity % 1 == 0);
-        boolean isNewQuantityInteger = (newQuantity % 1 == 0);
-
-        // Konwersja do ciągu znaków
-        String oldQuantityStr = isOldQuantityInteger ? String.valueOf((int) oldQuantity) : String.valueOf(oldQuantity);
-        String newQuantityStr = isNewQuantityInteger ? String.valueOf((int) newQuantity) : String.valueOf(newQuantity);
-
-        if (oldQuantity != newQuantity) {
-            String message;
-            if (newQuantity > oldQuantity) {
-                message = "The quantity of material '" + material.getName() + "' has been increased from " + oldQuantityStr + " to " + newQuantityStr + ".";
-            } else {
-                message = "The quantity of material '" + material.getName() + "' has been decreased from " + oldQuantityStr + " to " + newQuantityStr + ".";
-            }
-
-            // Wysyłanie powiadomienia
-            notificationService.createAndSendQuantityNotification(
-                    message,
-                    NotificationDescription.MaterialQuantityUpdated
-            );
-        }
+        // Wysyłamy powiadomienie o zaktualizowanym materiale
+        notificationService.createAndSendNotification(notificationMessage.toString(), NotificationDescription.MaterialUpdated);
     }
 
 }

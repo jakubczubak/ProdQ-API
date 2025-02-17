@@ -1,8 +1,5 @@
 package com.example.infraboxapi.tool;
 
-
-import com.example.infraboxapi.material.Material;
-import com.example.infraboxapi.material.MaterialDTO;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.toolGroup.ToolGroup;
@@ -10,9 +7,6 @@ import com.example.infraboxapi.toolGroup.ToolGroupRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 @Service
 @AllArgsConstructor
@@ -28,7 +22,6 @@ public class ToolService {
                 .orElseThrow(() -> new RuntimeException("Tool group not found"));
 
         Tool newTool = Tool.builder()
-
                 .dc(toolDTO.getDc())
                 .cfl(toolDTO.getCfl())
                 .oal(toolDTO.getOal())
@@ -41,35 +34,68 @@ public class ToolService {
                 .link(toolDTO.getLink())
                 .additionalInfo(toolDTO.getAdditionalInfo())
                 .quantityInTransit(toolDTO.getQuantityInTransit())
-
                 .build();
 
-
         toolGroup.getTools().add(newTool);
-
         toolGroupRepository.save(toolGroup);
 
-        notificationService.createAndSendNotification("Tool '" + toolDTO.getName() + "' created", NotificationDescription.ToolAdded);
+        notificationService.createAndSendNotification("A new tool '" + newTool.getName() + "' has been added successfully.", NotificationDescription.ToolAdded);
     }
 
     @Transactional
     public void deleteTool(Integer id) {
-
         String toolName = toolRepository.findById(id).orElseThrow(() -> new RuntimeException("Tool not found")).getName();
         toolRepository.deleteById(id);
-        notificationService.createAndSendNotification("Tool '" + toolName + "' deleted", NotificationDescription.ToolDeleted);
-
+        notificationService.createAndSendNotification("The tool '" + toolName + "' has been successfully deleted.", NotificationDescription.ToolDeleted);
     }
 
     @Transactional
     public void updateTool(ToolDTO toolDTO) {
+        Tool tool = toolRepository.findById(toolDTO.getId())
+                .orElseThrow(() -> new RuntimeException("Tool not found"));
 
-        Tool tool = toolRepository.findById(toolDTO.getId()).orElseThrow(() -> new RuntimeException("Tool not found"));
+        StringBuilder notificationMessage = new StringBuilder("The tool ")
+                .append(tool.getName())
+                .append(" has been updated. Changes:");
 
-        if(tool.getQuantity() != toolDTO.getQuantity()) {
+        // Sprawdzenie zmiany ilości
+        if (tool.getQuantity() != toolDTO.getQuantity()) {
             checkAndNotifyQuantityChange(tool, toolDTO);
         }
 
+        // Pozostałe zmiany
+        if (tool.getMinQuantity() != toolDTO.getMinQuantity()) {
+            notificationMessage.append("\nMin Quantity: from ")
+                    .append(tool.getMinQuantity())
+                    .append(" to ")
+                    .append(toolDTO.getMinQuantity());
+        }
+        if (tool.getDc() != toolDTO.getDc()) {
+            notificationMessage.append("\nDC: from ")
+                    .append(tool.getDc())
+                    .append(" to ")
+                    .append(toolDTO.getDc());
+        }
+        if (tool.getCfl() != toolDTO.getCfl()) {
+            notificationMessage.append("\nCFL: from ")
+                    .append(tool.getCfl())
+                    .append(" to ")
+                    .append(toolDTO.getCfl());
+        }
+        if (tool.getOal() != toolDTO.getOal()) {
+            notificationMessage.append("\nOAL: from ")
+                    .append(tool.getOal())
+                    .append(" to ")
+                    .append(toolDTO.getOal());
+        }
+        if (!tool.getAdditionalInfo().equals(toolDTO.getAdditionalInfo())) {
+            notificationMessage.append("\nAdditional info: from ")
+                    .append(tool.getAdditionalInfo())
+                    .append(" to ")
+                    .append(toolDTO.getAdditionalInfo());
+        }
+
+        // Aktualizacja narzędzia
         tool.setDc(toolDTO.getDc());
         tool.setCfl(toolDTO.getCfl());
         tool.setOal(toolDTO.getOal());
@@ -83,13 +109,13 @@ public class ToolService {
         tool.setAdditionalInfo(toolDTO.getAdditionalInfo());
         tool.setQuantityInTransit(toolDTO.getQuantityInTransit());
 
-
         toolRepository.save(tool);
 
-        notificationService.createAndSendNotification("Tool '" + toolDTO.getName() + "' has been successfully updated", NotificationDescription.ToolUpdated);
+        // Wysyłanie powiadomienia o zaktualizowanym narzędziu
+        notificationService.createAndSendNotification(notificationMessage.toString(), NotificationDescription.ToolUpdated);
     }
 
-    public void checkAndNotifyQuantityChange(Tool tool, ToolDTO toolDTO) {
+    private void checkAndNotifyQuantityChange(Tool tool, ToolDTO toolDTO) {
         float oldQuantity = tool.getQuantity();
         float newQuantity = toolDTO.getQuantity();
 
@@ -116,5 +142,4 @@ public class ToolService {
                     NotificationDescription.ToolQuantityUpdated);
         }
     }
-
 }

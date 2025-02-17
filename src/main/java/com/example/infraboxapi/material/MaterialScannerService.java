@@ -59,7 +59,7 @@ public class MaterialScannerService {
                 generatePdf(filePath, materials);
 
                 String host = serverHost.isEmpty() ? getLocalHostAddress() : serverHost;
-                String downloadLink = "https://" + host + ":" + serverPort + "/reports/" + fileName;
+                String downloadLink = "https://" + host + ":" + serverPort + "/material_reports/" + fileName;
 
                 notificationService.createAndSendSystemNotification(
                         downloadLink,
