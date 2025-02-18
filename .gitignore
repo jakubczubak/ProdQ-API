@@ -32,7 +32,10 @@ build/
 ### VS Code ###
 .vscode/
 
-.material_reports/**
-.tool_reports/**
-.accessorie_reports/**
+*.material_reports/**
+*.tool_reports/**
+*.accessorie_reports/**
+*_reports/**
 
+
+    `
