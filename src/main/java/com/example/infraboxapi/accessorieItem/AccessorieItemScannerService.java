@@ -16,9 +16,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @EnableScheduling
@@ -90,7 +92,7 @@ public class AccessorieItemScannerService {
         document.open();
 
         // Nagłówek INFRABOX z czcionką Lucida Handwriting
-        BaseFont lucidaBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont lucidaBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font headerFont = new Font(lucidaBase, 20, Font.BOLD);
 
         Paragraph header = new Paragraph("I N F R A B O X", headerFont);
@@ -99,7 +101,7 @@ public class AccessorieItemScannerService {
         document.add(header);
 
         // Czcionka Roboto dla reszty dokumentu
-        BaseFont robotoBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont robotoBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font titleFont = new Font(robotoBase, 14, Font.BOLD);
         Font contentFont = new Font(robotoBase, 10);
         Font boldFont = new Font(robotoBase, 10, Font.BOLD);
@@ -111,6 +113,9 @@ public class AccessorieItemScannerService {
         title.setSpacingAfter(15);
         document.add(title);
 
+        // Formatowanie liczb do 2 miejsc po przecinku
+        DecimalFormat df = new DecimalFormat("#.##");
+
         // Treść dokumentu
         int counter = 1;
         for (AccessorieItem accessorieItem : accessorieItems) {
@@ -118,10 +123,16 @@ public class AccessorieItemScannerService {
                 Paragraph itemInfo = new Paragraph();
                 itemInfo.add(new Phrase(counter++ + ". ", contentFont));
                 itemInfo.add(new Phrase("Name: " + accessorieItem.getName() + "\n", contentFont));
-                itemInfo.add(new Phrase("   Quantity: " + accessorieItem.getQuantity() + "\n", contentFont));
-                itemInfo.add(new Phrase("   Min. Quantity: " + accessorieItem.getMinQuantity() + "\n", contentFont));
+
+                // Zaokrąglanie wartości i dodanie jednostki pc
+                String quantity = df.format(accessorieItem.getQuantity());
+                String minQuantity = df.format(accessorieItem.getMinQuantity());
+                String orderQuantity = df.format(accessorieItem.getMinQuantity() - accessorieItem.getQuantity());
+
+                itemInfo.add(new Phrase("   Quantity: " + quantity + " pc\n", contentFont));
+                itemInfo.add(new Phrase("   Min. Quantity: " + minQuantity + " pc\n", contentFont));
                 itemInfo.add(new Phrase("   Order Quantity: ", contentFont));
-                itemInfo.add(new Phrase(String.valueOf(accessorieItem.getMinQuantity() - accessorieItem.getQuantity()) + "\n", boldFont));
+                itemInfo.add(new Phrase(orderQuantity + " pc\n", boldFont));
                 itemInfo.setSpacingAfter(8);
                 document.add(itemInfo);
 

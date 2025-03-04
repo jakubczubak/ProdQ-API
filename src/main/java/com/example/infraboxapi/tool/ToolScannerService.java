@@ -16,9 +16,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @EnableScheduling
@@ -90,7 +92,7 @@ public class ToolScannerService {
         document.open();
 
         // Nagłówek INFRABOX z czcionką Lucida Handwriting
-        BaseFont lucidaBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont lucidaBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font headerFont = new Font(lucidaBase, 20, Font.BOLD);
 
         Paragraph header = new Paragraph("I N F R A B O X", headerFont);
@@ -99,7 +101,7 @@ public class ToolScannerService {
         document.add(header);
 
         // Czcionka Roboto dla reszty dokumentu
-        BaseFont robotoBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont robotoBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font titleFont = new Font(robotoBase, 14, Font.BOLD);
         Font contentFont = new Font(robotoBase, 10);
         Font boldFont = new Font(robotoBase, 10, Font.BOLD);
@@ -111,6 +113,9 @@ public class ToolScannerService {
         title.setSpacingAfter(15);
         document.add(title);
 
+        // Formatowanie liczb do 2 miejsc po przecinku
+        DecimalFormat df = new DecimalFormat("#.##");
+
         // Treść dokumentu
         int counter = 1;
         for (Tool tool : tools) {
@@ -118,10 +123,16 @@ public class ToolScannerService {
                 Paragraph toolInfo = new Paragraph();
                 toolInfo.add(new Phrase(counter++ + ". ", contentFont));
                 toolInfo.add(new Phrase("Name: " + tool.getName() + "\n", contentFont));
-                toolInfo.add(new Phrase("   Quantity: " + tool.getQuantity() + "\n", contentFont));
-                toolInfo.add(new Phrase("   Min. Quantity: " + tool.getMinQuantity() + "\n", contentFont));
+
+                // Zaokrąglanie wartości i dodanie jednostki pc
+                String quantity = df.format(tool.getQuantity());
+                String minQuantity = df.format(tool.getMinQuantity());
+                String orderQuantity = df.format(tool.getMinQuantity() - tool.getQuantity());
+
+                toolInfo.add(new Phrase("   Quantity: " + quantity + " pc\n", contentFont));
+                toolInfo.add(new Phrase("   Min. Quantity: " + minQuantity + " pc\n", contentFont));
                 toolInfo.add(new Phrase("   Order Quantity: ", contentFont));
-                toolInfo.add(new Phrase(String.valueOf(tool.getMinQuantity() - tool.getQuantity()) + "\n", boldFont));
+                toolInfo.add(new Phrase(orderQuantity + " pc\n", boldFont));
                 toolInfo.setSpacingAfter(8);
                 document.add(toolInfo);
 

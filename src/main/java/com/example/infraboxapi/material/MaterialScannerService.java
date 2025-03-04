@@ -16,9 +16,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @EnableScheduling
@@ -90,7 +92,7 @@ public class MaterialScannerService {
         document.open();
 
         // Nagłówek INFRABOX z czcionką Lucida Handwriting
-        BaseFont lucidaBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont lucidaBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font headerFont = new Font(lucidaBase, 20, Font.BOLD);
 
         Paragraph header = new Paragraph("I N F R A B O X", headerFont);
@@ -99,7 +101,7 @@ public class MaterialScannerService {
         document.add(header);
 
         // Czcionka Roboto dla reszty dokumentu
-        BaseFont robotoBase = BaseFont.createFont(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf").getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont robotoBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font titleFont = new Font(robotoBase, 14, Font.BOLD);
         Font contentFont = new Font(robotoBase, 10);
         Font boldFont = new Font(robotoBase, 10, Font.BOLD);
@@ -111,17 +113,33 @@ public class MaterialScannerService {
         title.setSpacingAfter(15);
         document.add(title);
 
+        // Formatowanie liczb do 2 miejsc po przecinku
+        DecimalFormat df = new DecimalFormat("#.##");
+
         // Treść dokumentu
         int counter = 1;
         for (Material material : materials) {
             if (material.getQuantity() < material.getMinQuantity()) {
                 Paragraph materialInfo = new Paragraph();
                 materialInfo.add(new Phrase(counter++ + ". ", contentFont));
-                materialInfo.add(new Phrase("Name: " + material.getName() + "\n", contentFont));
-                materialInfo.add(new Phrase("   Quantity: " + material.getQuantity() + "\n", contentFont));
-                materialInfo.add(new Phrase("   Min. Quantity: " + material.getMinQuantity() + "\n", contentFont));
+
+                // Typ i zabezpieczenie przed null
+                String type = material.getType() != null ? material.getType() : "";
+                String namePrefix = (type.equals("Tube") || type.equals("Rod")) ? "Φ " : "";
+                materialInfo.add(new Phrase("Name: " + namePrefix  + material.getName() + "\n", contentFont));
+
+                // Jednostki i zaokrąglanie
+                String unit = type.equals("Plate") ? " pc" : " m";
+                double quantity = material.getQuantity(); // Bez sprawdzania null, bo float/double
+                double minQuantity = material.getMinQuantity();
+                String formattedQuantity = df.format(quantity);
+                String formattedMinQuantity = df.format(minQuantity);
+                String formattedOrderQuantity = df.format(minQuantity - quantity);
+
+                materialInfo.add(new Phrase("   Quantity: " + formattedQuantity + unit + "\n", contentFont));
+                materialInfo.add(new Phrase("   Min. Quantity: " + formattedMinQuantity + unit + "\n", contentFont));
                 materialInfo.add(new Phrase("   Order Quantity: ", contentFont));
-                materialInfo.add(new Phrase(String.valueOf(material.getMinQuantity() - material.getQuantity()) + "\n", boldFont));
+                materialInfo.add(new Phrase(formattedOrderQuantity + unit + "\n", boldFont));
                 materialInfo.setSpacingAfter(8);
                 document.add(materialInfo);
 
@@ -133,7 +151,6 @@ public class MaterialScannerService {
 
         document.close();
     }
-
     private String getLocalHostAddress() {
         try {
             return InetAddress.getLocalHost().getHostAddress();

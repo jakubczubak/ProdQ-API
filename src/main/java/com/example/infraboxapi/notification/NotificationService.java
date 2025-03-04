@@ -14,31 +14,32 @@ import java.util.List;
 @AllArgsConstructor
 public class NotificationService {
 
-    private static final String ROOT_EMAIL = "root@gmail.com"; // Użytkownik root
+    private static final String ROOT_EMAIL = "root@gmail.com";
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
     @Transactional
     public void deleteNotification(Long id) {
-        User user = userRepository.findById(getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Sprawdź, czy użytkownik to root
         if (isRootUser(user)) {
-            return; // Nie zapisuj zmian
+            return;
         }
 
-        Notification notification = notificationRepository.findById(id).orElseThrow(() -> new RuntimeException("Notification not found"));
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
         user.getNotifications().remove(notification);
         userRepository.save(user);
         notificationRepository.delete(notification);
     }
 
     public void updateNotification(Long id) {
-        Notification notification = notificationRepository.findById(id).orElseThrow(() -> new RuntimeException("Notification not found"));
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
 
-        // Sprawdź, czy autor to root
         if (isRootUser(notification.getAuthor())) {
-            return; // Nie zapisuj zmian
+            return;
         }
 
         notification.setRead(!notification.isRead());
@@ -49,9 +50,8 @@ public class NotificationService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
 
-        // Sprawdź, czy użytkownik to root
         if (isRootUser(currentUser)) {
-            return; // Nie twórz powiadomień
+            return;
         }
 
         List<User> allUsersExceptAuthor = findAllUsersExceptUserWithId(currentUser.getId());
@@ -91,9 +91,8 @@ public class NotificationService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
 
-        // Sprawdź, czy użytkownik to root
         if (isRootUser(currentUser)) {
-            return; // Nie twórz powiadomień
+            return;
         }
 
         List<User> allUsers = userRepository.findAll();
@@ -112,6 +111,22 @@ public class NotificationService {
         }
     }
 
+    @Transactional
+    public int deleteUnreadNotifications() {
+        Integer userId = getUserId();
+        if (userId == null) {
+            throw new RuntimeException("User not authenticated");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (isRootUser(user)) {
+            return 0; // Nie usuwamy powiadomień dla roota
+        }
+
+        return notificationRepository.deleteByReadFalseAndUserId(userId);
+    }
+
     private boolean isRootUser(User user) {
         return user != null && ROOT_EMAIL.equals(user.getEmail());
     }
@@ -122,11 +137,10 @@ public class NotificationService {
 
     public Integer getUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication.getPrincipal() instanceof User user) {
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
             return user.getId();
-        } else {
-            return null;
         }
+        return null;
     }
 
     public List<User> findAllUsersExceptUserWithId(Integer userId) {
