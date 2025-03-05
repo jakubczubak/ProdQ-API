@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Objects;
 
 @Service
 @AllArgsConstructor
@@ -72,19 +73,18 @@ public class MaterialService {
     }
     @Transactional
     public void updateMaterial(MaterialDTO materialDTO) {
-
         Material material = materialRepository.findById(materialDTO.getId())
-                .orElseThrow(() -> new RuntimeException("Material not found"));
+                .orElseThrow(() -> new RuntimeException("Materiał nie znaleziony"));
 
-        StringBuilder notificationMessage = new StringBuilder("The material ")
+        StringBuilder notificationMessage = new StringBuilder("Materiał ")
                 .append(material.getName())
-                .append(" has been updated. Changes:");
+                .append(" został zaktualizowany. Zmiany:");
 
         // Sprawdzenie zmiany ceny na kg
         if (material.getPricePerKg().compareTo(materialDTO.getPricePerKg()) != 0) {
-            notificationMessage.append("\nPrice per kg: from ")
+            notificationMessage.append("\nCena za kg: z ")
                     .append(material.getPricePerKg())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getPricePerKg());
 
             LocalDateTime currentDateTime = LocalDateTime.now();
@@ -98,71 +98,70 @@ public class MaterialService {
             material.getMaterialPriceHistoryList().add(materialPriceHistory);
         }
 
-        // Zmiana quantity
+        // Zmiana ilości
         if (material.getQuantity() != materialDTO.getQuantity()) {
-            // Tworzymy jedno powiadomienie dla zmiany quantity
             String message;
             if (materialDTO.getQuantity() > material.getQuantity()) {
-                message = "The quantity of material " + material.getName() + " has been increased from "
-                        + material.getQuantity() + " to " + materialDTO.getQuantity() + ".";
+                message = "Ilość materiału " + material.getName() + " została zwiększona z "
+                        + material.getQuantity() + " na " + materialDTO.getQuantity() + ".";
             } else {
-                message = "The quantity of material " + material.getName() + " has been decreased from "
-                        + material.getQuantity() + " to " + materialDTO.getQuantity() + ".";
+                message = "Ilość materiału " + material.getName() + " została zmniejszona z "
+                        + material.getQuantity() + " na " + materialDTO.getQuantity() + ".";
             }
             notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
         }
 
         // Pozostałe zmiany
         if (material.getMinQuantity() != materialDTO.getMinQuantity()) {
-            notificationMessage.append("\nMin Quantity: from ")
+            notificationMessage.append("\nMinimalna ilość: z ")
                     .append(material.getMinQuantity())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getMinQuantity());
         }
         if (material.getZ() != materialDTO.getZ()) {
-            notificationMessage.append("\nThickness (Z): from ")
+            notificationMessage.append("\nGrubość (Z): z ")
                     .append(material.getZ())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getZ());
         }
         if (material.getY() != materialDTO.getY()) {
-            notificationMessage.append("\nHeight (Y): from ")
+            notificationMessage.append("\nWysokość (Y): z ")
                     .append(material.getY())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getY());
         }
         if (material.getX() != materialDTO.getX()) {
-            notificationMessage.append("\nWidth (X): from ")
+            notificationMessage.append("\nSzerokość (X): z ")
                     .append(material.getX())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getX());
         }
         if (material.getDiameter() != materialDTO.getDiameter()) {
-            notificationMessage.append("\nDiameter: from ")
+            notificationMessage.append("\nŚrednica: z ")
                     .append(material.getDiameter())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getDiameter());
         }
         if (material.getLength() != materialDTO.getLength()) {
-            notificationMessage.append("\nLength: from ")
+            notificationMessage.append("\nDługość: z ")
                     .append(material.getLength())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getLength());
         }
         if (material.getThickness() != materialDTO.getThickness()) {
-            notificationMessage.append("\nThickness: from ")
+            notificationMessage.append("\nGrubość: z ")
                     .append(material.getThickness())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getThickness());
         }
-        if (!material.getAdditionalInfo().equals(materialDTO.getAdditionalInfo())) {
-            notificationMessage.append("\nAdditional info: from ")
+        if (!Objects.equals(material.getAdditionalInfo(), materialDTO.getAdditionalInfo())) {
+            notificationMessage.append("\nDodatkowe informacje: z ")
                     .append(material.getAdditionalInfo())
-                    .append(" to ")
+                    .append(" na ")
                     .append(materialDTO.getAdditionalInfo());
         }
 
-        // Teraz aktualizujemy materiał z nowymi wartościami
+        // Aktualizacja materiału
         material.setPricePerKg(materialDTO.getPricePerKg());
         material.setPrice(materialDTO.getPrice());
         material.setMinQuantity(materialDTO.getMinQuantity());
@@ -178,10 +177,8 @@ public class MaterialService {
         material.setQuantityInTransit(materialDTO.getQuantityInTransit());
         material.setAdditionalInfo(materialDTO.getAdditionalInfo());
 
-        // Zapisujemy zaktualizowany materiał
         materialRepository.save(material);
 
-        // Wysyłamy powiadomienie o zaktualizowanym materiale
         notificationService.createAndSendNotification(notificationMessage.toString(), NotificationDescription.MaterialUpdated);
     }
 

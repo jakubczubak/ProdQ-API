@@ -8,6 +8,8 @@ import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects; // Dodajemy import dla Objects
+
 @Service
 @AllArgsConstructor
 public class ToolService {
@@ -88,7 +90,7 @@ public class ToolService {
                     .append(" to ")
                     .append(toolDTO.getOal());
         }
-        if (!tool.getAdditionalInfo().equals(toolDTO.getAdditionalInfo())) {
+        if (!Objects.equals(tool.getAdditionalInfo(), toolDTO.getAdditionalInfo())) { // Poprawka na Objects.equals()
             notificationMessage.append("\nAdditional info: from ")
                     .append(tool.getAdditionalInfo())
                     .append(" to ")
