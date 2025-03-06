@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.example</groupId>
     <artifactId>infrabox-api</artifactId>
-    <version>1.0.0</version>
+    <version>v1.0.0</version>
     <name>infrabox-api</name>
     <description>infrabox-api</description>
     <properties>
