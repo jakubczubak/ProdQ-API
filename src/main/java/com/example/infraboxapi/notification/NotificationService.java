@@ -120,10 +120,7 @@ public class NotificationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (isRootUser(user)) {
-            return 0; // Nie usuwamy powiadomień dla roota
-        }
-
+        // Usuwamy powiadomienia niezależnie od tego, czy użytkownik jest rootem
         return notificationRepository.deleteByReadFalseAndUserId(userId);
     }
 
