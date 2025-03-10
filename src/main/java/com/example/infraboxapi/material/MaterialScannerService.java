@@ -47,16 +47,17 @@ public class MaterialScannerService {
         }
     }
 
-    @Scheduled(cron = "0 0 12 ? * WED")
+
+    @Scheduled(cron = "0 * * * * ?")
     public void scanMaterialsAndNotify() {
-        List<Material> materials = materialRepository.findAll();
+        List<Material> materials = materialRepository.findByQuantityLessThanMinQuantity();
 
         if (materials.stream().anyMatch(m -> m.getQuantity() < m.getMinQuantity())) {
             try {
                 deleteOldReports();
 
                 String date = new SimpleDateFormat("dd-MM-yyyy").format(new Date());
-                String fileName = "Material-report-" + date + ".pdf";
+                String fileName = "Raport-materialow-" + date + ".pdf";
                 String filePath = pdfDirectory + fileName;
                 generatePdf(filePath, materials);
 
@@ -75,15 +76,31 @@ public class MaterialScannerService {
 
     private void deleteOldReports() {
         File directory = new File(pdfDirectory);
-        File[] files = directory.listFiles((dir, name) -> name.startsWith("Material-report-") && name.endsWith(".pdf"));
+        File[] files = directory.listFiles((dir, name) -> name.startsWith("Raport-materialow-") && name.endsWith(".pdf"));
 
         if (files != null) {
             for (File file : files) {
                 if (!file.delete()) {
-                    System.err.println("Failed to delete file: " + file.getName());
+                    System.err.println("Nie udało się usunąć pliku: " + file.getName());
                 }
             }
         }
+    }
+
+    private String getUnit(Material material) {
+        float x = material.getX();
+        float y = material.getY();
+        float z = material.getZ();
+        float diameter = material.getDiameter();
+        float length = material.getLength();
+        float thickness = material.getThickness();
+
+        if (x > 0 && y > 0 && z > 0 && diameter == 0 && thickness == 0) {
+            return " szt.";
+        } else if (diameter > 0 && length > 0) {
+            return " m.b.";
+        }
+        return "";
     }
 
     private void generatePdf(String filePath, List<Material> materials) throws IOException, DocumentException {
@@ -106,9 +123,9 @@ public class MaterialScannerService {
         Font contentFont = new Font(robotoBase, 10);
         Font boldFont = new Font(robotoBase, 10, Font.BOLD);
 
-        // Tytuł z datą
+        // Tytuł z datą w języku polskim
         String date = new SimpleDateFormat("dd/MM/yyyy").format(new Date());
-        Paragraph title = new Paragraph("Material report - " + date, titleFont);
+        Paragraph title = new Paragraph("Raport materiałów - " + date, titleFont);
         title.setAlignment(Element.ALIGN_LEFT);
         title.setSpacingAfter(15);
         document.add(title);
@@ -116,29 +133,28 @@ public class MaterialScannerService {
         // Formatowanie liczb do 2 miejsc po przecinku
         DecimalFormat df = new DecimalFormat("#.##");
 
-        // Treść dokumentu
+        // Treść dokumentu w języku polskim
         int counter = 1;
         for (Material material : materials) {
             if (material.getQuantity() < material.getMinQuantity()) {
                 Paragraph materialInfo = new Paragraph();
                 materialInfo.add(new Phrase(counter++ + ". ", contentFont));
 
-                // Typ i zabezpieczenie przed null
-                String type = material.getType() != null ? material.getType() : "";
-                String namePrefix = (type.equals("Tube") || type.equals("Rod")) ? "Φ " : "";
-                materialInfo.add(new Phrase("Name: " + namePrefix  + material.getName() + "\n", contentFont));
+                // Nazwa z prefixem Φ dla prętów i rur
+                String phiPrefix = (material.getDiameter() > 0 && material.getLength() > 0) ? "Φ " : "";
+                materialInfo.add(new Phrase("Nazwa: " + material.getName() + "\n", contentFont));
 
-                // Jednostki i zaokrąglanie
-                String unit = type.equals("Plate") ? " pc" : " m";
-                double quantity = material.getQuantity(); // Bez sprawdzania null, bo float/double
-                double minQuantity = material.getMinQuantity();
+                // Jednostki na podstawie pól geometrycznych
+                String unit = getUnit(material);
+                float quantity = material.getQuantity();
+                float minQuantity = material.getMinQuantity();
                 String formattedQuantity = df.format(quantity);
                 String formattedMinQuantity = df.format(minQuantity);
                 String formattedOrderQuantity = df.format(minQuantity - quantity);
 
-                materialInfo.add(new Phrase("   Quantity: " + formattedQuantity + unit + "\n", contentFont));
-                materialInfo.add(new Phrase("   Min. Quantity: " + formattedMinQuantity + unit + "\n", contentFont));
-                materialInfo.add(new Phrase("   Order Quantity: ", contentFont));
+                materialInfo.add(new Phrase("   Ilość: " + formattedQuantity + unit + "\n", contentFont));
+                materialInfo.add(new Phrase("   Minimalna ilość: " + formattedMinQuantity + unit + "\n", contentFont));
+                materialInfo.add(new Phrase("   Ilość do zamówienia: ", contentFont));
                 materialInfo.add(new Phrase(formattedOrderQuantity + unit + "\n", boldFont));
                 materialInfo.setSpacingAfter(8);
                 document.add(materialInfo);
@@ -151,6 +167,7 @@ public class MaterialScannerService {
 
         document.close();
     }
+
     private String getLocalHostAddress() {
         try {
             return InetAddress.getLocalHost().getHostAddress();

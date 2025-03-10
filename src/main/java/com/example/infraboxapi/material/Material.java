@@ -2,10 +2,7 @@ package com.example.infraboxapi.material;
 
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -27,9 +24,9 @@ public class Material {
     private Integer id;
 
     private BigDecimal pricePerKg;
-    private float minQuantity; // Proponowany minimalny stan ponizej ktorego powinno byc powiadomienie
-    private float proposedMinQuantity; // Proponowany minimalny stan na podstawie analizy zużycia
-    private float quantity; // Rzeczywista ilość na stanie
+    private float minQuantity;
+    private float proposedMinQuantity;
+    private float quantity;
 
     private float z;
     private float y;
@@ -49,23 +46,19 @@ public class Material {
     @Column(name = "updated_on")
     private String updatedOn;
 
-
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "material_id")
+    @ToString.Exclude // Wyłączenie kolekcji z toString()
     private List<MaterialPriceHistory> materialPriceHistoryList;
 
     @PreUpdate
     public void preUpdate() {
-        // Pobranie aktualnego użytkownika
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String currentUsername = userDetails.getUsername();  // Zakładając, że username to email użytkownika
-
-        // Jeśli użytkownik to root, nie aktualizuj pola updatedOn
+        String currentUsername = userDetails.getUsername();
         if (!"root@gmail.com".equals(currentUsername)) {
             ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
             updatedOn = now.format(formatter);
         }
     }
-
 }

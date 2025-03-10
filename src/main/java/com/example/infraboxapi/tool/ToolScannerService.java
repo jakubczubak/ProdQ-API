@@ -47,16 +47,16 @@ public class ToolScannerService {
         }
     }
 
-    @Scheduled(cron = "0 0 12 ? * WED")
+    @Scheduled(cron = "0 * * * * ?")
     public void scanToolsAndNotify() {
-        List<Tool> tools = toolRepository.findAll();
+        List<Tool> tools = toolRepository.findByQuantityLessThanMinQuantity();
 
         if (tools.stream().anyMatch(t -> t.getQuantity() < t.getMinQuantity())) {
             try {
                 deleteOldReports();
 
                 String date = new SimpleDateFormat("dd-MM-yyyy").format(new Date());
-                String fileName = "Tool-report-" + date + ".pdf";
+                String fileName = "Raport-narzedzi-" + date + ".pdf";
                 String filePath = pdfDirectory + fileName;
                 generatePdf(filePath, tools);
 
@@ -75,12 +75,12 @@ public class ToolScannerService {
 
     private void deleteOldReports() {
         File directory = new File(pdfDirectory);
-        File[] files = directory.listFiles((dir, name) -> name.startsWith("Tool-report-") && name.endsWith(".pdf"));
+        File[] files = directory.listFiles((dir, name) -> name.startsWith("Raport-narzedzi-") && name.endsWith(".pdf"));
 
         if (files != null) {
             for (File file : files) {
                 if (!file.delete()) {
-                    System.err.println("Failed to delete file: " + file.getName());
+                    System.err.println("Nie udało się usunąć pliku: " + file.getName());
                 }
             }
         }
@@ -91,7 +91,6 @@ public class ToolScannerService {
         PdfWriter.getInstance(document, new FileOutputStream(new File(filePath)));
         document.open();
 
-        // Nagłówek INFRABOX z czcionką Lucida Handwriting
         BaseFont lucidaBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font headerFont = new Font(lucidaBase, 20, Font.BOLD);
 
@@ -100,39 +99,34 @@ public class ToolScannerService {
         header.setSpacingAfter(20);
         document.add(header);
 
-        // Czcionka Roboto dla reszty dokumentu
         BaseFont robotoBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
         Font titleFont = new Font(robotoBase, 14, Font.BOLD);
         Font contentFont = new Font(robotoBase, 10);
         Font boldFont = new Font(robotoBase, 10, Font.BOLD);
 
-        // Tytuł z datą
         String date = new SimpleDateFormat("dd/MM/yyyy").format(new Date());
-        Paragraph title = new Paragraph("Tool report - " + date, titleFont);
+        Paragraph title = new Paragraph("Raport narzędzi - " + date, titleFont);
         title.setAlignment(Element.ALIGN_LEFT);
         title.setSpacingAfter(15);
         document.add(title);
 
-        // Formatowanie liczb do 2 miejsc po przecinku
         DecimalFormat df = new DecimalFormat("#.##");
 
-        // Treść dokumentu
         int counter = 1;
         for (Tool tool : tools) {
             if (tool.getQuantity() < tool.getMinQuantity()) {
                 Paragraph toolInfo = new Paragraph();
                 toolInfo.add(new Phrase(counter++ + ". ", contentFont));
-                toolInfo.add(new Phrase("Name: " + tool.getName() + "\n", contentFont));
+                toolInfo.add(new Phrase("Nazwa: " + tool.getName() + "\n", contentFont));
 
-                // Zaokrąglanie wartości i dodanie jednostki pc
                 String quantity = df.format(tool.getQuantity());
                 String minQuantity = df.format(tool.getMinQuantity());
                 String orderQuantity = df.format(tool.getMinQuantity() - tool.getQuantity());
 
-                toolInfo.add(new Phrase("   Quantity: " + quantity + " pc\n", contentFont));
-                toolInfo.add(new Phrase("   Min. Quantity: " + minQuantity + " pc\n", contentFont));
-                toolInfo.add(new Phrase("   Order Quantity: ", contentFont));
-                toolInfo.add(new Phrase(orderQuantity + " pc\n", boldFont));
+                toolInfo.add(new Phrase("   Ilość: " + quantity + " szt.\n", contentFont));
+                toolInfo.add(new Phrase("   Minimalna ilość: " + minQuantity + " szt.\n", contentFont));
+                toolInfo.add(new Phrase("   Ilość do zamówienia: ", contentFont));
+                toolInfo.add(new Phrase(orderQuantity + " szt.\n", boldFont));
                 toolInfo.setSpacingAfter(8);
                 document.add(toolInfo);
 
