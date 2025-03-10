@@ -1,7 +1,11 @@
+
+
 package com.example.infraboxapi.FileImage;
 
-import jakarta.persistence.*;
 import lombok.*;
+
+import jakarta.persistence.*;
+
 
 @Getter
 @Setter
