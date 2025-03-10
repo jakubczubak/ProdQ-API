@@ -20,7 +20,7 @@ public class InfraBoxApiApplication {
 
     @PostConstruct
     public void checkMountOnStartup() {
-        File mountDir = new File("/mnt/cnc");
+        File mountDir = new File("/app/cnc");
 
         // Sprawdzenie, czy katalog istnieje
         if (mountDir.exists()) {
