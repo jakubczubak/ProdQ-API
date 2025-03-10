@@ -48,7 +48,7 @@ public class MaterialScannerService {
     }
 
 
-    @Scheduled(cron = "0 * * * * ?")
+    @Scheduled(cron = "0 10 * * 1 ?")
     public void scanMaterialsAndNotify() {
         List<Material> materials = materialRepository.findByQuantityLessThanMinQuantity();
 

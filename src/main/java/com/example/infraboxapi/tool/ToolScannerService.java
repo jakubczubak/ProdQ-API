@@ -47,7 +47,7 @@ public class ToolScannerService {
         }
     }
 
-    @Scheduled(cron = "0 * * * * ?")
+    @Scheduled(cron = "0 10 * * 1 ?")
     public void scanToolsAndNotify() {
         List<Tool> tools = toolRepository.findByQuantityLessThanMinQuantity();
 

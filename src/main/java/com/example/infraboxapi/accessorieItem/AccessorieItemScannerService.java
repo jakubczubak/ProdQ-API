@@ -47,7 +47,7 @@ public class AccessorieItemScannerService {
         }
     }
 
-    @Scheduled(cron = "0 * * * * ?")
+    @Scheduled(cron = "0 10 * * 1 ?")
     public void scanAccessoriesAndNotify() {
         List<AccessorieItem> accessorieItems = accessorieItemRepository.findByQuantityLessThanMinQuantity();
 
