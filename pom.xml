@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.example</groupId>
-    <artifactId>infrabox-api</artifactId>
-    <version>v1.0.0</version>
-    <name>infrabox-api</name>
-    <description>infrabox-api</description>
+    <artifactId>prodq-api</artifactId>
+    <version>v4.0.0</version>
+    <name>prodq-api</name>
+    <description>prodq-api</description>
     <properties>
         <java.version>21</java.version>
     </properties>
@@ -101,7 +101,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <image>
-                        <name>infrabox-api:${project.version}</name>
+                        <name>prodq-api:${project.version}</name>
                         <builder>paketobuildpacks/builder-jammy-base</builder>
                     </image>
                 </configuration>
