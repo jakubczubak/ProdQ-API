@@ -2,7 +2,6 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
-import com.example.infraboxapi.productionQueue.ProductionQueueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,16 +16,13 @@ public class ProductionQueueItemService {
 
     private final ProductionQueueItemRepository productionQueueItemRepository;
     private final ProductionFileInfoService productionFileInfoService;
-    private final ProductionQueueService productionQueueService;
 
     @Autowired
     public ProductionQueueItemService(
             ProductionQueueItemRepository productionQueueItemRepository,
-            ProductionFileInfoService productionFileInfoService,
-            ProductionQueueService productionQueueService) {
+            ProductionFileInfoService productionFileInfoService) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
-        this.productionQueueService = productionQueueService;
     }
 
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
@@ -34,8 +30,6 @@ public class ProductionQueueItemService {
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
             item.setQueueType("ncQueue");
         }
-        // Przypisanie do jedynej instancji ProductionQueue
-        item.setProductionQueue(productionQueueService.getSingleQueue());
 
         ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
 
@@ -104,5 +98,9 @@ public class ProductionQueueItemService {
 
     public void deleteById(Integer id) {
         productionQueueItemRepository.deleteById(id);
+    }
+
+    public List<ProductionQueueItem> findByQueueType(String queueType) {
+        return productionQueueItemRepository.findByQueueType(queueType);
     }
 }

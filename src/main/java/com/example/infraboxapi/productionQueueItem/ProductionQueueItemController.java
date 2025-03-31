@@ -41,7 +41,7 @@ public class ProductionQueueItemController {
                 .deadline(request.getDeadline())
                 .additionalInfo(request.getAdditionalInfo())
                 .fileDirectory(request.getFileDirectory())
-                .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue") // Domyślnie "ncQueue"
+                .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue")
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.save(item, files);
@@ -56,8 +56,14 @@ public class ProductionQueueItemController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductionQueueItem>> getAllProductionQueueItems() {
-        List<ProductionQueueItem> items = productionQueueItemService.findAll();
+    public ResponseEntity<List<ProductionQueueItem>> getAllProductionQueueItems(
+            @RequestParam(value = "queueType", required = false) String queueType) {
+        List<ProductionQueueItem> items;
+        if (queueType != null && !queueType.isEmpty()) {
+            items = productionQueueItemService.findByQueueType(queueType);
+        } else {
+            items = productionQueueItemService.findAll();
+        }
         return ResponseEntity.ok(items);
     }
 

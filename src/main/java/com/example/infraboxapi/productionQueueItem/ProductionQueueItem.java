@@ -1,7 +1,6 @@
 package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
-import com.example.infraboxapi.productionQueue.ProductionQueue;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,10 +34,6 @@ public class ProductionQueueItem {
 
     @Column(name = "queue_type")
     private String queueType;       // "ncQueue", "baca1", "baca2", "vensu350", "completed"
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "production_queue_id")
-    private ProductionQueue productionQueue;
 
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ProductionFileInfo> files = new ArrayList<>(); // Lista powiązanych plików
