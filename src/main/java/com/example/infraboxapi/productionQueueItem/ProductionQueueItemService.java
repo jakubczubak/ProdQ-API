@@ -3,6 +3,7 @@ package com.example.infraboxapi.productionQueueItem;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,6 +31,10 @@ public class ProductionQueueItemService {
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
             item.setQueueType("ncQueue");
         }
+
+        // Set author from Spring Security context
+        String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        item.setAuthor(currentUserEmail);
 
         ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
 
@@ -74,6 +79,10 @@ public class ProductionQueueItemService {
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
+
+            // Update author with current user
+            String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+            existingItem.setAuthor(currentUserEmail);
 
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();

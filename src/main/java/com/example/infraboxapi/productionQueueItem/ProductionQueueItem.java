@@ -32,6 +32,8 @@ public class ProductionQueueItem {
     private String additionalInfo;  // ""
     private String fileDirectory;   // "\\172.16.2.14\CNC\PROGRAMY CAM\1077_LS_SAL\CAM\11-06-TG_LSDAL7525_UCHWYT LOZYSKA"
 
+    private String author;          // Email of the user who created/updated the item
+
     @Column(name = "queue_type")
     private String queueType;       // "ncQueue", "baca1", "baca2", "vensu350", "completed"
 

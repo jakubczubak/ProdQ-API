@@ -15,4 +15,5 @@ public class ProductionQueueItemRequest {
     private String additionalInfo;
     private String fileDirectory;
     private String queueType; // Opcjonalne, domyślnie "ncQueue"
+    private String author;    // Added author field (though this might not be needed in request)
 }
