@@ -1,5 +1,4 @@
-package com.example.infraboxapi;
-
+package com.example.infraboxapi.FileProductionItem;
 
 import com.example.infraboxapi.productionQueueItem.ProductionQueueItem;
 import jakarta.persistence.*;

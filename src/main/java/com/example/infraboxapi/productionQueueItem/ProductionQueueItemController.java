@@ -1,6 +1,5 @@
-package com.example.infraboxapi.ProductionQueueItemService;
+package com.example.infraboxapi.productionQueueItem;
 
-import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -12,14 +11,14 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/production-queue")
-public class ProductionQueueController {
+@RequestMapping("/api/production-queue-item")
+public class ProductionQueueItemController {
 
     private final ProductionQueueItemService productionQueueItemService;
     private final ProductionFileInfoService productionFileInfoService;
 
     @Autowired
-    public ProductionQueueController(
+    public ProductionQueueItemController(
             ProductionQueueItemService productionQueueItemService,
             ProductionFileInfoService productionFileInfoService) {
         this.productionQueueItemService = productionQueueItemService;
@@ -29,21 +28,20 @@ public class ProductionQueueController {
     @PostMapping(value = "/add", consumes = {"multipart/form-data"})
     public ResponseEntity<ProductionQueueItem> addProductionQueueItem(
             @RequestPart("data") ProductionQueueItemRequest request,
-            @RequestPart(value = "files", required = false) List<MultipartFile> files) throws IOException {
+            @RequestPart(value = "file", required = false) List<MultipartFile> files) throws IOException {
 
         ProductionQueueItem item = ProductionQueueItem.builder()
-                .partName(request.getPartName())
-                .orderName(request.getOrderName())
-                .quantity(request.getQuantity())
                 .type(request.getType())
                 .subtype(request.getSubtype())
+                .orderName(request.getOrderName())
+                .partName(request.getPartName())
+                .quantity(request.getQuantity())
                 .baseCamTime(request.getBaseCamTime())
                 .camTime(request.getCamTime())
                 .deadline(request.getDeadline())
                 .additionalInfo(request.getAdditionalInfo())
                 .fileDirectory(request.getFileDirectory())
-                .author(request.getAuthor())
-                .isCompleted(false)
+                .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue") // Domyślnie "ncQueue"
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.save(item, files);
@@ -51,7 +49,7 @@ public class ProductionQueueController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductionQueueItem> getProductionQueueItem(@PathVariable String id) {
+    public ResponseEntity<ProductionQueueItem> getProductionQueueItem(@PathVariable Integer id) {
         return productionQueueItemService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -65,23 +63,22 @@ public class ProductionQueueController {
 
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<ProductionQueueItem> updateProductionQueueItem(
-            @PathVariable String id,
+            @PathVariable Integer id,
             @RequestPart("data") ProductionQueueItemRequest request,
-            @RequestPart(value = "files", required = false) List<MultipartFile> files) throws IOException {
+            @RequestPart(value = "file", required = false) List<MultipartFile> files) throws IOException {
 
         ProductionQueueItem updatedItem = ProductionQueueItem.builder()
-                .partName(request.getPartName())
-                .orderName(request.getOrderName())
-                .quantity(request.getQuantity())
                 .type(request.getType())
                 .subtype(request.getSubtype())
+                .orderName(request.getOrderName())
+                .partName(request.getPartName())
+                .quantity(request.getQuantity())
                 .baseCamTime(request.getBaseCamTime())
                 .camTime(request.getCamTime())
                 .deadline(request.getDeadline())
                 .additionalInfo(request.getAdditionalInfo())
                 .fileDirectory(request.getFileDirectory())
-                .author(request.getAuthor())
-                .isCompleted(false)
+                .queueType(request.getQueueType())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, files);
@@ -89,7 +86,7 @@ public class ProductionQueueController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProductionQueueItem(@PathVariable String id) {
+    public ResponseEntity<Void> deleteProductionQueueItem(@PathVariable Integer id) {
         productionQueueItemService.deleteById(id);
         return ResponseEntity.noContent().build();
     }

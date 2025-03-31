@@ -1,7 +1,8 @@
-package com.example.infraboxapi.ProductionQueueItemService;
+package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
+import com.example.infraboxapi.productionQueue.ProductionQueueService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,16 +17,26 @@ public class ProductionQueueItemService {
 
     private final ProductionQueueItemRepository productionQueueItemRepository;
     private final ProductionFileInfoService productionFileInfoService;
+    private final ProductionQueueService productionQueueService;
 
     @Autowired
     public ProductionQueueItemService(
             ProductionQueueItemRepository productionQueueItemRepository,
-            ProductionFileInfoService productionFileInfoService) {
+            ProductionFileInfoService productionFileInfoService,
+            ProductionQueueService productionQueueService) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
+        this.productionQueueService = productionQueueService;
     }
 
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
+        // Domyślny queueType na "ncQueue", jeśli nie podano
+        if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
+            item.setQueueType("ncQueue");
+        }
+        // Przypisanie do jedynej instancji ProductionQueue
+        item.setProductionQueue(productionQueueService.getSingleQueue());
+
         ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
 
         if (files != null && !files.isEmpty()) {
@@ -46,7 +57,7 @@ public class ProductionQueueItemService {
         return savedItem;
     }
 
-    public Optional<ProductionQueueItem> findById(String id) {
+    public Optional<ProductionQueueItem> findById(Integer id) {
         return productionQueueItemRepository.findById(id);
     }
 
@@ -54,22 +65,21 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findAll();
     }
 
-    public ProductionQueueItem update(String id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
+    public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
         Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
         if (existingItemOpt.isPresent()) {
             ProductionQueueItem existingItem = existingItemOpt.get();
-            existingItem.setPartName(updatedItem.getPartName());
-            existingItem.setOrderName(updatedItem.getOrderName());
-            existingItem.setQuantity(updatedItem.getQuantity());
             existingItem.setType(updatedItem.getType());
             existingItem.setSubtype(updatedItem.getSubtype());
+            existingItem.setOrderName(updatedItem.getOrderName());
+            existingItem.setPartName(updatedItem.getPartName());
+            existingItem.setQuantity(updatedItem.getQuantity());
             existingItem.setBaseCamTime(updatedItem.getBaseCamTime());
             existingItem.setCamTime(updatedItem.getCamTime());
             existingItem.setDeadline(updatedItem.getDeadline());
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
-            existingItem.setAuthor(updatedItem.getAuthor());
-            existingItem.setCompleted(updatedItem.isCompleted());
+            existingItem.setQueueType(updatedItem.getQueueType());
 
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
@@ -92,7 +102,7 @@ public class ProductionQueueItemService {
         }
     }
 
-    public void deleteById(String id) {
+    public void deleteById(Integer id) {
         productionQueueItemRepository.deleteById(id);
     }
 }

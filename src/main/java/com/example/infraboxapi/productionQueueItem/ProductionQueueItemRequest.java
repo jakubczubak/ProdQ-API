@@ -1,18 +1,18 @@
-package com.example.infraboxapi.ProductionQueueItemService;
+package com.example.infraboxapi.productionQueueItem;
 
 import lombok.Data;
 
 @Data
 public class ProductionQueueItemRequest {
-    private String partName;
-    private String orderName;
-    private int quantity;
     private String type;
     private String subtype;
+    private String orderName;
+    private String partName;
+    private int quantity;
     private String baseCamTime;
     private String camTime;
     private String deadline;
     private String additionalInfo;
     private String fileDirectory;
-    private String author;
+    private String queueType; // Opcjonalne, domyślnie "ncQueue"
 }
