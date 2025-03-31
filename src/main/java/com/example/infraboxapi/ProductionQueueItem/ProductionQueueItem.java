@@ -1,13 +1,13 @@
-package com.example.infraboxapi.productionQueueItem;
+package com.example.infraboxapi.ProductionQueueItemService;
 
-
-import com.example.infraboxapi.ProductionFileInfo;
+import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -30,8 +30,10 @@ public class ProductionQueueItem {
     private String deadline;        // Termin (może być null), np. "2025-03-02"
     private String additionalInfo;  // Dodatkowe informacje, np. ""
     private String fileDirectory;   // Ścieżka do katalogu plików, np. "\\172.16.2.14\..."
-    @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductionFileInfo> files;   // Lista informacji o plikach
+
+    @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ProductionFileInfo> files = new ArrayList<>(); // Lista informacji o plikach
+
     private String author;          // Autor, np. "Jan Kowalski"
-    private boolean isCompleted;
+    private boolean isCompleted;    // Czy zakończone, domyślnie false
 }
