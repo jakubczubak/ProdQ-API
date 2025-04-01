@@ -124,6 +124,14 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/accessorie/item/update").hasAuthority("ADMIN")
                         .requestMatchers("/api/accessorie/item/delete/*").hasAuthority("ADMIN")
 
+                        // PRODUCTION QUEUE ITEM (nowe endpointy)
+                        .requestMatchers("/api/production-queue-item").hasAnyAuthority("ADMIN", "USER") // GET all
+                        .requestMatchers("/api/production-queue-item/*").hasAnyAuthority("ADMIN", "USER") // GET by ID
+                        .requestMatchers("/api/production-queue-item/add").hasAuthority("ADMIN") // POST
+                        .requestMatchers("/api/production-queue-item/*").hasAuthority("ADMIN") // PUT (update)
+                        .requestMatchers("/api/production-queue-item/*").hasAuthority("ADMIN") // DELETE
+                        .requestMatchers("/api/production-queue-item/files/*").hasAnyAuthority("ADMIN", "USER") // GET file content
+
                         // OTHER
                         .anyRequest().authenticated()
                 )
