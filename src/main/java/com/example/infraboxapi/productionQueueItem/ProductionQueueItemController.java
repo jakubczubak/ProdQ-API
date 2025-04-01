@@ -1,9 +1,12 @@
-package  com.example.infraboxapi.productionQueueItem;
+package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
+import com.example.infraboxapi.common.CommonService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,19 +19,28 @@ public class ProductionQueueItemController {
 
     private final ProductionQueueItemService productionQueueItemService;
     private final ProductionFileInfoService productionFileInfoService;
+    private final CommonService commonService;
 
     @Autowired
     public ProductionQueueItemController(
             ProductionQueueItemService productionQueueItemService,
-            ProductionFileInfoService productionFileInfoService) {
+            ProductionFileInfoService productionFileInfoService,
+            CommonService commonService) {
         this.productionQueueItemService = productionQueueItemService;
         this.productionFileInfoService = productionFileInfoService;
+        this.commonService = commonService;
     }
 
     @PostMapping(value = "/add", consumes = {"multipart/form-data"})
     public ResponseEntity<ProductionQueueItem> addProductionQueueItem(
-            @RequestPart("data") ProductionQueueItemRequest request,
-            @RequestPart(value = "file", required = false) List<MultipartFile> files) throws IOException {
+            @Valid @ModelAttribute ProductionQueueItemRequest request,
+            BindingResult bindingResult) throws IOException {
+        if (bindingResult.hasErrors()) {
+            ResponseEntity<String> errorResponse = commonService.handleBindingResult(bindingResult);
+            return ResponseEntity.status(errorResponse.getStatusCode()).body(null);
+        }
+
+        List<MultipartFile> files = request.getFile();
 
         ProductionQueueItem item = ProductionQueueItem.builder()
                 .type(request.getType())
@@ -70,8 +82,12 @@ public class ProductionQueueItemController {
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<ProductionQueueItem> updateProductionQueueItem(
             @PathVariable Integer id,
-            @RequestPart("data") ProductionQueueItemRequest request,
-            @RequestPart(value = "file", required = false) List<MultipartFile> files) throws IOException {
+            @Valid @ModelAttribute ProductionQueueItemRequest request,
+            BindingResult bindingResult) throws IOException {
+        if (bindingResult.hasErrors()) {
+            ResponseEntity<String> errorResponse = commonService.handleBindingResult(bindingResult);
+            return ResponseEntity.status(errorResponse.getStatusCode()).body(null);
+        }
 
         ProductionQueueItem updatedItem = ProductionQueueItem.builder()
                 .type(request.getType())
@@ -87,7 +103,7 @@ public class ProductionQueueItemController {
                 .queueType(request.getQueueType())
                 .build();
 
-        ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, files);
+        ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile());
         return ResponseEntity.ok(savedItem);
     }
 

@@ -1,6 +1,7 @@
 package com.example.infraboxapi.FileProductionItem;
 
 import com.example.infraboxapi.productionQueueItem.ProductionQueueItem;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,20 +13,19 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "_productionFileInfo")
+@Table(name = "_production_file_info")
 public class ProductionFileInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;              // Unikalny identyfikator pliku
+    private Long id;
 
-    private String fileName;      // Nazwa pliku (np. "program1.nc")
-    private String fileType;      // Typ pliku (np. "nc", "pdf")
+    private String fileName;
+    private String fileType;
+    @Lob
+    private byte[] fileContent;
 
-    @Lob                  // Oznacza duże obiekty binarne (Large Object)
-    @Column(name = "file_content")
-    private byte[] fileContent;   // Zawartość pliku jako dane binarne
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "production_queue_item_id")
-    private ProductionQueueItem productionQueueItem; // Relacja zwrotna
+    @JsonBackReference
+    private ProductionQueueItem productionQueueItem;
 }
