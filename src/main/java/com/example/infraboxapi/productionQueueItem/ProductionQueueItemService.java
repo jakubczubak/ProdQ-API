@@ -27,12 +27,10 @@ public class ProductionQueueItemService {
     }
 
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
-        // Domyślny queueType na "ncQueue", jeśli nie podano
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
             item.setQueueType("ncQueue");
         }
 
-        // Set author from Spring Security context
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         item.setAuthor(currentUserEmail);
 
@@ -80,7 +78,6 @@ public class ProductionQueueItemService {
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
 
-            // Update author with current user
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             existingItem.setAuthor(currentUserEmail);
 
@@ -111,5 +108,16 @@ public class ProductionQueueItemService {
 
     public List<ProductionQueueItem> findByQueueType(String queueType) {
         return productionQueueItemRepository.findByQueueType(queueType);
+    }
+
+    public ProductionQueueItem toggleComplete(Integer id) {
+        Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
+        if (itemOpt.isPresent()) {
+            ProductionQueueItem item = itemOpt.get();
+            item.setCompleted(!item.isCompleted()); // Przełącz wartość
+            return productionQueueItemRepository.save(item);
+        } else {
+            throw new RuntimeException("ProductionQueueItem with ID " + id + " not found");
+        }
     }
 }

@@ -122,4 +122,10 @@ public class ProductionQueueItemController {
                         .body(file.getFileContent()))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @PatchMapping("/{id}/toggle-complete")
+    public ResponseEntity<ProductionQueueItem> toggleComplete(@PathVariable Integer id) {
+        ProductionQueueItem updatedItem = productionQueueItemService.toggleComplete(id);
+        return ResponseEntity.ok(updatedItem);
+    }
 }

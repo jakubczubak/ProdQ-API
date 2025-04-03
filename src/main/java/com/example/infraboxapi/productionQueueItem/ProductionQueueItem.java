@@ -33,6 +33,8 @@ public class ProductionQueueItem {
     private String additionalInfo;
     private String fileDirectory;
     private String author;
+    @Column(name = "is_completed", nullable = false)
+    private boolean isCompleted = false;
 
     @Column(name = "queue_type")
     private String queueType;

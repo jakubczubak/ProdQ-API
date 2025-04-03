@@ -25,6 +25,7 @@ public class CorsConfig {
         config.addAllowedHeader("*"); // Wszystkie nagłówki
         config.addAllowedMethod("GET");
         config.addAllowedMethod("POST");
+        config.addAllowedMethod("PATCH");
         config.addAllowedMethod("PUT");
         config.addAllowedMethod("DELETE");
         source.registerCorsConfiguration("/**", config);
