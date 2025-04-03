@@ -77,6 +77,7 @@ public class ProductionQueueItemService {
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
+            existingItem.setCompleted(updatedItem.isCompleted());
 
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             existingItem.setAuthor(currentUserEmail);
