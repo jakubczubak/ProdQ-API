@@ -53,7 +53,7 @@ public class ProductionQueueItemController {
                 .deadline(request.getDeadline())
                 .additionalInfo(request.getAdditionalInfo())
                 .fileDirectory(request.getFileDirectory())
-                .isCompleted(request.isCompleted())
+                .completed(request.isCompleted()) // Zmieniono na completed
                 .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue")
                 .build();
 
@@ -102,7 +102,7 @@ public class ProductionQueueItemController {
                 .additionalInfo(request.getAdditionalInfo())
                 .fileDirectory(request.getFileDirectory())
                 .queueType(request.getQueueType())
-                .isCompleted(request.isCompleted())
+                .completed(request.isCompleted()) // Zmieniono na completed
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile());

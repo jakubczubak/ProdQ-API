@@ -77,7 +77,7 @@ public class ProductionQueueItemService {
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
-            existingItem.setCompleted(updatedItem.isCompleted());
+            existingItem.setCompleted(updatedItem.isCompleted()); // Zmieniono na completed
 
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             existingItem.setAuthor(currentUserEmail);
@@ -115,7 +115,7 @@ public class ProductionQueueItemService {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
-            item.setCompleted(!item.isCompleted()); // Przełącz wartość
+            item.setCompleted(!item.isCompleted()); // Zmieniono na completed
             return productionQueueItemRepository.save(item);
         } else {
             throw new RuntimeException("ProductionQueueItem with ID " + id + " not found");

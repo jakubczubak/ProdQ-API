@@ -33,8 +33,8 @@ public class ProductionQueueItem {
     private String additionalInfo;
     private String fileDirectory;
     private String author;
-    @Column(name = "is_completed", nullable = false)
-    private boolean isCompleted = false;
+    @Column(name = "completed", nullable = false) // Zmieniono nazwę kolumny
+    private boolean completed = false; // Zmieniono nazwę pola
 
     @Column(name = "queue_type")
     private String queueType;
