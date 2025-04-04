@@ -53,8 +53,9 @@ public class ProductionQueueItemController {
                 .deadline(request.getDeadline())
                 .additionalInfo(request.getAdditionalInfo())
                 .fileDirectory(request.getFileDirectory())
-                .completed(request.isCompleted()) // Zmieniono na completed
+                .completed(request.isCompleted())
                 .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue")
+                .order(request.getOrder())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.save(item, files);
@@ -102,7 +103,8 @@ public class ProductionQueueItemController {
                 .additionalInfo(request.getAdditionalInfo())
                 .fileDirectory(request.getFileDirectory())
                 .queueType(request.getQueueType())
-                .completed(request.isCompleted()) // Zmieniono na completed
+                .completed(request.isCompleted())
+                .order(request.getOrder())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile());
@@ -130,4 +132,12 @@ public class ProductionQueueItemController {
         ProductionQueueItem updatedItem = productionQueueItemService.toggleComplete(id);
         return ResponseEntity.ok(updatedItem);
     }
+
+    @PutMapping("/update-order")
+    public ResponseEntity<Void> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) {
+        productionQueueItemService.updateQueueOrder(request.getQueueType(), request.getItems());
+        return ResponseEntity.ok().build();
+    }
 }
+
+

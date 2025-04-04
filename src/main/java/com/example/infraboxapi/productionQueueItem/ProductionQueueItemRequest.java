@@ -24,6 +24,7 @@ public class ProductionQueueItemRequest {
     private String fileDirectory;
     private String queueType;
     private String author;
-    private boolean completed; // Zmieniono na completed
+    private boolean completed;
+    private Integer order;
     private List<MultipartFile> file;
 }

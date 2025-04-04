@@ -33,11 +33,14 @@ public class ProductionQueueItem {
     private String additionalInfo;
     private String fileDirectory;
     private String author;
-    @Column(name = "completed", nullable = false) // Zmieniono nazwę kolumny
-    private boolean completed = false; // Zmieniono nazwę pola
+    @Column(name = "completed", nullable = false)
+    private boolean completed = false;
 
     @Column(name = "queue_type")
     private String queueType;
+
+    @Column(name = "order_position")
+    private Integer order;
 
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference

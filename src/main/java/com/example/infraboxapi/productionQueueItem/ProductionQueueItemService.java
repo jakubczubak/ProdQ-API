@@ -5,12 +5,15 @@ import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductionQueueItemService {
@@ -26,9 +29,15 @@ public class ProductionQueueItemService {
         this.productionFileInfoService = productionFileInfoService;
     }
 
+    @Transactional
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
             item.setQueueType("ncQueue");
+        }
+
+        if (item.getOrder() == null) {
+            Integer maxOrder = productionQueueItemRepository.findMaxOrderByQueueType(item.getQueueType());
+            item.setOrder(maxOrder + 1);
         }
 
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -62,6 +71,7 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findAll();
     }
 
+    @Transactional
     public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
         Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
         if (existingItemOpt.isPresent()) {
@@ -77,7 +87,8 @@ public class ProductionQueueItemService {
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
-            existingItem.setCompleted(updatedItem.isCompleted()); // Zmieniono na completed
+            existingItem.setCompleted(updatedItem.isCompleted());
+            existingItem.setOrder(updatedItem.getOrder());
 
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             existingItem.setAuthor(currentUserEmail);
@@ -103,6 +114,7 @@ public class ProductionQueueItemService {
         }
     }
 
+    @Transactional
     public void deleteById(Integer id) {
         productionQueueItemRepository.deleteById(id);
     }
@@ -111,14 +123,35 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findByQueueType(queueType);
     }
 
+    @Transactional
     public ProductionQueueItem toggleComplete(Integer id) {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
-            item.setCompleted(!item.isCompleted()); // Zmieniono na completed
+            item.setCompleted(!item.isCompleted());
             return productionQueueItemRepository.save(item);
         } else {
             throw new RuntimeException("ProductionQueueItem with ID " + id + " not found");
         }
     }
+
+    @Transactional
+    public void updateQueueOrder(String queueType, List<OrderItem> items) {
+        List<ProductionQueueItem> existingItems = productionQueueItemRepository.findByQueueType(queueType);
+        Map<Integer, ProductionQueueItem> itemMap = existingItems.stream()
+                .collect(Collectors.toMap(ProductionQueueItem::getId, item -> item));
+
+        List<ProductionQueueItem> toUpdate = new ArrayList<>();
+        for (OrderItem orderItem : items) {
+            ProductionQueueItem item = itemMap.get(orderItem.getId());
+            if (item == null) {
+                throw new IllegalArgumentException("Item not found: " + orderItem.getId());
+            }
+            item.setOrder(orderItem.getOrder());
+            item.setQueueType(queueType);
+            toUpdate.add(item);
+        }
+        productionQueueItemRepository.saveAll(toUpdate); // Masowe zapisanie
+    }
 }
+
