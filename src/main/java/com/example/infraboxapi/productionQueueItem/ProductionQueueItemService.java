@@ -104,8 +104,9 @@ public class ProductionQueueItemService {
                             .build();
                     fileInfos.add(fileInfo);
                 }
-                existingItem.getFiles().clear();
+                // Append new files instead of clearing existing ones
                 existingItem.getFiles().addAll(fileInfos);
+                productionFileInfoService.saveAll(fileInfos);
             }
 
             return productionQueueItemRepository.save(existingItem);
@@ -151,7 +152,6 @@ public class ProductionQueueItemService {
             item.setQueueType(queueType);
             toUpdate.add(item);
         }
-        productionQueueItemRepository.saveAll(toUpdate); // Masowe zapisanie
+        productionQueueItemRepository.saveAll(toUpdate);
     }
 }
-

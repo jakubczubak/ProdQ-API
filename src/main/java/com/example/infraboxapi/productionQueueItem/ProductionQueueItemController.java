@@ -136,6 +136,12 @@ public class ProductionQueueItemController {
     @PutMapping("/update-order")
     public ResponseEntity<String> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) {
         productionQueueItemService.updateQueueOrder(request.getQueueType(), request.getItems());
-        return ResponseEntity.ok("{\"success\": true}"); // Zwracamy JSON z informacją o sukcesie
+        return ResponseEntity.ok("{\"success\": true}");
+    }
+
+    @DeleteMapping("/files/{fileId}")
+    public ResponseEntity<Void> deleteFile(@PathVariable Long fileId) {
+        productionFileInfoService.deleteById(fileId);
+        return ResponseEntity.noContent().build();
     }
 }
