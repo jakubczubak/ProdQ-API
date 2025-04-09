@@ -134,10 +134,8 @@ public class ProductionQueueItemController {
     }
 
     @PutMapping("/update-order")
-    public ResponseEntity<Void> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) {
+    public ResponseEntity<String> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) {
         productionQueueItemService.updateQueueOrder(request.getQueueType(), request.getItems());
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok("{\"success\": true}"); // Zwracamy JSON z informacją o sukcesie
     }
 }
-
-
