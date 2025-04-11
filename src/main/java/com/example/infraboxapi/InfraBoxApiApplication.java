@@ -27,12 +27,12 @@ public class InfraBoxApiApplication {
             // Tryb produkcyjny: sprawdzanie zamontowanego zasobu /mnt/cnc
             mountDir = new File("/mnt/cnc");
         } else if ("docker-local".equalsIgnoreCase(appEnv)) {
-            // Tryb docker-local: używamy /app/cnc w kontenerze
-            mountDir = new File("/app/cnc");
+            // Tryb docker-local: używamy /cnc w kontenerze
+            mountDir = new File("/cnc");
             ensureDirectoryExists(mountDir); // Tworzenie katalogu, jeśli nie istnieje
         } else {
-            // Tryb lokalny: używamy ./app/cnc w katalogu projektu
-            mountDir = new File("./app/cnc");
+            // Tryb lokalny: używamy ./cnc w katalogu projektu
+            mountDir = new File("./cnc");
             ensureDirectoryExists(mountDir); // Tworzenie katalogu, jeśli nie istnieje
         }
 
