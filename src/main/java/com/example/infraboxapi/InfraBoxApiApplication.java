@@ -20,53 +20,76 @@ public class InfraBoxApiApplication {
 
     @PostConstruct
     public void checkMountOnStartup() {
-        File mountDir = new File("/app/cnc");
+        String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local"; // Domyślnie local
+        File mountDir;
 
-        // Sprawdzenie, czy katalog istnieje
-        if (mountDir.exists()) {
-            if (mountDir.isDirectory()) {
-                // Sprawdzenie odczytu
-                if (mountDir.canRead()) {
-                    logger.info("Zasób sieciowy /mnt/cnc jest zamontowany i dostępny do odczytu.");
-                    listDirectoryContents(mountDir); // Listowanie zawartości
+        if ("prod".equalsIgnoreCase(appEnv)) {
+            // Tryb produkcyjny: sprawdzanie zamontowanego zasobu /mnt/cnc
+            mountDir = new File("/mnt/cnc");
+        } else if ("docker-local".equalsIgnoreCase(appEnv)) {
+            // Tryb docker-local: używamy /app/cnc w kontenerze
+            mountDir = new File("/app/cnc");
+            ensureDirectoryExists(mountDir); // Tworzenie katalogu, jeśli nie istnieje
+        } else {
+            // Tryb lokalny: używamy ./app/cnc w katalogu projektu
+            mountDir = new File("./app/cnc");
+            ensureDirectoryExists(mountDir); // Tworzenie katalogu, jeśli nie istnieje
+        }
+
+        checkMountedResource(mountDir);
+    }
+
+    private void ensureDirectoryExists(File directory) {
+        if (!directory.exists()) {
+            try {
+                if (directory.mkdirs()) {
+                    logger.info("Utworzono katalog {} dla trybu lokalnego lub docker-local.", directory.getAbsolutePath());
                 } else {
-                    logger.error("Zasób /mnt/cnc istnieje, ale brak uprawnień do odczytu.");
+                    logger.error("Nie udało się utworzyć katalogu {}.", directory.getAbsolutePath());
+                }
+            } catch (SecurityException e) {
+                logger.error("Błąd uprawnień podczas tworzenia katalogu {}: {}", directory.getAbsolutePath(), e.getMessage());
+            }
+        } else if (!directory.isDirectory()) {
+            logger.error("{} istnieje, ale nie jest katalogiem.", directory.getAbsolutePath());
+        }
+    }
+
+    private void checkMountedResource(File mountDir) {
+        if (mountDir.exists() && mountDir.isDirectory()) {
+            // Sprawdzenie odczytu
+            if (mountDir.canRead()) {
+                logger.info("Zasób {} jest dostępny do odczytu.", mountDir.getAbsolutePath());
+                listDirectoryContents(mountDir);
+            } else {
+                logger.error("Zasób {} istnieje, ale brak uprawnień do odczytu.", mountDir.getAbsolutePath());
+            }
+
+            // Sprawdzenie zapisu
+            if (mountDir.canWrite()) {
+                logger.info("Zasób {} jest dostępny do zapisu.", mountDir.getAbsolutePath());
+                File testFile = new File(mountDir, "test.txt");
+                try {
+                    if (testFile.createNewFile()) {
+                        logger.info("Utworzono plik testowy w {} - zapis działa prawidłowo.", mountDir.getAbsolutePath());
+                    }
+                } catch (IOException e) {
+                    logger.error("Błąd podczas tworzenia pliku testowego w {}: {}", mountDir.getAbsolutePath(), e.getMessage());
                 }
 
-                // Sprawdzenie zapisu
-                if (mountDir.canWrite()) {
-                    logger.info("Zasób /mnt/cnc jest dostępny do zapisu.");
-                    // Testowy zapis pliku
-                    File testFile = new File(mountDir, "test.txt");
-                    try {
-                        if (testFile.createNewFile()) {
-                            logger.info("Utworzono plik testowy w /mnt/cnc - zapis działa prawidłowo.");
-                        }
-                    } catch (IOException e) {
-                        logger.error("Błąd podczas tworzenia pliku testowego w /mnt/cnc: " + e.getMessage());
+                // Sprawdzenie usuwania
+                if (testFile.exists()) {
+                    if (testFile.delete()) {
+                        logger.info("Usunięto plik testowy z {} - usuwanie działa prawidłowo.", mountDir.getAbsolutePath());
+                    } else {
+                        logger.error("Nie udało się usunąć pliku testowego z {} - brak uprawnień lub inny problem.", mountDir.getAbsolutePath());
                     }
-                } else {
-                    logger.error("Zasób /mnt/cnc istnieje, ale brak uprawnień do zapisu.");
-                }
-
-                // Sprawdzenie usuwania (jeśli plik testowy został utworzony)
-                if (mountDir.canWrite()) {
-                    File testFile = new File(mountDir, "test.txt");
-                    if (testFile.exists()) {
-                        if (testFile.delete()) {
-                            logger.info("Usunięto plik testowy z /mnt/cnc - usuwanie działa prawidłowo.");
-                        } else {
-                            logger.error("Nie udało się usunąć pliku testowego z /mnt/cnc - brak uprawnień lub inny problem.");
-                        }
-                    }
-                } else {
-                    logger.error("Zasób /mnt/cnc istnieje, ale brak uprawnień do usuwania (na podstawie canWrite).");
                 }
             } else {
-                logger.error("/mnt/cnc istnieje, ale nie jest katalogiem.");
+                logger.error("Zasób {} istnieje, ale brak uprawnień do zapisu.", mountDir.getAbsolutePath());
             }
         } else {
-            logger.error("Zasób sieciowy /mnt/cnc nie jest zamontowany lub nie istnieje.");
+            logger.error("Zasób {} nie jest zamontowany lub nie istnieje.", mountDir.getAbsolutePath());
         }
     }
 
@@ -74,16 +97,16 @@ public class InfraBoxApiApplication {
         File[] contents = directory.listFiles();
         if (contents != null) {
             if (contents.length > 0) {
-                logger.info("Zawartość katalogu /mnt/cnc:");
+                logger.info("Zawartość katalogu {}:", directory.getAbsolutePath());
                 for (File file : contents) {
                     String type = file.isDirectory() ? "katalog" : "plik";
                     logger.info("- {} ({})", file.getName(), type);
                 }
             } else {
-                logger.info("Katalog /mnt/cnc jest pusty.");
+                logger.info("Katalog {} jest pusty.", directory.getAbsolutePath());
             }
         } else {
-            logger.error("Nie udało się wylistować zawartości /mnt/cnc -可能ny problem z uprawnieniami lub błędem I/O.");
+            logger.error("Nie udało się wylistować zawartości {} - możliwy problem z uprawnieniami lub błędem I/O.", directory.getAbsolutePath());
         }
     }
 }
