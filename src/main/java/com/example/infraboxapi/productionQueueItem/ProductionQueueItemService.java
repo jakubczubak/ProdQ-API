@@ -9,10 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,13 +17,15 @@ public class ProductionQueueItemService {
 
     private final ProductionQueueItemRepository productionQueueItemRepository;
     private final ProductionFileInfoService productionFileInfoService;
+    private final MachineRepository machineRepository;
 
     @Autowired
     public ProductionQueueItemService(
             ProductionQueueItemRepository productionQueueItemRepository,
-            ProductionFileInfoService productionFileInfoService) {
+            ProductionFileInfoService productionFileInfoService, MachineRepository machineRepository) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
+        this.machineRepository = machineRepository;
     }
 
     @Transactional
@@ -153,5 +152,19 @@ public class ProductionQueueItemService {
             toUpdate.add(item);
         }
         productionQueueItemRepository.saveAll(toUpdate);
+    }
+
+    private void validateQueueType(String queueType) {
+        if (queueType == null || queueType.isEmpty()) {
+            return; // Domyślnie ustawiane w save
+        }
+        List<String> validQueueTypes = Arrays.asList("ncQueue", "completed");
+        if (validQueueTypes.contains(queueType)) {
+            return;
+        }
+        boolean isValidMachine = machineRepository.existsById(Integer.parseInt(queueType));
+        if (!isValidMachine) {
+            throw new IllegalArgumentException("Invalid queueType: " + queueType);
+        }
     }
 }
