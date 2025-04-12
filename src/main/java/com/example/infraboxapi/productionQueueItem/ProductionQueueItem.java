@@ -3,6 +3,7 @@ package com.example.infraboxapi.productionQueueItem;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,8 +25,15 @@ public class ProductionQueueItem {
 
     private String type;
     private String subtype;
+
+    @Column(nullable = false)
+    @NotBlank(message = "Order name cannot be blank")
     private String orderName;
+
+    @Column(nullable = false)
+    @NotBlank(message = "Part name cannot be blank")
     private String partName;
+
     private int quantity;
     private String baseCamTime;
     private String camTime;

@@ -11,12 +11,18 @@ import java.util.List;
 public class ProductionQueueItemRequest {
     @NotBlank(message = "Type cannot be blank")
     private String type;
+
     @NotBlank(message = "Order name cannot be blank")
     private String orderName;
+
     private String subtype;
+
+    @NotBlank(message = "Part name cannot be blank")
     private String partName;
+
     @Min(value = 1, message = "Quantity must be at least 1")
     private int quantity;
+
     private String baseCamTime;
     private String camTime;
     private String deadline;

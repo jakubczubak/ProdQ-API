@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Data
 @Builder
@@ -20,13 +21,18 @@ public class Machine {
     private Integer id;
 
     @Column(nullable = false)
+    @NotBlank(message = "Machine name cannot be blank")
     private String machineName;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "image_id")
     private FileImage image;
 
+    @Column(nullable = false)
+    @NotBlank(message = "Program path cannot be blank")
     private String programPath;
 
+    @Column(nullable = false)
+    @NotBlank(message = "Queue file path cannot be blank")
     private String queueFilePath;
 }
