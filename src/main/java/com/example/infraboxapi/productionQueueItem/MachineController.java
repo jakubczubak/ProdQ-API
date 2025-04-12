@@ -85,4 +85,9 @@ public class MachineController {
     public ResponseEntity<List<String>> getAvailableLocations() {
         return ResponseEntity.ok(machineService.getAvailableLocations());
     }
+
+    @GetMapping("/{id}/download-programs")
+    public ResponseEntity<byte[]> downloadMachinePrograms(@PathVariable Integer id) throws IOException {
+        return machineService.downloadMachinePrograms(id);
+    }
 }
