@@ -80,4 +80,9 @@ public class MachineController {
                         .body(machine.getImage().getImageData()))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @GetMapping("/available-locations")
+    public ResponseEntity<List<String>> getAvailableLocations() {
+        return ResponseEntity.ok(machineService.getAvailableLocations());
+    }
 }
