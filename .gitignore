@@ -1,11 +1,20 @@
-HELP.md
+# Maven
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-.cnc
-### STS ###
+# Projektowe katalogi i pliki
+cnc/
+HELP.md
+
+# Raporty
+*.material_reports/**
+*.tool_reports/**
+*.accessorie_reports/**
+*_reports/**
+
+# STS / Eclipse
 .apt_generated
 .classpath
 .factorypath
@@ -14,13 +23,13 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
+# IntelliJ IDEA
+.idea/
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
+# NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
@@ -30,13 +39,5 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
+# VS Code
 .vscode/
-
-*.material_reports/**
-*.tool_reports/**
-*.accessorie_reports/**
-*_reports/**
-
-
-    `
