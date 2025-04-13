@@ -30,12 +30,13 @@ public class SecurityConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
 
-                        //AUTH
+                        // AUTH
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/va/auth/**").permitAll()
-                        .requestMatchers("/material_reports/**").permitAll()// Dostęp do raportów PDF
-                        .requestMatchers("/tool_reports/**").permitAll()// Dostęp do raportów PDF
-                        .requestMatchers("/accessorie_reports/**").permitAll()// Dostęp do raportów PDF
+                        .requestMatchers("/material_reports/**").permitAll() // Dostęp do starych raportów PDF
+                        .requestMatchers("/api/material_reports/**").permitAll() // Dostęp do nowych raportów w bazie danych
+                        .requestMatchers("/tool_reports/**").permitAll() // Dostęp do raportów PDF
+                        .requestMatchers("/accessorie_reports/**").permitAll() // Dostęp do raportów PDF
 
                         // MATERIAL TYPE
                         .requestMatchers("/api/material_type/all").hasAnyAuthority("ADMIN", "USER")
@@ -124,7 +125,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/accessorie/item/update").hasAuthority("ADMIN")
                         .requestMatchers("/api/accessorie/item/delete/*").hasAuthority("ADMIN")
 
-                        // PRODUCTION QUEUE ITEM (nowe endpointy)
+                        // PRODUCTION QUEUE ITEM
                         .requestMatchers("/api/production-queue-item").hasAnyAuthority("ADMIN", "USER") // GET all
                         .requestMatchers("/api/production-queue-item/*").hasAnyAuthority("ADMIN", "USER") // GET by ID
                         .requestMatchers("/api/production-queue-item/add").hasAuthority("ADMIN") // POST
@@ -140,7 +141,7 @@ public class SecurityConfiguration {
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling()
-                .accessDeniedHandler(accessDeniedHandler());  // Dodanie obsługi dostępu zabronionego
+                .accessDeniedHandler(accessDeniedHandler());
 
         return http.build();
     }
@@ -148,7 +149,6 @@ public class SecurityConfiguration {
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
         return (request, response, accessDeniedException) -> {
-            // Tutaj możesz dostosować odpowiedź HTTP dla dostępu zabronionego
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.getWriter().write("Access Denied (403 Forbidden) - You don't have the required permissions.");
         };

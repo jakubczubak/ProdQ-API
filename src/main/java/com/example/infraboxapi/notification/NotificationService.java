@@ -70,7 +70,7 @@ public class NotificationService {
         }
     }
 
-    public void createAndSendSystemNotification(String description, NotificationDescription notificationDescription) {
+    public void     createAndSendSystemNotification(String description, NotificationDescription notificationDescription) {
         List<User> allUsers = userRepository.findAll();
 
         for (User user : allUsers) {

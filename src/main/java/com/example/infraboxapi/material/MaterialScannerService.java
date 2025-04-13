@@ -1,5 +1,7 @@
 package com.example.infraboxapi.material;
 
+import com.example.infraboxapi.FilePDF.FilePDF;
+import com.example.infraboxapi.FilePDF.FilePDFService;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import com.itextpdf.text.*;
@@ -11,8 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -28,7 +29,7 @@ public class MaterialScannerService {
 
     private final NotificationService notificationService;
     private final MaterialRepository materialRepository;
-    private final String pdfDirectory;
+    private final FilePDFService filePDFService;
 
     @Value("${server.port:8443}")
     private int serverPort;
@@ -36,55 +37,57 @@ public class MaterialScannerService {
     @Value("${server.host:}")
     private String serverHost;
 
-    public MaterialScannerService(NotificationService notificationService, MaterialRepository materialRepository) {
+    public MaterialScannerService(
+            NotificationService notificationService,
+            MaterialRepository materialRepository,
+            FilePDFService filePDFService) {
         this.notificationService = notificationService;
         this.materialRepository = materialRepository;
-        this.pdfDirectory = System.getProperty("user.dir") + "/material_reports/";
-
-        File directory = new File(pdfDirectory);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
+        this.filePDFService = filePDFService;
     }
 
-
-    @Scheduled(cron = "0 10 * * 1 ?")
+    @Scheduled(fixedRate = 30000)
     public void scanMaterialsAndNotify() {
         List<Material> materials = materialRepository.findByQuantityLessThanMinQuantity();
 
         if (materials.stream().anyMatch(m -> m.getQuantity() < m.getMinQuantity())) {
             try {
+                // Usuń stare raporty z bazy danych
                 deleteOldReports();
 
                 String date = new SimpleDateFormat("dd-MM-yyyy").format(new Date());
                 String fileName = "Raport-materialow-" + date + ".pdf";
-                String filePath = pdfDirectory + fileName;
-                generatePdf(filePath, materials);
 
+                // Generuj PDF jako strumień bajtów
+                byte[] pdfData = generatePdf(materials);
+
+                // Zapisz PDF w bazie danych
+                FilePDF filePDF = FilePDF.builder()
+                        .name(fileName)
+                        .type("application/pdf")
+                        .pdfData(pdfData)
+                        .build();
+                FilePDF savedFile = filePDFService.save(filePDF);
+
+                // Wygeneruj link do pobrania
                 String host = serverHost.isEmpty() ? getLocalHostAddress() : serverHost;
-                String downloadLink = "https://" + host + ":" + serverPort + "/material_reports/" + fileName;
+                String downloadLink = "https://" + host + ":" + serverPort + "/api/material_reports/" + savedFile.getId();
 
                 notificationService.createAndSendSystemNotification(
                         downloadLink,
                         NotificationDescription.MaterialScanner
                 );
-            } catch (IOException | DocumentException e) {
-                e.printStackTrace();
+            } catch (DocumentException e) {
+                System.err.println("Błąd podczas generowania PDF: " + e.getMessage());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
     }
 
     private void deleteOldReports() {
-        File directory = new File(pdfDirectory);
-        File[] files = directory.listFiles((dir, name) -> name.startsWith("Raport-materialow-") && name.endsWith(".pdf"));
-
-        if (files != null) {
-            for (File file : files) {
-                if (!file.delete()) {
-                    System.err.println("Nie udało się usunąć pliku: " + file.getName());
-                }
-            }
-        }
+        // Usuń wszystkie raporty z bazy danych
+        filePDFService.deleteAllReports();
     }
 
     private String getUnit(Material material) {
@@ -103,13 +106,18 @@ public class MaterialScannerService {
         return "";
     }
 
-    private void generatePdf(String filePath, List<Material> materials) throws IOException, DocumentException {
+    private byte[] generatePdf(List<Material> materials) throws DocumentException, IOException {
         Document document = new Document();
-        PdfWriter.getInstance(document, new FileOutputStream(new File(filePath)));
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PdfWriter.getInstance(document, baos);
         document.open();
 
         // Nagłówek INFRABOX z czcionką Lucida Handwriting
-        BaseFont lucidaBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont lucidaBase = BaseFont.createFont(
+                Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF")).getPath(),
+                BaseFont.IDENTITY_H,
+                BaseFont.EMBEDDED
+        );
         Font headerFont = new Font(lucidaBase, 20, Font.BOLD);
 
         Paragraph header = new Paragraph("I N F R A B O X", headerFont);
@@ -118,7 +126,11 @@ public class MaterialScannerService {
         document.add(header);
 
         // Czcionka Roboto dla reszty dokumentu
-        BaseFont robotoBase = BaseFont.createFont(Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf")).getPath(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+        BaseFont robotoBase = BaseFont.createFont(
+                Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/Roboto/Roboto-Regular.ttf")).getPath(),
+                BaseFont.IDENTITY_H,
+                BaseFont.EMBEDDED
+        );
         Font titleFont = new Font(robotoBase, 14, Font.BOLD);
         Font contentFont = new Font(robotoBase, 10);
         Font boldFont = new Font(robotoBase, 10, Font.BOLD);
@@ -142,7 +154,7 @@ public class MaterialScannerService {
 
                 // Nazwa z prefixem Φ dla prętów i rur
                 String phiPrefix = (material.getDiameter() > 0 && material.getLength() > 0) ? "Φ " : "";
-                materialInfo.add(new Phrase("Nazwa: " + material.getName() + "\n", contentFont));
+                materialInfo.add(new Phrase("Nazwa: " + phiPrefix + material.getName() + "\n", contentFont));
 
                 // Jednostki na podstawie pól geometrycznych
                 String unit = getUnit(material);
@@ -166,13 +178,14 @@ public class MaterialScannerService {
         }
 
         document.close();
+        return baos.toByteArray();
     }
 
     private String getLocalHostAddress() {
         try {
             return InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
-            e.printStackTrace();
+            System.err.println("Nie można uzyskać adresu hosta: " + e.getMessage());
             return "localhost";
         }
     }

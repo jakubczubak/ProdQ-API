@@ -1,6 +1,5 @@
 package com.example.infraboxapi.FilePDF;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,7 +18,8 @@ public class FilePDF {
     private String name;
 
     private String type;
+
     @Lob
-    @Column(length = 100000) // Ustaw maksymalną długość kolumny
+    @Column(length = 100000)
     private byte[] pdfData;
 }
