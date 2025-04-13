@@ -46,7 +46,8 @@ public class MaterialScannerService {
         this.filePDFService = filePDFService;
     }
 
-    @Scheduled(fixedRate = 30000)
+    @Scheduled(cron = "0 0 10 1-7 * MON") // Pierwszy poniedziałek miesiąca
+    @Scheduled(cron = "0 0 10 15-21 * MON") // Trzeci poniedziałek miesiąca
     public void scanMaterialsAndNotify() {
         List<Material> materials = materialRepository.findByQuantityLessThanMinQuantity();
 
@@ -112,18 +113,22 @@ public class MaterialScannerService {
         PdfWriter.getInstance(document, baos);
         document.open();
 
-        // Nagłówek INFRABOX z czcionką Lucida Handwriting
-        BaseFont lucidaBase = BaseFont.createFont(
-                Objects.requireNonNull(getClass().getClassLoader().getResource("fonts/LucidaHandwriting/LucidaHandwritingStdThin.TTF")).getPath(),
-                BaseFont.IDENTITY_H,
-                BaseFont.EMBEDDED
-        );
-        Font headerFont = new Font(lucidaBase, 20, Font.BOLD);
-
-        Paragraph header = new Paragraph("I N F R A B O X", headerFont);
-        header.setAlignment(Element.ALIGN_CENTER);
-        header.setSpacingAfter(20);
-        document.add(header);
+        // Load and add logo from src/main/resources/logo/logo_white.png
+        try {
+            String logoPath = Objects.requireNonNull(getClass().getClassLoader().getResource("logo/logo_white.png")).toString();
+            Image logo = Image.getInstance(logoPath);
+            logo.scaleToFit(150, 50); // Adjust size as needed
+            logo.setAlignment(Element.ALIGN_CENTER);
+            logo.setSpacingAfter(20);
+            document.add(logo);
+        } catch (Exception e) {
+            System.err.println("Błąd podczas dodawania logo: " + e.getMessage());
+            e.printStackTrace(); // Detailed error for debugging
+            // Fallback to empty paragraph
+            Paragraph fallback = new Paragraph("");
+            fallback.setSpacingAfter(20);
+            document.add(fallback);
+        }
 
         // Czcionka Roboto dla reszty dokumentu
         BaseFont robotoBase = BaseFont.createFont(
