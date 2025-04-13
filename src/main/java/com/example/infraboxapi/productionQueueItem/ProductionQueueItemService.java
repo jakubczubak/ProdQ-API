@@ -8,13 +8,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ProductionQueueItemService {
@@ -219,15 +218,15 @@ public class ProductionQueueItemService {
 
             Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
             if (machineOpt.isEmpty()) {
-                throw new RuntimeException("Machine with ID " + queueType + " not found");
+                throw new FileOperationException("Machine with ID " + queueType + " not found");
             }
 
             Machine machine = machineOpt.get();
             String programPath = machine.getProgramPath();
             System.out.println("Program path: " + programPath);
 
-            String orderName = item.getOrderName().replaceAll("[^a-zA-Z0-9_\\-]", "_");
-            String partName = item.getPartName().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+            String orderName = sanitizeFileName(item.getOrderName());
+            String partName = sanitizeFileName(item.getPartName());
             System.out.println("OrderName: " + orderName + ", PartName: " + partName);
 
             Path basePath = Paths.get(programPath, orderName, partName);
@@ -239,86 +238,62 @@ public class ProductionQueueItemService {
                     .filter(Files::isRegularFile)
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toSet())
-                    : new HashSet<>();
+                    : Collections.emptySet();
             System.out.println("Existing files on disk: " + existingFiles);
 
-            Set<String> appFiles = item.getFiles() != null
-                    ? item.getFiles().stream()
-                    .map(file -> file.getFileName().replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_"))
-                    .collect(Collectors.toSet())
-                    : new HashSet<>();
+            Set<String> appFiles = item.getFiles() == null
+                    ? Collections.emptySet()
+                    : item.getFiles().stream()
+                    .map(file -> sanitizeFileName(file.getFileName()))
+                    .collect(Collectors.toSet());
             System.out.println("App files: " + appFiles);
 
             for (String diskFile : existingFiles) {
                 if (!appFiles.contains(diskFile)) {
                     Path filePath = basePath.resolve(diskFile);
                     System.out.println("Deleting file: " + filePath);
-                    try {
-                        Files.deleteIfExists(filePath);
-                    } catch (IOException e) {
-                        System.err.println("Failed to delete file: " + filePath + ", error: " + e.getMessage());
-                    }
+                    Files.deleteIfExists(filePath);
                 }
             }
 
             if (item.getFiles() != null && !item.getFiles().isEmpty()) {
                 for (ProductionFileInfo file : item.getFiles()) {
-                    String fileName = file.getFileName().replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
-                    Path filePath = basePath.resolve(fileName);
+                    String fileName = sanitizeFileName(file.getFileName());
+                    Path filePath = getUniqueFilePath(basePath, fileName);
                     System.out.println("Writing file: " + filePath);
 
-                    int version = 1;
-                    while (true) {
-                        try {
-                            Files.write(filePath, file.getFileContent());
-                            System.out.println("File written successfully: " + filePath);
-                            break;
-                        } catch (IOException e) {
-                            version++;
-                            String versionedFileName = fileName.replaceFirst("(\\.[^\\.]+)$", "_v" + version + "$1");
-                            filePath = basePath.resolve(versionedFileName);
-                            System.out.println("Retrying with versioned file: " + filePath);
-                            if (version > 100) {
-                                throw new IOException("Cannot save file after multiple attempts: " + fileName, e);
-                            }
-                        }
-                    }
+                    Path tempFile = basePath.resolve(fileName + ".tmp");
+                    Files.write(tempFile, file.getFileContent());
+                    Files.move(tempFile, filePath, StandardCopyOption.ATOMIC_MOVE);
+                    System.out.println("File written successfully: " + filePath);
                 }
             }
 
             if (item.getFiles() == null || item.getFiles().isEmpty()) {
                 System.out.println("No attachments, checking partName directory: " + basePath);
-                if (Files.exists(basePath)) {
+                if (isDirectoryEmpty(basePath)) {
                     System.out.println("Removing empty partName directory: " + basePath);
-                    Files.walk(basePath)
-                            .sorted(Comparator.reverseOrder())
-                            .map(Path::toFile)
-                            .forEach(File::delete);
+                    deleteDirectoryRecursively(basePath);
+                }
+
+                Path orderPath = Paths.get(programPath, orderName);
+                if (isDirectoryEmpty(orderPath)) {
+                    System.out.println("Removing empty orderName directory: " + orderPath);
+                    deleteDirectoryRecursively(orderPath);
                 }
             }
 
-            Path orderPath = Paths.get(programPath, orderName);
-            if (item.getFiles() == null || item.getFiles().isEmpty()) {
-                List<ProductionQueueItem> itemsWithDifferentPartName = productionQueueItemRepository
-                        .findByOrderNameAndDifferentPartName(orderName, item.getPartName());
-                boolean hasOtherParts = !itemsWithDifferentPartName.isEmpty();
-                if (!hasOtherParts && Files.exists(orderPath)) {
-                    System.out.println("Removing empty orderName directory: " + orderPath);
-                    Files.walk(orderPath)
-                            .sorted(Comparator.reverseOrder())
-                            .map(Path::toFile)
-                            .forEach(File::delete);
-                }
-            }
         } catch (IOException e) {
             System.err.println("Error in syncAttachmentsToMachinePath for item ID: " + item.getId() + ": " + e.getMessage());
-            throw new RuntimeException("Failed to sync attachments to machine path: " + e.getMessage(), e);
+            throw new FileOperationException("Failed to sync attachments to machine path: " + e.getMessage(), e);
         }
     }
 
     private void deleteAttachmentsFromMachinePath(ProductionQueueItem item, String oldQueueType, String newQueueType) {
         try {
-            System.out.println("deleteAttachmentsFromMachinePath called for item ID: " + item.getId() + ", oldQueueType: " + oldQueueType + ", newQueueType: " + newQueueType);
+            System.out.println("deleteAttachmentsFromMachinePath called for item ID: " + item.getId() +
+                    ", oldQueueType: " + oldQueueType + ", newQueueType: " + newQueueType);
+
             if (oldQueueType == null || "ncQueue".equals(oldQueueType) || "completed".equals(oldQueueType)) {
                 System.out.println("Skipping deletion for oldQueueType: " + oldQueueType);
                 return;
@@ -330,11 +305,9 @@ public class ProductionQueueItemService {
                 return;
             }
 
-            // Pomiń porównanie programPath, jeśli newQueueType to ncQueue lub completed
             if ("ncQueue".equals(newQueueType) || "completed".equals(newQueueType)) {
                 System.out.println("New queueType is ncQueue or completed, proceeding with deletion for old machine");
             } else {
-                // Sprawdź, czy newQueueType to ID maszyny
                 try {
                     Optional<Machine> newMachineOpt = machineRepository.findById(Integer.parseInt(newQueueType));
                     if (newMachineOpt.isEmpty()) {
@@ -359,39 +332,25 @@ public class ProductionQueueItemService {
 
             Machine oldMachine = oldMachineOpt.get();
             String oldProgramPath = oldMachine.getProgramPath();
-            String orderName = item.getOrderName().replaceAll("[^a-zA-Z0-9_\\-]", "_");
-            String partName = item.getPartName().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+            String orderName = sanitizeFileName(item.getOrderName());
+            String partName = sanitizeFileName(item.getPartName());
 
             Path partPath = Paths.get(oldProgramPath, orderName, partName);
             Path orderPath = Paths.get(oldProgramPath, orderName);
             System.out.println("Part path to delete: " + partPath);
 
-            if (Files.exists(partPath)) {
-                System.out.println("Deleting partName directory: " + partPath);
-                Files.walk(partPath)
-                        .sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(file -> {
-                            System.out.println("Deleting: " + file);
-                            file.delete();
-                        });
+            deleteDirectoryRecursively(partPath);
+
+            if (Files.exists(orderPath) && isDirectoryEmpty(orderPath)) {
+                System.out.println("Order path is empty, deleting: " + orderPath);
+                deleteDirectoryRecursively(orderPath);
+            } else {
+                System.out.println("Order path is not empty or does not exist: " + orderPath);
             }
 
-            List<ProductionQueueItem> itemsWithDifferentPartName = productionQueueItemRepository
-                    .findByOrderNameAndDifferentPartName(orderName, item.getPartName());
-            boolean hasOtherParts = !itemsWithDifferentPartName.isEmpty();
-            if (!hasOtherParts && Files.exists(orderPath)) {
-                System.out.println("Deleting orderName directory: " + orderPath);
-                Files.walk(orderPath)
-                        .sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(file -> {
-                            System.out.println("Deleting: " + file);
-                            file.delete();
-                        });
-            }
         } catch (IOException e) {
             System.err.println("Failed to delete old attachments for item ID: " + item.getId() + ": " + e.getMessage());
+            throw new FileOperationException("Failed to delete old attachments: " + e.getMessage(), e);
         }
     }
 
@@ -412,41 +371,100 @@ public class ProductionQueueItemService {
 
             Machine machine = machineOpt.get();
             String programPath = machine.getProgramPath();
-            System.out.println("Program path: " + programPath);
-
-            String orderName = item.getOrderName().replaceAll("[^a-zA-Z0-9_\\-]", "_");
-            String partName = item.getPartName().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+            String orderName = sanitizeFileName(item.getOrderName());
+            String partName = sanitizeFileName(item.getPartName());
 
             Path partPath = Paths.get(programPath, orderName, partName);
             Path orderPath = Paths.get(programPath, orderName);
             System.out.println("Part path to delete: " + partPath);
 
-            if (Files.exists(partPath)) {
-                System.out.println("Deleting partName directory: " + partPath);
-                Files.walk(partPath)
-                        .sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(file -> {
-                            System.out.println("Deleting: " + file);
-                            file.delete();
-                        });
+            deleteDirectoryRecursively(partPath);
+
+            if (Files.exists(orderPath) && isDirectoryEmpty(orderPath)) {
+                System.out.println("Order path is empty, deleting: " + orderPath);
+                deleteDirectoryRecursively(orderPath);
+            } else {
+                System.out.println("Order path is not empty or does not exist: " + orderPath);
             }
 
-            List<ProductionQueueItem> itemsWithDifferentPartName = productionQueueItemRepository
-                    .findByOrderNameAndDifferentPartName(orderName, item.getPartName());
-            boolean hasOtherParts = !itemsWithDifferentPartName.isEmpty();
-            if (!hasOtherParts && Files.exists(orderPath)) {
-                System.out.println("Deleting orderName directory: " + orderPath);
-                Files.walk(orderPath)
-                        .sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(file -> {
-                            System.out.println("Deleting: " + file);
-                            file.delete();
-                        });
-            }
         } catch (IOException e) {
             System.err.println("Failed to delete attachments for item ID: " + item.getId() + ": " + e.getMessage());
+            throw new FileOperationException("Failed to delete attachments: " + e.getMessage(), e);
+        }
+    }
+
+    // Sanitizacja nazw plików i katalogów
+    private String sanitizeFileName(String name) {
+        if (name == null) return "unknown";
+        return name.trim()
+                .replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_|_$", "");
+    }
+
+    // Rozwiązywanie konfliktów nazw plików
+    private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
+        Path filePath = basePath.resolve(fileName);
+        if (!Files.exists(filePath)) {
+            return filePath;
+        }
+        String nameWithoutExt = fileName.replaceFirst("(\\.[^\\.]+)$", "");
+        String ext = fileName.substring(fileName.lastIndexOf("."));
+        int version = 1;
+        while (true) {
+            String versionedName = String.format("%s_v%d%s", nameWithoutExt, version, ext);
+            filePath = basePath.resolve(versionedName);
+            if (!Files.exists(filePath)) {
+                return filePath;
+            }
+            version++;
+            if (version > 1000) {
+                throw new FileOperationException("Cannot find unique file name for: " + fileName);
+            }
+        }
+    }
+
+    // Sprawdzanie, czy katalog jest pusty
+    private boolean isDirectoryEmpty(Path dir) throws IOException {
+        if (!Files.isDirectory(dir)) {
+            return false;
+        }
+        try (Stream<Path> entries = Files.list(dir)) {
+            return !entries.findFirst().isPresent();
+        }
+    }
+
+    // Rekursywne usuwanie katalogów
+    private void deleteDirectoryRecursively(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            System.out.println("Path does not exist, skipping deletion: " + path);
+            return;
+        }
+        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                Files.delete(file);
+                System.out.println("Deleted file: " + file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                Files.delete(dir);
+                System.out.println("Deleted directory: " + dir);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    // Niestandardowy wyjątek dla operacji na plikach
+    private static class FileOperationException extends RuntimeException {
+        public FileOperationException(String message) {
+            super(message);
+        }
+
+        public FileOperationException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }
