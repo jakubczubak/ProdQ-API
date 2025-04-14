@@ -13,6 +13,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Kontroler obsługujący operacje na elementach kolejki produkcyjnej.
+ */
 @RestController
 @RequestMapping("/api/production-queue-item")
 public class ProductionQueueItemController {
@@ -112,7 +115,7 @@ public class ProductionQueueItemController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProductionQueueItem(@PathVariable Integer id) {
+    public ResponseEntity<Void> deleteProductionQueueItem(@PathVariable Integer id) throws IOException {
         productionQueueItemService.deleteById(id);
         return ResponseEntity.noContent().build();
     }
@@ -128,13 +131,19 @@ public class ProductionQueueItemController {
     }
 
     @PatchMapping("/{id}/toggle-complete")
-    public ResponseEntity<ProductionQueueItem> toggleComplete(@PathVariable Integer id) {
+    public ResponseEntity<ProductionQueueItem> toggleComplete(@PathVariable Integer id) throws IOException {
         ProductionQueueItem updatedItem = productionQueueItemService.toggleComplete(id);
         return ResponseEntity.ok(updatedItem);
     }
 
+    @PatchMapping("/files/{fileId}/toggle-complete")
+    public ResponseEntity<ProductionQueueItem> toggleFileComplete(@PathVariable Long fileId) throws IOException {
+        ProductionQueueItem updatedItem = productionQueueItemService.toggleFileComplete(fileId);
+        return ResponseEntity.ok(updatedItem);
+    }
+
     @PutMapping("/update-order")
-    public ResponseEntity<String> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) {
+    public ResponseEntity<String> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) throws IOException {
         productionQueueItemService.updateQueueOrder(request.getQueueType(), request.getItems());
         return ResponseEntity.ok("{\"success\": true}");
     }

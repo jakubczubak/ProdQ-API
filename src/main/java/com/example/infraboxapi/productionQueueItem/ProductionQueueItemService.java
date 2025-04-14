@@ -21,17 +21,24 @@ public class ProductionQueueItemService {
     private final ProductionQueueItemRepository productionQueueItemRepository;
     private final ProductionFileInfoService productionFileInfoService;
     private final MachineRepository machineRepository;
+    private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
 
     @Autowired
     public ProductionQueueItemService(
             ProductionQueueItemRepository productionQueueItemRepository,
             ProductionFileInfoService productionFileInfoService,
-            MachineRepository machineRepository) {
+            MachineRepository machineRepository,
+            MachineQueueFileGeneratorService machineQueueFileGeneratorService) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.machineRepository = machineRepository;
+        this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
     }
 
+    /**
+     * Zapisuje nowy element kolejki produkcyjnej i synchronizuje załączniki.
+     * Generuje plik kolejki dla maszyny, jeśli element jest przypisany do maszyny.
+     */
     @Transactional
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
@@ -56,6 +63,7 @@ public class ProductionQueueItemService {
                         .fileType(file.getContentType())
                         .fileContent(file.getBytes())
                         .productionQueueItem(savedItem)
+                        .completed(false)
                         .build();
                 fileInfos.add(fileInfo);
             }
@@ -63,7 +71,12 @@ public class ProductionQueueItemService {
             productionFileInfoService.saveAll(fileInfos);
         }
 
+        // Ustaw completed na podstawie załączników
+        savedItem.setCompleted(checkAllMpfCompleted(savedItem));
+        productionQueueItemRepository.save(savedItem);
+
         syncAttachmentsToMachinePath(savedItem);
+        machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
 
         return savedItem;
     }
@@ -76,6 +89,9 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findAll();
     }
 
+    /**
+     * Aktualizuje istniejący element kolejki, synchronizuje załączniki i generuje plik kolejki.
+     */
     @Transactional
     public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
         Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
@@ -94,7 +110,6 @@ public class ProductionQueueItemService {
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
-            existingItem.setCompleted(updatedItem.isCompleted());
             existingItem.setOrder(updatedItem.getOrder());
 
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -108,6 +123,7 @@ public class ProductionQueueItemService {
                             .fileType(file.getContentType())
                             .fileContent(file.getBytes())
                             .productionQueueItem(existingItem)
+                            .completed(false)
                             .build();
                     fileInfos.add(fileInfo);
                 }
@@ -115,13 +131,17 @@ public class ProductionQueueItemService {
                 productionFileInfoService.saveAll(fileInfos);
             }
 
+            // Ustaw completed na podstawie załączników
+            existingItem.setCompleted(checkAllMpfCompleted(existingItem));
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
 
             syncAttachmentsToMachinePath(savedItem);
 
             if (oldQueueType != null && !oldQueueType.equals(savedItem.getQueueType()) && !"ncQueue".equals(oldQueueType) && !"completed".equals(oldQueueType)) {
                 deleteAttachmentsFromMachinePath(savedItem, oldQueueType, savedItem.getQueueType());
+                machineQueueFileGeneratorService.generateQueueFileForMachine(oldQueueType); // Aktualizuj starą maszynę
             }
+            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType()); // Aktualizuj nową maszynę
 
             return savedItem;
         } else {
@@ -129,13 +149,18 @@ public class ProductionQueueItemService {
         }
     }
 
+    /**
+     * Usuwa element kolejki i generuje plik kolejki dla powiązanej maszyny.
+     */
     @Transactional
-    public void deleteById(Integer id) {
+    public void deleteById(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
+            String queueType = item.getQueueType();
             deleteAttachmentsFromMachinePath(item);
             productionQueueItemRepository.deleteById(id);
+            machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
         }
     }
 
@@ -143,22 +168,43 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findByQueueType(queueType);
     }
 
+    /**
+     * Przełącza status ukończenia elementu i generuje plik kolejki.
+     */
     @Transactional
-    public ProductionQueueItem toggleComplete(Integer id) {
+    public ProductionQueueItem toggleComplete(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
             item.setCompleted(!item.isCompleted());
+            // Jeśli program jest oznaczany jako ukończony, ustaw wszystkie załączniki .MPF jako ukończone
+            if (item.isCompleted()) {
+                item.getFiles().stream()
+                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
+                        .forEach(f -> f.setCompleted(true));
+                productionFileInfoService.saveAll(item.getFiles());
+            }
+            // Jeśli program jest oznaczany jako nieukończony, ustaw wszystkie załączniki .MPF jako nieukończone
+            else {
+                item.getFiles().stream()
+                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
+                        .forEach(f -> f.setCompleted(false));
+                productionFileInfoService.saveAll(item.getFiles());
+            }
             ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
             syncAttachmentsToMachinePath(savedItem);
+            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
             return savedItem;
         } else {
             throw new RuntimeException("ProductionQueueItem with ID " + id + " not found");
         }
     }
 
+    /**
+     * Aktualizuje kolejność elementów w kolejce i generuje pliki kolejki dla wszystkich powiązanych maszyn.
+     */
     @Transactional
-    public void updateQueueOrder(String queueType, List<OrderItem> items) {
+    public void updateQueueOrder(String queueType, List<OrderItem> items) throws IOException {
         List<Integer> itemIds = items.stream()
                 .map(OrderItem::getId)
                 .collect(Collectors.toList());
@@ -182,15 +228,35 @@ public class ProductionQueueItemService {
 
         productionQueueItemRepository.saveAll(toUpdate);
 
+        // Zbierz unikalne queueTypes do aktualizacji
+        Set<String> queueTypesToUpdate = new HashSet<>();
+        queueTypesToUpdate.add(queueType);
+        queueTypesToUpdate.addAll(oldQueueTypes.values());
+
         for (ProductionQueueItem item : toUpdate) {
-            System.out.println("Syncing attachments for item ID: " + item.getId() + ", new queueType: " + queueType);
             syncAttachmentsToMachinePath(item);
             String oldQueueType = oldQueueTypes.get(item.getId());
             if (oldQueueType != null && !oldQueueType.equals(queueType) && !"ncQueue".equals(oldQueueType) && !"completed".equals(oldQueueType)) {
-                System.out.println("Checking deletion for item ID: " + item.getId() + ", oldQueueType: " + oldQueueType);
                 deleteAttachmentsFromMachinePath(item, oldQueueType, queueType);
             }
         }
+
+        // Wygeneruj pliki kolejki dla wszystkich powiązanych maszyn
+        for (String qt : queueTypesToUpdate) {
+            machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
+        }
+    }
+
+    /**
+     * Sprawdza, czy wszystkie załączniki .MPF dla programu są ukończone.
+     */
+    private boolean checkAllMpfCompleted(ProductionQueueItem item) {
+        if (item.getFiles() == null || item.getFiles().isEmpty()) {
+            return false;
+        }
+        return item.getFiles().stream()
+                .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
+                .allMatch(ProductionFileInfo::isCompleted);
     }
 
     private void validateQueueType(String queueType) {
@@ -210,9 +276,7 @@ public class ProductionQueueItemService {
     private void syncAttachmentsToMachinePath(ProductionQueueItem item) {
         try {
             String queueType = item.getQueueType();
-            System.out.println("syncAttachmentsToMachinePath called for item ID: " + item.getId() + ", queueType: " + queueType);
             if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
-                System.out.println("Skipping sync for ncQueue or completed: " + queueType);
                 return;
             }
 
@@ -223,14 +287,11 @@ public class ProductionQueueItemService {
 
             Machine machine = machineOpt.get();
             String programPath = machine.getProgramPath();
-            System.out.println("Program path: " + programPath);
 
             String orderName = sanitizeFileName(item.getOrderName());
             String partName = sanitizeFileName(item.getPartName());
-            System.out.println("OrderName: " + orderName + ", PartName: " + partName);
 
             Path basePath = Paths.get(programPath, orderName, partName);
-            System.out.println("Creating directories at: " + basePath);
             Files.createDirectories(basePath);
 
             Set<String> existingFiles = Files.exists(basePath)
@@ -239,19 +300,16 @@ public class ProductionQueueItemService {
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toSet())
                     : Collections.emptySet();
-            System.out.println("Existing files on disk: " + existingFiles);
 
             Set<String> appFiles = item.getFiles() == null
                     ? Collections.emptySet()
                     : item.getFiles().stream()
                     .map(file -> sanitizeFileName(file.getFileName()))
                     .collect(Collectors.toSet());
-            System.out.println("App files: " + appFiles);
 
             for (String diskFile : existingFiles) {
                 if (!appFiles.contains(diskFile)) {
                     Path filePath = basePath.resolve(diskFile);
-                    System.out.println("Deleting file: " + filePath);
                     Files.deleteIfExists(filePath);
                 }
             }
@@ -260,58 +318,46 @@ public class ProductionQueueItemService {
                 for (ProductionFileInfo file : item.getFiles()) {
                     String fileName = sanitizeFileName(file.getFileName());
                     Path filePath = getUniqueFilePath(basePath, fileName);
-                    System.out.println("Writing file: " + filePath);
 
                     Path tempFile = basePath.resolve(fileName + ".tmp");
                     Files.write(tempFile, file.getFileContent());
                     Files.move(tempFile, filePath, StandardCopyOption.ATOMIC_MOVE);
-                    System.out.println("File written successfully: " + filePath);
                 }
             }
 
             if (item.getFiles() == null || item.getFiles().isEmpty()) {
-                System.out.println("No attachments, checking partName directory: " + basePath);
                 if (isDirectoryEmpty(basePath)) {
-                    System.out.println("Removing empty partName directory: " + basePath);
                     deleteDirectoryRecursively(basePath);
                 }
 
                 Path orderPath = Paths.get(programPath, orderName);
                 if (isDirectoryEmpty(orderPath)) {
-                    System.out.println("Removing empty orderName directory: " + orderPath);
                     deleteDirectoryRecursively(orderPath);
                 }
             }
 
         } catch (IOException e) {
-            System.err.println("Error in syncAttachmentsToMachinePath for item ID: " + item.getId() + ": " + e.getMessage());
             throw new FileOperationException("Failed to sync attachments to machine path: " + e.getMessage(), e);
         }
     }
 
     private void deleteAttachmentsFromMachinePath(ProductionQueueItem item, String oldQueueType, String newQueueType) {
         try {
-            System.out.println("deleteAttachmentsFromMachinePath called for item ID: " + item.getId() +
-                    ", oldQueueType: " + oldQueueType + ", newQueueType: " + newQueueType);
-
             if (oldQueueType == null || "ncQueue".equals(oldQueueType) || "completed".equals(oldQueueType)) {
-                System.out.println("Skipping deletion for oldQueueType: " + oldQueueType);
                 return;
             }
 
             Optional<Machine> oldMachineOpt = machineRepository.findById(Integer.parseInt(oldQueueType));
             if (oldMachineOpt.isEmpty()) {
-                System.out.println("Old machine not found for queueType: " + oldQueueType);
                 return;
             }
 
             if ("ncQueue".equals(newQueueType) || "completed".equals(newQueueType)) {
-                System.out.println("New queueType is ncQueue or completed, proceeding with deletion for old machine");
+                // Proceed with deletion
             } else {
                 try {
                     Optional<Machine> newMachineOpt = machineRepository.findById(Integer.parseInt(newQueueType));
                     if (newMachineOpt.isEmpty()) {
-                        System.out.println("New machine not found for queueType: " + newQueueType);
                         return;
                     }
 
@@ -319,14 +365,12 @@ public class ProductionQueueItemService {
                     Machine newMachine = newMachineOpt.get();
                     String oldProgramPath = oldMachine.getProgramPath();
                     String newProgramPath = newMachine.getProgramPath();
-                    System.out.println("Old program path: " + oldProgramPath + ", New program path: " + newProgramPath);
 
                     if (oldProgramPath.equals(newProgramPath)) {
-                        System.out.println("Skipping deletion because old and new programPath are the same: " + oldProgramPath);
                         return;
                     }
                 } catch (NumberFormatException e) {
-                    System.err.println("Invalid newQueueType format: " + newQueueType + ", proceeding with deletion for old machine");
+                    // newQueueType is not a machine ID, proceed with deletion
                 }
             }
 
@@ -337,19 +381,14 @@ public class ProductionQueueItemService {
 
             Path partPath = Paths.get(oldProgramPath, orderName, partName);
             Path orderPath = Paths.get(oldProgramPath, orderName);
-            System.out.println("Part path to delete: " + partPath);
 
             deleteDirectoryRecursively(partPath);
 
             if (Files.exists(orderPath) && isDirectoryEmpty(orderPath)) {
-                System.out.println("Order path is empty, deleting: " + orderPath);
                 deleteDirectoryRecursively(orderPath);
-            } else {
-                System.out.println("Order path is not empty or does not exist: " + orderPath);
             }
 
         } catch (IOException e) {
-            System.err.println("Failed to delete old attachments for item ID: " + item.getId() + ": " + e.getMessage());
             throw new FileOperationException("Failed to delete old attachments: " + e.getMessage(), e);
         }
     }
@@ -357,15 +396,12 @@ public class ProductionQueueItemService {
     private void deleteAttachmentsFromMachinePath(ProductionQueueItem item) {
         try {
             String queueType = item.getQueueType();
-            System.out.println("deleteAttachmentsFromMachinePath (single) called for item ID: " + item.getId() + ", queueType: " + queueType);
             if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
-                System.out.println("Skipping delete for ncQueue or completed: " + queueType);
                 return;
             }
 
             Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
             if (machineOpt.isEmpty()) {
-                System.out.println("Machine not found for queueType: " + queueType);
                 return;
             }
 
@@ -376,24 +412,18 @@ public class ProductionQueueItemService {
 
             Path partPath = Paths.get(programPath, orderName, partName);
             Path orderPath = Paths.get(programPath, orderName);
-            System.out.println("Part path to delete: " + partPath);
 
             deleteDirectoryRecursively(partPath);
 
             if (Files.exists(orderPath) && isDirectoryEmpty(orderPath)) {
-                System.out.println("Order path is empty, deleting: " + orderPath);
                 deleteDirectoryRecursively(orderPath);
-            } else {
-                System.out.println("Order path is not empty or does not exist: " + orderPath);
             }
 
         } catch (IOException e) {
-            System.err.println("Failed to delete attachments for item ID: " + item.getId() + ": " + e.getMessage());
             throw new FileOperationException("Failed to delete attachments: " + e.getMessage(), e);
         }
     }
 
-    // Sanitizacja nazw plików i katalogów
     private String sanitizeFileName(String name) {
         if (name == null) return "unknown";
         return name.trim()
@@ -402,7 +432,6 @@ public class ProductionQueueItemService {
                 .replaceAll("^_|_$", "");
     }
 
-    // Rozwiązywanie konfliktów nazw plików
     private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
         Path filePath = basePath.resolve(fileName);
         if (!Files.exists(filePath)) {
@@ -424,7 +453,6 @@ public class ProductionQueueItemService {
         }
     }
 
-    // Sprawdzanie, czy katalog jest pusty
     private boolean isDirectoryEmpty(Path dir) throws IOException {
         if (!Files.isDirectory(dir)) {
             return false;
@@ -434,30 +462,25 @@ public class ProductionQueueItemService {
         }
     }
 
-    // Rekursywne usuwanie katalogów
     private void deleteDirectoryRecursively(Path path) throws IOException {
         if (!Files.exists(path)) {
-            System.out.println("Path does not exist, skipping deletion: " + path);
             return;
         }
         Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 Files.delete(file);
-                System.out.println("Deleted file: " + file);
                 return FileVisitResult.CONTINUE;
             }
 
             @Override
             public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
                 Files.delete(dir);
-                System.out.println("Deleted directory: " + dir);
                 return FileVisitResult.CONTINUE;
             }
         });
     }
 
-    // Niestandardowy wyjątek dla operacji na plikach
     private static class FileOperationException extends RuntimeException {
         public FileOperationException(String message) {
             super(message);
