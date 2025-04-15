@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Normalizer;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -36,8 +38,8 @@ public class MachineQueueFileGeneratorService {
      * Programy są sortowane według pola 'order', a załączniki alfabetycznie według nazwy.
      * Wpisy dla różnych partName są oddzielone podwójnym enterem.
      * Status załącznika to [Ukonczone] lub [Nieukonczone], w zależności od pola completed w ProductionFileInfo.
-     * Wszystkie nazwy są sanitizowane, aby usunąć polskie znaki.
-     * Plik zaczyna się od komentarza z instrukcją dla operatorów.
+     * Wszystkie nazwy są sanitizowane, aby usunąć polskie znaki i odpowiadać strukturze katalogów na dysku maszyny.
+     * Plik zawiera komentarz z instrukcjami, datę generowania, separatory między programami i informację o pustej kolejce.
      *
      * @param queueType ID maszyny (jako String)
      * @throws IOException jeśli operacja na pliku się nie powiedzie
@@ -70,10 +72,17 @@ public class MachineQueueFileGeneratorService {
 
             // Generuj treść pliku
             StringBuilder content = new StringBuilder();
-            // Dodaj komentarz na początku pliku
-            content.append("# Edytuj tylko statusy [Ukonczone]/[Nieukonczone]. Zachowaj format linii!\n\n");
+            // Dodaj komentarz i datę generowania
+            content.append("# Edytuj tylko statusy w nawiasach: [Ukonczone] lub [Nieukonczone].\n");
+            content.append("# Przyklad: zmień '[Nieukonczone]' na '[Ukonczone]'. Nie zmieniaj ID, nazw ani innych danych!\n");
+            content.append("# Sciezka orderName/partName/załącznik wskazuje lokalizację programu na dysku maszyny.\n");
+            content.append("# Bledy w formacie linii moga zostac zignorowane przez system.\n");
+            content.append(String.format("# Wygenerowano: %s\n\n",
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+
             int position = 1;
             String lastPartName = null;
+            Integer lastProgramId = null;
 
             for (ProductionQueueItem program : programs) {
                 // Filtruj tylko pliki .MPF i posortuj alfabetycznie
@@ -88,8 +97,12 @@ public class MachineQueueFileGeneratorService {
                     String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ? sanitizeFileName(program.getAdditionalInfo(), "") : "";
                     int quantity = program.getQuantity();
 
-                    // Dodaj podwójny enter, jeśli partName się zmienił
-                    if (lastPartName != null && !partName.equals(lastPartName)) {
+                    // Dodaj separator między programami (różne ID)
+                    if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
+                        content.append("---\n");
+                    }
+                    // Dodaj podwójny enter, jeśli partName się zmienił w obrębie tego samego programu
+                    else if (lastPartName != null && !partName.equals(lastPartName)) {
                         content.append("\n\n");
                     }
 
@@ -111,19 +124,27 @@ public class MachineQueueFileGeneratorService {
                     }
 
                     lastPartName = partName;
+                    lastProgramId = program.getId();
                 }
             }
 
             // Zapisz plik lub utwórz pusty
-            if (content.length() > 0) {
+            if (content.toString().trim().length() > content.indexOf("\n\n") + 2) {
                 Files.writeString(filePath, content.toString());
             } else {
                 if (Files.exists(filePath)) {
                     Files.delete(filePath);
                 }
                 Files.createFile(filePath);
-                // Utwórz pusty plik z komentarzem
-                Files.writeString(filePath, "# Edytuj tylko statusy [Ukonczone]/[Nieukonczone]. Zachowaj format linii!\n");
+                // Utwórz pusty plik z komentarzem i informacją
+                Files.writeString(filePath,
+                        "# Edytuj tylko statusy w nawiasach: [Ukonczone] lub [Nieukonczone].\n" +
+                                "# Przyklad: zmień '[Nieukonczone]' na '[Ukonczone]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
+                                "# Sciezka orderName/partName/załącznik wskazuje lokalizację programu na dysku maszyny.\n" +
+                                "# Bledy w formacie linii moga zostac zignorowane przez system.\n" +
+                                String.format("# Wygenerowano: %s\n",
+                                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
+                                "# Brak programow w kolejce dla tej maszyny.\n");
             }
         } catch (NumberFormatException e) {
             // queueType nie jest ID maszyny, pomiń

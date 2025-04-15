@@ -103,8 +103,8 @@ public class FileWatcherService {
 
             for (String line : lines) {
                 String trimmedLine = line.trim();
-                if (trimmedLine.isEmpty() || trimmedLine.startsWith("#")) {
-                    continue; // Pomiń puste linie i komentarze
+                if (trimmedLine.isEmpty() || trimmedLine.startsWith("#") || trimmedLine.equals("---")) {
+                    continue; // Pomiń puste linie, komentarze i separatory
                 }
 
                 Matcher matcher = pattern.matcher(trimmedLine);
