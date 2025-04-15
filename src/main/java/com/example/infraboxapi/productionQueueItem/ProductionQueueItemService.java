@@ -55,7 +55,7 @@ public class ProductionQueueItemService {
         if (files != null && !files.isEmpty()) {
             List<ProductionFileInfo> fileInfos = new ArrayList<>();
             for (MultipartFile file : files) {
-                String sanitizedFileName = sanitizeFileNameForSinumerik(file.getOriginalFilename());
+                String sanitizedFileName = sanitizeFileName(file.getOriginalFilename());
                 ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                         .fileName(sanitizedFileName)
                         .fileType(file.getContentType())
@@ -112,7 +112,7 @@ public class ProductionQueueItemService {
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
                 for (MultipartFile file : files) {
-                    String sanitizedFileName = sanitizeFileNameForSinumerik(file.getOriginalFilename());
+                    String sanitizedFileName = sanitizeFileName(file.getOriginalFilename());
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                             .fileName(sanitizedFileName)
                             .fileType(file.getContentType())
@@ -244,8 +244,12 @@ public class ProductionQueueItemService {
         if (validQueueTypes.contains(queueType)) {
             return;
         }
-        boolean isValidMachine = machineRepository.existsById(Integer.parseInt(queueType));
-        if (!isValidMachine) {
+        try {
+            boolean isValidMachine = machineRepository.existsById(Integer.parseInt(queueType));
+            if (!isValidMachine) {
+                throw new IllegalArgumentException("Invalid queueType: " + queueType);
+            }
+        } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid queueType: " + queueType);
         }
     }
@@ -265,8 +269,8 @@ public class ProductionQueueItemService {
             Machine machine = machineOpt.get();
             String programPath = machine.getProgramPath();
 
-            String orderName = sanitizeFileName(item.getOrderName());
-            String partName = sanitizeFileName(item.getPartName());
+            String orderName = sanitizeFileName(item.getOrderName(), "NoOrderName_" + item.getId());
+            String partName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
 
             Path basePath = Paths.get(programPath, orderName, partName);
             Files.createDirectories(basePath);
@@ -353,8 +357,8 @@ public class ProductionQueueItemService {
 
             Machine oldMachine = oldMachineOpt.get();
             String oldProgramPath = oldMachine.getProgramPath();
-            String orderName = sanitizeFileName(item.getOrderName());
-            String partName = sanitizeFileName(item.getPartName());
+            String orderName = sanitizeFileName(item.getOrderName(), "NoOrderName_" + item.getId());
+            String partName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
 
             Path partPath = Paths.get(oldProgramPath, orderName, partName);
             Path orderPath = Paths.get(oldProgramPath, orderName);
@@ -384,8 +388,8 @@ public class ProductionQueueItemService {
 
             Machine machine = machineOpt.get();
             String programPath = machine.getProgramPath();
-            String orderName = sanitizeFileName(item.getOrderName());
-            String partName = sanitizeFileName(item.getPartName());
+            String orderName = sanitizeFileName(item.getOrderName(), "NoOrderName_" + item.getId());
+            String partName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
 
             Path partPath = Paths.get(programPath, orderName, partName);
             Path orderPath = Paths.get(programPath, orderName);
@@ -401,51 +405,29 @@ public class ProductionQueueItemService {
         }
     }
 
-    private String sanitizeFileName(String name) {
-        if (name == null) return "unknown";
-        return name.trim()
-                .replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_")
-                .replaceAll("_+", "_")
-                .replaceAll("^_|_$", "");
+    private String sanitizeFileName(String name, String defaultName) {
+        if (name == null || name.trim().isEmpty()) {
+            return defaultName;
+        }
+        // Normalizuj znaki i usuń polskie diakrytyki
+        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
+                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
+        // Zastąp specyficzne polskie znaki
+        normalized = normalized.replaceAll("[ąĄ]", "a")
+                .replaceAll("[ćĆ]", "c")
+                .replaceAll("[ęĘ]", "e")
+                .replaceAll("[łŁ]", "l")
+                .replaceAll("[ńŃ]", "n")
+                .replaceAll("[óÓ]", "o")
+                .replaceAll("[śŚ]", "s")
+                .replaceAll("[źŹ]", "z")
+                .replaceAll("[żŻ]", "z");
+        // Usuń niedozwolone znaki
+        return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
     }
 
-    private String sanitizeFileNameForSinumerik(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return "UNKNOWN";
-        }
-
-        String extension = "";
-        String baseName = name;
-        int lastDotIndex = name.lastIndexOf('.');
-        if (lastDotIndex != -1) {
-            baseName = name.substring(0, lastDotIndex);
-            extension = name.substring(lastDotIndex);
-        }
-
-        String normalized = Normalizer.normalize(baseName.trim(), Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
-                .replaceAll("[ąĄ]", "A")
-                .replaceAll("[ćĆ]", "C")
-                .replaceAll("[ęĘ]", "E")
-                .replaceAll("[łŁ]", "L")
-                .replaceAll("[ńŃ]", "N")
-                .replaceAll("[óÓ]", "O")
-                .replaceAll("[śŚ]", "S")
-                .replaceAll("[źŹ]", "Z")
-                .replaceAll("[żŻ]", "Z");
-
-        normalized = normalized.replaceAll("[^a-zA-Z0-9_]", "")
-                .toUpperCase();
-
-        if (normalized.length() > 24) {
-            normalized = normalized.substring(0, 24);
-        }
-
-        if (normalized.isEmpty()) {
-            normalized = "FILE";
-        }
-
-        return normalized + extension.toUpperCase();
+    private String sanitizeFileName(String name) {
+        return sanitizeFileName(name, "UNKNOWN");
     }
 
     private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
@@ -458,10 +440,6 @@ public class ProductionQueueItemService {
         int version = 1;
         while (true) {
             String versionedName = String.format("%s_%d%s", nameWithoutExt, version, ext);
-            if (versionedName.length() - ext.length() > 24) {
-                int trimLength = 24 - String.format("_%d", version).length();
-                versionedName = String.format("%s_%d%s", nameWithoutExt.substring(0, trimLength), version, ext);
-            }
             filePath = basePath.resolve(versionedName);
             if (!Files.exists(filePath)) {
                 return filePath;

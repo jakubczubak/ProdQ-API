@@ -33,13 +33,15 @@ public class MachineQueueFileGeneratorService {
 
     /**
      * Generuje plik tekstowy z listą programów dla danej maszyny w formacie:
-     * "pozycja. orderName/partName/załącznik - ilość szt. [- dodatkowe info] id: ID | [status]"
+     * "pozycja. /[orderName]/[partName]/załącznik - ilość szt. id: ID | [status]"
+     * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "# Uwagi: additionalInfo"
+     * Długie additionalInfo są dzielone na linie po max 80 znaków.
      * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
      * Programy są sortowane według pola 'order', a załączniki alfabetycznie według nazwy.
-     * Wpisy dla różnych partName są oddzielone podwójnym enterem.
-     * Status załącznika to [Ukonczone] lub [Nieukonczone], oddzielony znakiem '|'.
+     * Wpisy dla różnych partName są oddzielone pustą linią.
+     * Status załącznika to [UKONCZONE] lub [NIEUKONCZONE], oddzielony znakiem '|'.
      * Wszystkie nazwy są sanitizowane, aby usunąć polskie znaki i odpowiadać strukturze katalogów na dysku maszyny.
-     * Plik zawiera komentarz z instrukcjami, datę generowania, separatory między programami i informację o pustej kolejce.
+     * Plik zawiera komentarz z instrukcjami, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
      *
      * @param queueType ID maszyny (jako String)
      * @throws IOException jeśli operacja na pliku się nie powiedzie
@@ -72,10 +74,10 @@ public class MachineQueueFileGeneratorService {
 
             // Generuj treść pliku
             StringBuilder content = new StringBuilder();
-            // Dodaj komentarz i datę generowania
-            content.append("# Edytuj tylko statusy w nawiasach: [Ukonczone] lub [Nieukonczone].\n");
-            content.append("# Przyklad: zmień '[Nieukonczone]' na '[Ukonczone]'. Nie zmieniaj ID, nazw ani innych danych!\n");
-            content.append("# Sciezka orderName/partName/załącznik wskazuje lokalizację programu na dysku maszyny.\n");
+            // Dodaj komentarz i datę generowania przed listą programów
+            content.append("# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n");
+            content.append("# Przyklad: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n");
+            content.append("# Sciezka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n");
             content.append("# Bledy w formacie linii moga zostac zignorowane przez system.\n");
             content.append(String.format("# Wygenerowano: %s\n\n",
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
@@ -97,27 +99,36 @@ public class MachineQueueFileGeneratorService {
                     String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ? sanitizeFileName(program.getAdditionalInfo(), "") : "";
                     int quantity = program.getQuantity();
 
-                    // Dodaj separator między programami (różne ID)
+                    // Dodaj separator i nagłówek dla nowego programu (różne ID)
                     if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
-                        content.append("---\n");
+                        content.append("\n---\n\n");
+                        content.append(String.format("# Program: %s/%s\n", orderName, partName));
+                    } else if (lastProgramId == null) {
+                        // Pierwszy program
+                        content.append(String.format("# Program: %s/%s\n", orderName, partName));
                     }
-                    // Dodaj podwójny enter, jeśli partName się zmienił w obrębie tego samego programu
-                    else if (lastPartName != null && !partName.equals(lastPartName)) {
-                        content.append("\n\n");
+
+                    // Dodaj pustą linię, jeśli partName się zmienił w obrębie tego samego programu
+                    if (lastPartName != null && !partName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
+                        content.append("\n");
+                    }
+
+                    // Dodaj additionalInfo jako komentarz z "Uwagi:", jeśli istnieje
+                    if (!additionalInfo.isEmpty()) {
+                        content.append(wrapCommentWithPrefix(additionalInfo, "# Uwagi: "));
                     }
 
                     for (ProductionFileInfo mpfFile : mpfFiles) {
                         boolean isFileCompleted = mpfFile.isCompleted();
-                        String status = isFileCompleted ? "[Ukonczone]" : "[Nieukonczone]";
+                        String status = isFileCompleted ? "[UKONCZONE]" : "[NIEUKONCZONE]";
                         String mpfFileName = sanitizeFileName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
-                        // Format: pozycja. orderName/partName/załącznik - ilość szt. [- dodatkowe info] id: ID | [status]
-                        String entry = String.format("%d. %s/%s/%s - %d szt.%s id: %d | %s\n",
+                        // Format: pozycja. /[orderName]/[partName]/załącznik - ilość szt. id: ID | [status]
+                        String entry = String.format("%-2d. /%s/%s/%-30s - %d szt. id: %-5d | %s\n",
                                 position++,
                                 orderName,
                                 partName,
                                 mpfFileName,
                                 quantity,
-                                additionalInfo.isEmpty() ? "" : " - " + additionalInfo,
                                 program.getId(),
                                 status);
                         content.append(entry);
@@ -138,9 +149,9 @@ public class MachineQueueFileGeneratorService {
                 Files.createFile(filePath);
                 // Utwórz pusty plik z komentarzem i informacją
                 Files.writeString(filePath,
-                        "# Edytuj tylko statusy w nawiasach: [Ukonczone] lub [Nieukonczone].\n" +
-                                "# Przyklad: zmień '[Nieukonczone]' na '[Ukonczone]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
-                                "# Sciezka orderName/partName/załącznik wskazuje lokalizację programu na dysku maszyny.\n" +
+                        "# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n" +
+                                "# Przyklad: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
+                                "# Sciezka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n" +
                                 "# Bledy w formacie linii moga zostac zignorowane przez system.\n" +
                                 String.format("# Wygenerowano: %s\n",
                                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
@@ -178,5 +189,35 @@ public class MachineQueueFileGeneratorService {
                 .replaceAll("[żŻ]", "z");
         // Usuń niedozwolone znaki
         return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
+    }
+
+    /**
+     * Dzieli długi komentarz na linie po maksymalnie 80 znaków, dodając prefiks do każdej linii.
+     *
+     * @param comment komentarz do podzielenia
+     * @param prefix prefiks dla każdej linii (np. "# Uwagi: ")
+     * @return sformatowany komentarz z enterami
+     */
+    private String wrapCommentWithPrefix(String comment, String prefix) {
+        final int MAX_LINE_LENGTH = 80;
+        StringBuilder wrapped = new StringBuilder();
+        String[] words = comment.split("\\s+");
+        StringBuilder currentLine = new StringBuilder(prefix);
+        boolean firstLine = true;
+
+        for (String word : words) {
+            if (currentLine.length() + word.length() + 1 > MAX_LINE_LENGTH) {
+                wrapped.append(currentLine.toString().trim()).append("\n");
+                currentLine = new StringBuilder(firstLine ? "# " : prefix);
+                firstLine = false;
+            }
+            currentLine.append(word).append(" ");
+        }
+
+        if (currentLine.length() > (firstLine ? prefix.length() : 2)) {
+            wrapped.append(currentLine.toString().trim()).append("\n");
+        }
+
+        return wrapped.toString();
     }
 }
