@@ -1,6 +1,7 @@
 package com.example.infraboxapi.FileProductionItem;
 
 import com.example.infraboxapi.productionQueueItem.ProductionQueueItem;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,6 +28,7 @@ public class ProductionFileInfo {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "production_queue_item_id")
+    @JsonBackReference
     private ProductionQueueItem productionQueueItem;
 
     @Column(name = "completed", nullable = false)
