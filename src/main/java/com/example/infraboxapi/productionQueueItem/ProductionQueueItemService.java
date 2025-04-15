@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -35,10 +36,6 @@ public class ProductionQueueItemService {
         this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
     }
 
-    /**
-     * Zapisuje nowy element kolejki produkcyjnej i synchronizuje załączniki.
-     * Generuje plik kolejki dla maszyny, jeśli element jest przypisany do maszyny.
-     */
     @Transactional
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
@@ -58,8 +55,9 @@ public class ProductionQueueItemService {
         if (files != null && !files.isEmpty()) {
             List<ProductionFileInfo> fileInfos = new ArrayList<>();
             for (MultipartFile file : files) {
+                String sanitizedFileName = sanitizeFileNameForSinumerik(file.getOriginalFilename());
                 ProductionFileInfo fileInfo = ProductionFileInfo.builder()
-                        .fileName(file.getOriginalFilename())
+                        .fileName(sanitizedFileName)
                         .fileType(file.getContentType())
                         .fileContent(file.getBytes())
                         .productionQueueItem(savedItem)
@@ -71,7 +69,6 @@ public class ProductionQueueItemService {
             productionFileInfoService.saveAll(fileInfos);
         }
 
-        // Ustaw completed na podstawie załączników
         savedItem.setCompleted(checkAllMpfCompleted(savedItem));
         productionQueueItemRepository.save(savedItem);
 
@@ -89,9 +86,6 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findAll();
     }
 
-    /**
-     * Aktualizuje istniejący element kolejki, synchronizuje załączniki i generuje plik kolejki.
-     */
     @Transactional
     public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
         Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
@@ -118,8 +112,9 @@ public class ProductionQueueItemService {
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
                 for (MultipartFile file : files) {
+                    String sanitizedFileName = sanitizeFileNameForSinumerik(file.getOriginalFilename());
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
-                            .fileName(file.getOriginalFilename())
+                            .fileName(sanitizedFileName)
                             .fileType(file.getContentType())
                             .fileContent(file.getBytes())
                             .productionQueueItem(existingItem)
@@ -131,7 +126,6 @@ public class ProductionQueueItemService {
                 productionFileInfoService.saveAll(fileInfos);
             }
 
-            // Ustaw completed na podstawie załączników
             existingItem.setCompleted(checkAllMpfCompleted(existingItem));
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
 
@@ -139,9 +133,9 @@ public class ProductionQueueItemService {
 
             if (oldQueueType != null && !oldQueueType.equals(savedItem.getQueueType()) && !"ncQueue".equals(oldQueueType) && !"completed".equals(oldQueueType)) {
                 deleteAttachmentsFromMachinePath(savedItem, oldQueueType, savedItem.getQueueType());
-                machineQueueFileGeneratorService.generateQueueFileForMachine(oldQueueType); // Aktualizuj starą maszynę
+                machineQueueFileGeneratorService.generateQueueFileForMachine(oldQueueType);
             }
-            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType()); // Aktualizuj nową maszynę
+            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
 
             return savedItem;
         } else {
@@ -149,9 +143,6 @@ public class ProductionQueueItemService {
         }
     }
 
-    /**
-     * Usuwa element kolejki i generuje plik kolejki dla powiązanej maszyny.
-     */
     @Transactional
     public void deleteById(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
@@ -168,21 +159,14 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findByQueueType(queueType);
     }
 
-    /**
-     * Przełącza status ukończenia programu (ProductionQueueItem).
-     * Jeśli program jest oznaczany jako ukończony (completed=true), wszystkie załączniki .MPF są ustawiane na ukończone.
-     * Jeśli program jest oznaczany jako nieukończony (completed=false), wszystkie załączniki .MPF są ustawiane na nieukończone.
-     * Generuje plik kolejki dla maszyny, aby odzwierciedlić zmiany.
-     */
     @Transactional
     public ProductionQueueItem toggleComplete(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
-            boolean newCompletedStatus = !item.isCompleted();
+            boolean newCompletedStatus = !item  item.isCompleted();
             item.setCompleted(newCompletedStatus);
 
-            // Aktualizuj statusy załączników .MPF
             if (item.getFiles() != null) {
                 for (ProductionFileInfo file : item.getFiles()) {
                     if (file.getFileName().toLowerCase().endsWith(".mpf")) {
@@ -201,9 +185,6 @@ public class ProductionQueueItemService {
         }
     }
 
-    /**
-     * Aktualizuje kolejność elementów w kolejce i generuje pliki kolejki dla wszystkich powiązanych maszyn.
-     */
     @Transactional
     public void updateQueueOrder(String queueType, List<OrderItem> items) throws IOException {
         List<Integer> itemIds = items.stream()
@@ -229,7 +210,6 @@ public class ProductionQueueItemService {
 
         productionQueueItemRepository.saveAll(toUpdate);
 
-        // Zbierz unikalne queueTypes do aktualizacji
         Set<String> queueTypesToUpdate = new HashSet<>();
         queueTypesToUpdate.add(queueType);
         queueTypesToUpdate.addAll(oldQueueTypes.values());
@@ -242,15 +222,11 @@ public class ProductionQueueItemService {
             }
         }
 
-        // Wygeneruj pliki kolejki dla wszystkich powiązanych maszyn
         for (String qt : queueTypesToUpdate) {
             machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
         }
     }
 
-    /**
-     * Sprawdza, czy wszystkie załączniki .MPF dla programu są ukończone.
-     */
     private boolean checkAllMpfCompleted(ProductionQueueItem item) {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
             return false;
@@ -305,7 +281,7 @@ public class ProductionQueueItemService {
             Set<String> appFiles = item.getFiles() == null
                     ? Collections.emptySet()
                     : item.getFiles().stream()
-                    .map(file -> sanitizeFileName(file.getFileName()))
+                    .map(ProductionFileInfo::getFileName)
                     .collect(Collectors.toSet());
 
             for (String diskFile : existingFiles) {
@@ -317,7 +293,7 @@ public class ProductionQueueItemService {
 
             if (item.getFiles() != null && !item.getFiles().isEmpty()) {
                 for (ProductionFileInfo file : item.getFiles()) {
-                    String fileName = sanitizeFileName(file.getFileName());
+                    String fileName = file.getFileName();
                     Path filePath = getUniqueFilePath(basePath, fileName);
 
                     Path tempFile = basePath.resolve(fileName + ".tmp");
@@ -433,6 +409,45 @@ public class ProductionQueueItemService {
                 .replaceAll("^_|_$", "");
     }
 
+    private String sanitizeFileNameForSinumerik(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return "UNKNOWN";
+        }
+
+        String extension = "";
+        String baseName = name;
+        int lastDotIndex = name.lastIndexOf('.');
+        if (lastDotIndex != -1) {
+            baseName = name.substring(0, lastDotIndex);
+            extension = name.substring(lastDotIndex);
+        }
+
+        String normalized = Normalizer.normalize(baseName.trim(), Normalizer.Form.NFD)
+                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
+                .replaceAll("[ąĄ]", "A")
+                .replaceAll("[ćĆ]", "C")
+                .replaceAll("[ęĘ]", "E")
+                .replaceAll("[łŁ]", "L")
+                .replaceAll("[ńŃ]", "N")
+                .replaceAll("[óÓ]", "O")
+                .replaceAll("[śŚ]", "S")
+                .replaceAll("[źŹ]", "Z")
+                .replaceAll("[żŻ]", "Z");
+
+        normalized = normalized.replaceAll("[^a-zA-Z0-9_]", "")
+                .toUpperCase();
+
+        if (normalized.length() > 24) {
+            normalized = normalized.substring(0, 24);
+        }
+
+        if (normalized.isEmpty()) {
+            normalized = "FILE";
+        }
+
+        return normalized + extension.toUpperCase();
+    }
+
     private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
         Path filePath = basePath.resolve(fileName);
         if (!Files.exists(filePath)) {
@@ -442,7 +457,7 @@ public class ProductionQueueItemService {
         String ext = fileName.substring(fileName.lastIndexOf("."));
         int version = 1;
         while (true) {
-            String versionedName = String.format("%s_v%d%s", nameWithoutExt, version, ext);
+            String versionedName = String.format("%s_%d%s", nameWithoutExt, version, ext);
             filePath = basePath.resolve(versionedName);
             if (!Files.exists(filePath)) {
                 return filePath;
