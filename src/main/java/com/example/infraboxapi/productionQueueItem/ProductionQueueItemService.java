@@ -164,7 +164,7 @@ public class ProductionQueueItemService {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
-            boolean newCompletedStatus = !item  item.isCompleted();
+            boolean newCompletedStatus = !item.isCompleted();
             item.setCompleted(newCompletedStatus);
 
             if (item.getFiles() != null) {
@@ -458,6 +458,10 @@ public class ProductionQueueItemService {
         int version = 1;
         while (true) {
             String versionedName = String.format("%s_%d%s", nameWithoutExt, version, ext);
+            if (versionedName.length() - ext.length() > 24) {
+                int trimLength = 24 - String.format("_%d", version).length();
+                versionedName = String.format("%s_%d%s", nameWithoutExt.substring(0, trimLength), version, ext);
+            }
             filePath = basePath.resolve(versionedName);
             if (!Files.exists(filePath)) {
                 return filePath;
