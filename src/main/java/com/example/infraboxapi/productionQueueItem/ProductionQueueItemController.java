@@ -136,11 +136,7 @@ public class ProductionQueueItemController {
         return ResponseEntity.ok(updatedItem);
     }
 
-    @PatchMapping("/files/{fileId}/toggle-complete")
-    public ResponseEntity<ProductionQueueItem> toggleFileComplete(@PathVariable Long fileId) throws IOException {
-        ProductionQueueItem updatedItem = productionQueueItemService.toggleFileComplete(fileId);
-        return ResponseEntity.ok(updatedItem);
-    }
+
 
     @PutMapping("/update-order")
     public ResponseEntity<String> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) throws IOException {

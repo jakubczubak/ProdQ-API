@@ -169,28 +169,29 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Przełącza status ukończenia elementu i generuje plik kolejki.
+     * Przełącza status ukończenia programu (ProductionQueueItem).
+     * Jeśli program jest oznaczany jako ukończony (completed=true), wszystkie załączniki .MPF są ustawiane na ukończone.
+     * Jeśli program jest oznaczany jako nieukończony (completed=false), wszystkie załączniki .MPF są ustawiane na nieukończone.
+     * Generuje plik kolejki dla maszyny, aby odzwierciedlić zmiany.
      */
     @Transactional
     public ProductionQueueItem toggleComplete(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
-            item.setCompleted(!item.isCompleted());
-            // Jeśli program jest oznaczany jako ukończony, ustaw wszystkie załączniki .MPF jako ukończone
-            if (item.isCompleted()) {
-                item.getFiles().stream()
-                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
-                        .forEach(f -> f.setCompleted(true));
+            boolean newCompletedStatus = !item.isCompleted();
+            item.setCompleted(newCompletedStatus);
+
+            // Aktualizuj statusy załączników .MPF
+            if (item.getFiles() != null) {
+                for (ProductionFileInfo file : item.getFiles()) {
+                    if (file.getFileName().toLowerCase().endsWith(".mpf")) {
+                        file.setCompleted(newCompletedStatus);
+                    }
+                }
                 productionFileInfoService.saveAll(item.getFiles());
             }
-            // Jeśli program jest oznaczany jako nieukończony, ustaw wszystkie załączniki .MPF jako nieukończone
-            else {
-                item.getFiles().stream()
-                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
-                        .forEach(f -> f.setCompleted(false));
-                productionFileInfoService.saveAll(item.getFiles());
-            }
+
             ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
             syncAttachmentsToMachinePath(savedItem);
             machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
