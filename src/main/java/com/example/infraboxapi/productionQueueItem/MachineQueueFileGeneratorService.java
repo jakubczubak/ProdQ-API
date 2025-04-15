@@ -33,11 +33,11 @@ public class MachineQueueFileGeneratorService {
 
     /**
      * Generuje plik tekstowy z listą programów dla danej maszyny w formacie:
-     * "pozycja. orderName/partName/załącznik - ilość szt. [- dodatkowe info] id: ID [status]"
+     * "pozycja. orderName/partName/załącznik - ilość szt. [- dodatkowe info] id: ID | [status]"
      * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
      * Programy są sortowane według pola 'order', a załączniki alfabetycznie według nazwy.
      * Wpisy dla różnych partName są oddzielone podwójnym enterem.
-     * Status załącznika to [Ukonczone] lub [Nieukonczone], w zależności od pola completed w ProductionFileInfo.
+     * Status załącznika to [Ukonczone] lub [Nieukonczone], oddzielony znakiem '|'.
      * Wszystkie nazwy są sanitizowane, aby usunąć polskie znaki i odpowiadać strukturze katalogów na dysku maszyny.
      * Plik zawiera komentarz z instrukcjami, datę generowania, separatory między programami i informację o pustej kolejce.
      *
@@ -110,8 +110,8 @@ public class MachineQueueFileGeneratorService {
                         boolean isFileCompleted = mpfFile.isCompleted();
                         String status = isFileCompleted ? "[Ukonczone]" : "[Nieukonczone]";
                         String mpfFileName = sanitizeFileName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
-                        // Format: pozycja. orderName/partName/załącznik - ilość szt. [- dodatkowe info] id: ID [status]
-                        String entry = String.format("%d. %s/%s/%s - %d szt.%s id: %d %s\n",
+                        // Format: pozycja. orderName/partName/załącznik - ilość szt. [- dodatkowe info] id: ID | [status]
+                        String entry = String.format("%d. %s/%s/%s - %d szt.%s id: %d | %s\n",
                                 position++,
                                 orderName,
                                 partName,
