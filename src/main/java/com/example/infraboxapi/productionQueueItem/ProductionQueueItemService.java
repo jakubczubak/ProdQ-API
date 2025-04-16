@@ -44,6 +44,7 @@ public class ProductionQueueItemService {
 
     /**
      * Zapisuje nowy element kolejki produkcyjnej wraz z załącznikami.
+     * Jeśli partName już istnieje w danej queueType, dodaje unikalny suffix (np. _2, _3, itp.).
      *
      * @param item element kolejki do zapisania
      * @param files lista załączników do zapisania
@@ -60,6 +61,11 @@ public class ProductionQueueItemService {
             Integer maxOrder = productionQueueItemRepository.findMaxOrderByQueueType(item.getQueueType());
             item.setOrder(maxOrder != null ? maxOrder + 1 : 1);
         }
+
+        // Sanitize partName and ensure it's unique
+        String sanitizedPartName = sanitizeFileName(item.getPartName(), "NoPartName_" + System.currentTimeMillis());
+        sanitizedPartName = getUniquePartName(item.getQueueType(), sanitizedPartName);
+        item.setPartName(sanitizedPartName);
 
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         item.setAuthor(currentUserEmail);
@@ -92,6 +98,45 @@ public class ProductionQueueItemService {
         fileWatcherService.checkQueueFile(savedItem.getQueueType());
 
         return savedItem;
+    }
+
+    /**
+     * Generuje unikalną nazwę partName, dodając suffix _2, _3, itp., jeśli nazwa już istnieje w danej queueType.
+     *
+     * @param queueType typ kolejki
+     * @param partName nazwa części do sprawdzenia
+     * @return unikalna nazwa partName
+     */
+    private String getUniquePartName(String queueType, String partName) {
+        String basePartName = partName;
+        int suffix = 2;
+        String candidatePartName = basePartName;
+
+        while (isPartNameDuplicate(queueType, candidatePartName)) {
+            candidatePartName = basePartName + "_" + suffix;
+            suffix++;
+            if (suffix > 1000) {
+                throw new IllegalStateException("Nie można znaleźć unikalnej nazwy dla partName: " + basePartName);
+            }
+        }
+
+        return candidatePartName;
+    }
+
+    /**
+     * Sprawdza, czy partName już istnieje w danej queueType.
+     *
+     * @param queueType typ kolejki
+     * @param partName nazwa części do sprawdzenia
+     * @return true, jeśli partName istnieje, w przeciwnym razie false
+     */
+    private boolean isPartNameDuplicate(String queueType, String partName) {
+        return productionQueueItemRepository.findByQueueType(queueType)
+                .stream()
+                .anyMatch(item -> {
+                    String sanitizedExistingPartName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
+                    return sanitizedExistingPartName.equalsIgnoreCase(partName);
+                });
     }
 
     /**

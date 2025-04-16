@@ -40,7 +40,8 @@ public class MachineQueueFileGeneratorService {
      * Programy są sortowane według pola 'order', a załączniki alfabetycznie według nazwy.
      * Wpisy dla różnych partName są oddzielone pustą linią.
             * Status załącznika to [UKONCZONE] lub [NIEUKONCZONE], oddzielony znakiem '|'.
-            * Wszystkie nazwy są sanitizowane, aby usunąć polskie znaki i odpowiadać strukturze katalogów na dysku maszyny.
+            * Nazwy orderName, additionalInfo i mpfFileName są sanitizowane, aby usunąć polskie znaki.
+     * partName jest używane bezpośrednio z bazy danych, ponieważ jest już sanitizowane i unikalne.
             * Plik zawiera komentarz z instrukcjami, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
             *
             * @param queueType ID maszyny (jako String)
@@ -72,6 +73,10 @@ public class MachineQueueFileGeneratorService {
                     .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
                     .collect(Collectors.toList());
 
+            // Debugowanie: wyświetl pobrane programy
+            System.out.println("Pobrane programy dla queueType " + queueType + ":");
+            programs.forEach(program -> System.out.println("ID: " + program.getId() + ", orderName: " + program.getOrderName() + ", partName: " + program.getPartName()));
+
             // Generuj treść pliku
             StringBuilder content = new StringBuilder();
             // Dodaj komentarz i datę generowania przed listą programów
@@ -88,16 +93,24 @@ public class MachineQueueFileGeneratorService {
 
             for (ProductionQueueItem program : programs) {
                 // Filtruj tylko pliki .MPF i posortuj alfabetycznie
-                List<ProductionFileInfo> mpfFiles = program.getFiles().stream()
-                        .filter(file -> file.getFileName().toLowerCase().endsWith(".mpf"))
-                        .sorted(Comparator.comparing(ProductionFileInfo::getFileName, String.CASE_INSENSITIVE_ORDER))
-                        .collect(Collectors.toList());
+                List<ProductionFileInfo> mpfFiles = program.getFiles() != null ?
+                        program.getFiles().stream()
+                                .filter(file -> file.getFileName().toLowerCase().endsWith(".mpf"))
+                                .sorted(Comparator.comparing(ProductionFileInfo::getFileName, String.CASE_INSENSITIVE_ORDER))
+                                .collect(Collectors.toList()) :
+                        List.of();
 
                 if (!mpfFiles.isEmpty()) {
                     String orderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
-                    String partName = sanitizeFileName(program.getPartName(), "NoPartName_" + program.getId());
-                    String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ? sanitizeFileName(program.getAdditionalInfo(), "") : "";
+                    // Użyj partName bezpośrednio z bazy danych, ponieważ jest już sanitizowane i unikalne
+                    String partName = program.getPartName() != null && !program.getPartName().isEmpty() ?
+                            program.getPartName() : "NoPartName_" + program.getId();
+                    String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ?
+                            sanitizeFileName(program.getAdditionalInfo(), "") : "";
                     int quantity = program.getQuantity();
+
+                    // Debugowanie: wyświetl użyte partName
+                    System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + partName);
 
                     // Dodaj separator dla nowego programu (różne ID)
                     if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
