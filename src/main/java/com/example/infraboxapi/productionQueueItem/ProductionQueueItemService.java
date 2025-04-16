@@ -69,7 +69,8 @@ public class ProductionQueueItemService {
         if (files != null && !files.isEmpty()) {
             List<ProductionFileInfo> fileInfos = new ArrayList<>();
             for (MultipartFile file : files) {
-                String sanitizedFileName = sanitizeFileName(file.getOriginalFilename());
+                String originalFileName = file.getOriginalFilename();
+                String sanitizedFileName = sanitizeFileName(originalFileName, "UNKNOWN", originalFileName.toLowerCase().endsWith(".mpf"));
                 ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                         .fileName(sanitizedFileName)
                         .fileType(file.getContentType())
@@ -147,7 +148,8 @@ public class ProductionQueueItemService {
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
                 for (MultipartFile file : files) {
-                    String sanitizedFileName = sanitizeFileName(file.getOriginalFilename());
+                    String originalFileName = file.getOriginalFilename();
+                    String sanitizedFileName = sanitizeFileName(originalFileName, "UNKNOWN", originalFileName.toLowerCase().endsWith(".mpf"));
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                             .fileName(sanitizedFileName)
                             .fileType(file.getContentType())
@@ -529,6 +531,47 @@ public class ProductionQueueItemService {
                 .replaceAll("[żŻ]", "z");
         // Usuń niedozwolone znaki
         return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
+    }
+
+    /**
+     * Sanitizuje nazwę pliku, usuwając polskie znaki i niedozwolone znaki, z opcją skracania dla plików .MPF.
+     *
+     * @param name nazwa do sanitizacji
+     * @param defaultName domyślna nazwa w razie null/pustej wartości
+     * @param isMpf czy plik jest typu .MPF
+     * @return sanitizowana nazwa
+     */
+    private String sanitizeFileName(String name, String defaultName, boolean isMpf) {
+        if (name == null || name.trim().isEmpty()) {
+            return defaultName;
+        }
+        // Normalizuj znaki i usuń polskie diakrytyki
+        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
+                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
+        // Zastąp specyficzne polskie znaki
+        normalized = normalized.replaceAll("[ąĄ]", "a")
+                .replaceAll("[ćĆ]", "c")
+                .replaceAll("[ęĘ]", "e")
+                .replaceAll("[łŁ]", "l")
+                .replaceAll("[ńŃ]", "n")
+                .replaceAll("[óÓ]", "o")
+                .replaceAll("[śŚ]", "s")
+                .replaceAll("[źŹ]", "z")
+                .replaceAll("[żŻ]", "z");
+        // Usuń niedozwolone znaki
+        String sanitized = normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
+
+        if (isMpf) {
+            // Dla plików .MPF: skróć nazwę do 24 znaków (bez rozszerzenia)
+            String ext = ".MPF";
+            String nameWithoutExt = sanitized.replaceFirst("(\\.[^\\.]+)$", "");
+            if (nameWithoutExt.length() > 24) {
+                nameWithoutExt = nameWithoutExt.substring(0, 24);
+            }
+            return nameWithoutExt + ext;
+        }
+
+        return sanitized;
     }
 
     /**

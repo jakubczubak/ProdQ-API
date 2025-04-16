@@ -34,16 +34,16 @@ public class MachineQueueFileGeneratorService {
     /**
      * Generuje plik tekstowy z listą programów dla danej maszyny w formacie:
      * "pozycja./[orderName]/[partName]/załącznik - ilość szt. id: ID | [status]"
-     * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "# Uwagi: additionalInfo"
-     * Długie additionalInfo są dzielone na linie po max 80 znaków.
+     * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "/** Uwagi: additionalInfo "
+            * Długie additionalInfo są dzielone na linie po max 80 znaków.
      * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
      * Programy są sortowane według pola 'order', a załączniki alfabetycznie według nazwy.
      * Wpisy dla różnych partName są oddzielone pustą linią.
-     * Status załącznika to [UKONCZONE] lub [NIEUKONCZONE], oddzielony znakiem '|'.
-     * Wszystkie nazwy są sanitizowane, aby usunąć polskie znaki i odpowiadać strukturze katalogów na dysku maszyny.
-     * Plik zawiera komentarz z instrukcjami, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
-     *
-     * @param queueType ID maszyny (jako String)
+            * Status załącznika to [UKONCZONE] lub [NIEUKONCZONE], oddzielony znakiem '|'.
+            * Wszystkie nazwy są sanitizowane, aby usunąć polskie znaki i odpowiadać strukturze katalogów na dysku maszyny.
+            * Plik zawiera komentarz z instrukcjami, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
+            *
+            * @param queueType ID maszyny (jako String)
      * @throws IOException jeśli operacja na pliku się nie powiedzie
      */
     public void generateQueueFileForMachine(String queueType) throws IOException {
@@ -99,23 +99,23 @@ public class MachineQueueFileGeneratorService {
                     String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ? sanitizeFileName(program.getAdditionalInfo(), "") : "";
                     int quantity = program.getQuantity();
 
-                    // Dodaj separator i nagłówek dla nowego programu (różne ID)
+                    // Dodaj separator dla nowego programu (różne ID)
                     if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
                         content.append("\n---\n\n");
-                        content.append(String.format("# Program: %s/%s\n", orderName, partName));
-                    } else if (lastProgramId == null) {
-                        // Pierwszy program
-                        content.append(String.format("# Program: %s/%s\n", orderName, partName));
                     }
+
+                    // Dodaj nagłówek programu i additionalInfo w jednym bloku /** ... */
+                    content.append("/**\n");
+                    content.append(String.format("Program: %s/%s\n", orderName, partName));
+                    if (!additionalInfo.isEmpty()) {
+                        content.append(wrapCommentWithPrefix(additionalInfo, "Uwagi: "));
+                    }
+                    content.append(" */\n");
+                    content.append("\n"); // Dodaj enter po sekcji /** ... */
 
                     // Dodaj pustą linię, jeśli partName się zmienił w obrębie tego samego programu
                     if (lastPartName != null && !partName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
                         content.append("\n");
-                    }
-
-                    // Dodaj additionalInfo jako komentarz z "Uwagi:", jeśli istnieje
-                    if (!additionalInfo.isEmpty()) {
-                        content.append(wrapCommentWithPrefix(additionalInfo, "# Uwagi: "));
                     }
 
                     for (ProductionFileInfo mpfFile : mpfFiles) {
@@ -123,7 +123,7 @@ public class MachineQueueFileGeneratorService {
                         String status = isFileCompleted ? "[UKONCZONE]" : "[NIEUKONCZONE]";
                         String mpfFileName = sanitizeFileName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
                         // Format: pozycja./[orderName]/[partName]/załącznik - ilość szt. id: ID | [status]
-                        String entry = String.format("%-2d./%s/%s/%-30s - %d szt. id: %-5d | %s\n",
+                        String entry = String.format("%d./%s/%s/%-30s - %d szt. id: %-5d | %s\n",
                                 position++,
                                 orderName,
                                 partName,
@@ -195,7 +195,7 @@ public class MachineQueueFileGeneratorService {
      * Dzieli długi komentarz na linie po maksymalnie 80 znaków, dodając prefiks do każdej linii.
      *
      * @param comment komentarz do podzielenia
-     * @param prefix prefiks dla każdej linii (np. "# Uwagi: ")
+     * @param prefix prefiks dla każdej linii (np. "Uwagi: ")
      * @return sformatowany komentarz z enterami
      */
     private String wrapCommentWithPrefix(String comment, String prefix) {
@@ -208,13 +208,13 @@ public class MachineQueueFileGeneratorService {
         for (String word : words) {
             if (currentLine.length() + word.length() + 1 > MAX_LINE_LENGTH) {
                 wrapped.append(currentLine.toString().trim()).append("\n");
-                currentLine = new StringBuilder(firstLine ? "# " : prefix);
+                currentLine = new StringBuilder(firstLine ? prefix : "");
                 firstLine = false;
             }
             currentLine.append(word).append(" ");
         }
 
-        if (currentLine.length() > (firstLine ? prefix.length() : 2)) {
+        if (currentLine.length() > (firstLine ? prefix.length() : 0)) {
             wrapped.append(currentLine.toString().trim()).append("\n");
         }
 
