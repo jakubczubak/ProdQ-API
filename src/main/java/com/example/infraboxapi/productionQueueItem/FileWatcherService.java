@@ -109,7 +109,8 @@ public class FileWatcherService {
 
             for (String line : lines) {
                 String trimmedLine = line.trim();
-                if (trimmedLine.isEmpty() || trimmedLine.startsWith("#") || trimmedLine.equals("---")) {
+                if (trimmedLine.isEmpty() || trimmedLine.startsWith("#") || trimmedLine.equals("---") ||
+                        trimmedLine.startsWith("/**") || trimmedLine.startsWith("Program:") || trimmedLine.equals("*/")) {
                     logger.debug("Pominięto linię: {}", trimmedLine);
                     continue;
                 }
@@ -118,20 +119,26 @@ public class FileWatcherService {
                 Matcher matcher = pattern.matcher(trimmedLine);
                 if (matcher.matches()) {
                     String fileName = matcher.group(4);
+                    String partName = matcher.group(3);
                     Integer programId = Integer.parseInt(matcher.group(6));
                     boolean isCompleted = "UKONCZONE".equalsIgnoreCase(matcher.group(7));
 
-                    logger.debug("Rozpoznano: fileName={}, programId={}, status={}", fileName, programId, isCompleted ? "UKONCZONE" : "NIEUKONCZONE");
+                    logger.debug("Rozpoznano: fileName={}, partName={}, programId={}, status={}",
+                            fileName, partName, programId, isCompleted ? "UKONCZONE" : "NIEUKONCZONE");
 
                     Optional<ProductionQueueItem> programOpt = productionQueueItemRepository.findByIdWithFiles(programId);
                     if (programOpt.isPresent()) {
                         ProductionQueueItem program = programOpt.get();
+                        // Wyszukaj plik z uwzględnieniem partName dla większej precyzji
                         Optional<ProductionFileInfo> fileInfoOpt = program.getFiles().stream()
-                                .filter(f -> f.getFileName().equalsIgnoreCase(fileName))
+                                .filter(f -> f.getFileName().equalsIgnoreCase(fileName) &&
+                                        program.getPartName().equalsIgnoreCase(partName))
                                 .findFirst();
 
                         if (fileInfoOpt.isPresent()) {
                             ProductionFileInfo fileInfo = fileInfoOpt.get();
+                            logger.debug("Baza: fileName={}, completed={}, Plik: status={}",
+                                    fileInfo.getFileName(), fileInfo.isCompleted(), isCompleted ? "UKONCZONE" : "NIEUKONCZONE");
                             if (fileInfo.isCompleted() != isCompleted) {
                                 fileInfo.setCompleted(isCompleted);
                                 productionFileInfoService.save(fileInfo);
@@ -146,10 +153,12 @@ public class FileWatcherService {
                                 productionQueueItemRepository.save(program);
                                 logger.info("Zaktualizowano status programu {} na completed={}", programId, allMpfCompleted);
                             } else {
-                                logger.debug("Status pliku {} dla programu {} nie wymaga aktualizacji", fileName, programId);
+                                logger.debug("Status pliku {} dla programu {} nie wymaga aktualizacji (baza: {}, plik: {})",
+                                        fileName, programId, fileInfo.isCompleted(), isCompleted);
                             }
                         } else {
-                            logger.warn("Nie znaleziono pliku {} dla programu {} w bazie danych", fileName, programId);
+                            logger.warn("Nie znaleziono pliku {} dla programu {} z partName {} w bazie danych",
+                                    fileName, programId, partName);
                         }
                     } else {
                         logger.warn("Nie znaleziono programu o ID {} w bazie danych", programId);

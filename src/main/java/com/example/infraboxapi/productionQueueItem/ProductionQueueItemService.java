@@ -2,6 +2,8 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,8 @@ import java.util.stream.Stream;
  */
 @Service
 public class ProductionQueueItemService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ProductionQueueItemService.class);
 
     private final ProductionQueueItemRepository productionQueueItemRepository;
     private final ProductionFileInfoService productionFileInfoService;
@@ -94,8 +98,9 @@ public class ProductionQueueItemService {
         productionQueueItemRepository.save(savedItem);
 
         syncAttachmentsToMachinePath(savedItem);
-        machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
+        // Najpierw sprawdź statusy w pliku kolejki, potem wygeneruj nowy
         fileWatcherService.checkQueueFile(savedItem.getQueueType());
+        machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
 
         return savedItem;
     }
@@ -215,11 +220,11 @@ public class ProductionQueueItemService {
 
             if (oldQueueType != null && !oldQueueType.equals(savedItem.getQueueType()) && !"ncQueue".equals(oldQueueType) && !"completed".equals(oldQueueType)) {
                 deleteAttachmentsFromMachinePath(savedItem, oldQueueType, savedItem.getQueueType());
-                machineQueueFileGeneratorService.generateQueueFileForMachine(oldQueueType);
                 fileWatcherService.checkQueueFile(oldQueueType);
+                machineQueueFileGeneratorService.generateQueueFileForMachine(oldQueueType);
             }
-            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
             fileWatcherService.checkQueueFile(savedItem.getQueueType());
+            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
 
             return savedItem;
         } else {
@@ -241,8 +246,8 @@ public class ProductionQueueItemService {
             String queueType = item.getQueueType();
             deleteAttachmentsFromMachinePath(item);
             productionQueueItemRepository.deleteById(id);
-            machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
             fileWatcherService.checkQueueFile(queueType);
+            machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
         }
     }
 
@@ -253,7 +258,28 @@ public class ProductionQueueItemService {
      * @return lista elementów dla danego typu kolejki
      */
     public List<ProductionQueueItem> findByQueueType(String queueType) {
-        return productionQueueItemRepository.findByQueueType(queueType);
+        logger.info("Pobieranie kolejki dla queueType: {}", queueType);
+        if (queueType == null) {
+            logger.warn("queueType jest null, zwracam pustą listę");
+            return Collections.emptyList();
+        }
+        // Zwróć listę elementów bez synchronizacji automatycznej
+        List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
+        logger.debug("Znaleziono {} elementów dla queueType: {}", items.size(), queueType);
+        return items;
+    }
+
+    /**
+     * Synchronizuje statusy kolejki produkcyjnej z plikiem kolejki maszyny.
+     *
+     * @param queueType typ kolejki (np. ID maszyny)
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
+    @Transactional
+    public void syncWithMachine(String queueType) throws IOException {
+        logger.info("Rozpoczęcie synchronizacji z maszyną dla queueType: {}", queueType);
+        fileWatcherService.checkQueueFile(queueType);
+        logger.info("Zakończono synchronizację z maszyną dla queueType: {}", queueType);
     }
 
     /**
@@ -282,8 +308,8 @@ public class ProductionQueueItemService {
 
             ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
             syncAttachmentsToMachinePath(savedItem);
-            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
             fileWatcherService.checkQueueFile(savedItem.getQueueType());
+            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
             return savedItem;
         } else {
             throw new RuntimeException("Nie znaleziono elementu kolejki o ID: " + id);
@@ -335,8 +361,8 @@ public class ProductionQueueItemService {
         }
 
         for (String qt : queueTypesToUpdate) {
-            machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
             fileWatcherService.checkQueueFile(qt);
+            machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
         }
     }
 

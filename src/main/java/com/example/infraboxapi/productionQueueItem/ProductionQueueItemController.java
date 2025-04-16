@@ -136,8 +136,6 @@ public class ProductionQueueItemController {
         return ResponseEntity.ok(updatedItem);
     }
 
-
-
     @PutMapping("/update-order")
     public ResponseEntity<String> updateQueueOrder(@RequestBody UpdateQueueOrderRequest request) throws IOException {
         productionQueueItemService.updateQueueOrder(request.getQueueType(), request.getItems());
@@ -148,5 +146,22 @@ public class ProductionQueueItemController {
     public ResponseEntity<Void> deleteFile(@PathVariable Long fileId) {
         productionFileInfoService.deleteById(fileId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Synchronizuje statusy kolejki produkcyjnej z plikiem kolejki maszyny dla podanego queueType.
+     *
+     * @param queueType typ kolejki (np. ID maszyny)
+     * @return lista zaktualizowanych elementów kolejki
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
+    @PostMapping("/sync-with-machine")
+    public ResponseEntity<List<ProductionQueueItem>> syncWithMachine(@RequestParam String queueType) throws IOException {
+        if (queueType == null || queueType.isEmpty()) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        productionQueueItemService.syncWithMachine(queueType);
+        List<ProductionQueueItem> items = productionQueueItemService.findByQueueType(queueType);
+        return ResponseEntity.ok(items);
     }
 }

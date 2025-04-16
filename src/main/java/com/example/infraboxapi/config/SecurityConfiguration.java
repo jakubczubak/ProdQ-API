@@ -133,6 +133,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/production-queue-item/*").hasAuthority("ADMIN") // DELETE
                         .requestMatchers("/api/production-queue-item/{id}/toggle-complete").hasAuthority("ADMIN") // PATCH
                         .requestMatchers("/api/production-queue-item/files/*").hasAnyAuthority("ADMIN", "USER") // GET file content
+                        .requestMatchers("/api/sync-with-machine/*").hasAnyAuthority("ADMIN", "USER") // GET file content
 
                         // OTHER
                         .anyRequest().authenticated()
