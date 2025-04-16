@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface MachineRepository extends JpaRepository<Machine, Integer> {
     Optional<Machine> findByProgramPath(String programPath);
     Optional<Machine> findByQueueFilePath(String queueFilePath);
+    boolean existsByMachineName(String machineName);
 }

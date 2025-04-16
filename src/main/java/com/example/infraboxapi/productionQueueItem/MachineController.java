@@ -2,6 +2,7 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.common.CommonService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -24,17 +25,25 @@ public class MachineController {
     }
 
     @PostMapping(value = "/add", consumes = {"multipart/form-data"})
-    public ResponseEntity<Machine> addMachine(
+    public ResponseEntity<?> addMachine(
             @Valid @ModelAttribute MachineRequest request,
             @RequestParam(value = "image", required = false) MultipartFile image,
             BindingResult bindingResult) throws IOException {
         if (bindingResult.hasErrors()) {
-            ResponseEntity<String> errorResponse = commonService.handleBindingResult(bindingResult);
-            return ResponseEntity.status(errorResponse.getStatusCode()).body(null);
+            String errorMessage = commonService.handleBindingResult(bindingResult).getBody();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new ErrorResponse(errorMessage)
+            );
         }
 
-        Machine machine = machineService.createMachine(request, image);
-        return ResponseEntity.ok(machine);
+        try {
+            Machine machine = machineService.createMachine(request, image);
+            return ResponseEntity.ok(machine);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new ErrorResponse(e.getMessage())
+            );
+        }
     }
 
     @GetMapping("/{id}")
@@ -50,18 +59,26 @@ public class MachineController {
     }
 
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
-    public ResponseEntity<Machine> updateMachine(
+    public ResponseEntity<?> updateMachine(
             @PathVariable Integer id,
             @Valid @ModelAttribute MachineRequest request,
             @RequestParam(value = "image", required = false) MultipartFile image,
             BindingResult bindingResult) throws IOException {
         if (bindingResult.hasErrors()) {
-            ResponseEntity<String> errorResponse = commonService.handleBindingResult(bindingResult);
-            return ResponseEntity.status(errorResponse.getStatusCode()).body(null);
+            String errorMessage = commonService.handleBindingResult(bindingResult).getBody();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new ErrorResponse(errorMessage)
+            );
         }
 
-        Machine updatedMachine = machineService.updateMachine(id, request, image);
-        return ResponseEntity.ok(updatedMachine);
+        try {
+            Machine updatedMachine = machineService.updateMachine(id, request, image);
+            return ResponseEntity.ok(updatedMachine);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new ErrorResponse(e.getMessage())
+            );
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -89,5 +106,22 @@ public class MachineController {
     @GetMapping("/{id}/download-programs")
     public ResponseEntity<byte[]> downloadMachinePrograms(@PathVariable Integer id) throws IOException {
         return machineService.downloadMachinePrograms(id);
+    }
+
+    // Klasa pomocnicza do formatowania odpowiedzi błędu
+    private static class ErrorResponse {
+        private String message;
+
+        public ErrorResponse(String message) {
+            this.message = message;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
     }
 }

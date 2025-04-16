@@ -37,6 +37,11 @@ public class MachineService {
 
     @Transactional
     public Machine createMachine(MachineRequest request, MultipartFile imageFile) throws IOException {
+        // Sprawdź, czy machineName już istnieje
+        if (machineRepository.existsByMachineName(request.getMachineName())) {
+            throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
+        }
+
         FileImage image = null;
         if (imageFile != null && !imageFile.isEmpty()) {
             image = fileImageService.createFile(imageFile);
@@ -68,6 +73,13 @@ public class MachineService {
         }
 
         Machine existingMachine = existingMachineOpt.get();
+
+        // Sprawdź unikalność machineName, pomijając bieżącą maszynę
+        if (!existingMachine.getMachineName().equals(request.getMachineName()) &&
+                machineRepository.existsByMachineName(request.getMachineName())) {
+            throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
+        }
+
         existingMachine.setMachineName(request.getMachineName());
         existingMachine.setProgramPath(request.getProgramPath());
         existingMachine.setQueueFilePath(request.getQueueFilePath());

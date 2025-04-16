@@ -20,7 +20,7 @@ public class Machine {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     @NotBlank(message = "Machine name cannot be blank")
     private String machineName;
 
