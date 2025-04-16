@@ -292,7 +292,7 @@ public class ProductionQueueItemService {
      * @throws IOException w przypadku błędu operacji na pliku
      */
     @Transactional
-    public ProductionQueueItem toggleComplete(Integer id) throws IOException {
+        public ProductionQueueItem toggleComplete(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
@@ -310,7 +310,7 @@ public class ProductionQueueItemService {
 
             ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
             syncAttachmentsToMachinePath(savedItem);
-            fileWatcherService.checkQueueFile(savedItem.getQueueType());
+
             machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
             return savedItem;
         } else {
@@ -462,6 +462,8 @@ public class ProductionQueueItemService {
                     Path tempFile = basePath.resolve(fileName + ".tmp");
                     Files.write(tempFile, file.getFileContent());
                     Files.move(tempFile, filePath, StandardCopyOption.ATOMIC_MOVE);
+
+
                 }
             }
 
