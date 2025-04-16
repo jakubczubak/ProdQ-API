@@ -16,6 +16,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Serwis odpowiedzialny za zarządzanie elementami kolejki produkcyjnej, w tym zapisywanie, aktualizowanie, usuwanie i synchronizację załączników.
+ */
 @Service
 public class ProductionQueueItemService {
 
@@ -23,19 +26,30 @@ public class ProductionQueueItemService {
     private final ProductionFileInfoService productionFileInfoService;
     private final MachineRepository machineRepository;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
+    private final FileWatcherService fileWatcherService;
 
     @Autowired
     public ProductionQueueItemService(
             ProductionQueueItemRepository productionQueueItemRepository,
             ProductionFileInfoService productionFileInfoService,
             MachineRepository machineRepository,
-            MachineQueueFileGeneratorService machineQueueFileGeneratorService) {
+            MachineQueueFileGeneratorService machineQueueFileGeneratorService,
+            FileWatcherService fileWatcherService) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.machineRepository = machineRepository;
         this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
+        this.fileWatcherService = fileWatcherService;
     }
 
+    /**
+     * Zapisuje nowy element kolejki produkcyjnej wraz z załącznikami.
+     *
+     * @param item element kolejki do zapisania
+     * @param files lista załączników do zapisania
+     * @return zapisany element kolejki
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
     @Transactional
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
@@ -74,18 +88,39 @@ public class ProductionQueueItemService {
 
         syncAttachmentsToMachinePath(savedItem);
         machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
+        fileWatcherService.checkQueueFile(savedItem.getQueueType());
 
         return savedItem;
     }
 
+    /**
+     * Wyszukuje element kolejki po identyfikatorze.
+     *
+     * @param id identyfikator elementu
+     * @return Optional zawierający znaleziony element lub pusty, jeśli nie istnieje
+     */
     public Optional<ProductionQueueItem> findById(Integer id) {
         return productionQueueItemRepository.findById(id);
     }
 
+    /**
+     * Zwraca wszystkie elementy kolejki produkcyjnej.
+     *
+     * @return lista wszystkich elementów kolejki
+     */
     public List<ProductionQueueItem> findAll() {
         return productionQueueItemRepository.findAll();
     }
 
+    /**
+     * Aktualizuje istniejący element kolejki produkcyjnej oraz jego załączniki.
+     *
+     * @param id identyfikator elementu do aktualizacji
+     * @param updatedItem zaktualizowane dane elementu
+     * @param files nowe załączniki do dodania
+     * @return zaktualizowany element kolejki
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
     @Transactional
     public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
         Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
@@ -134,15 +169,23 @@ public class ProductionQueueItemService {
             if (oldQueueType != null && !oldQueueType.equals(savedItem.getQueueType()) && !"ncQueue".equals(oldQueueType) && !"completed".equals(oldQueueType)) {
                 deleteAttachmentsFromMachinePath(savedItem, oldQueueType, savedItem.getQueueType());
                 machineQueueFileGeneratorService.generateQueueFileForMachine(oldQueueType);
+                fileWatcherService.checkQueueFile(oldQueueType);
             }
             machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
+            fileWatcherService.checkQueueFile(savedItem.getQueueType());
 
             return savedItem;
         } else {
-            throw new RuntimeException("ProductionQueueItem with ID " + id + " not found");
+            throw new RuntimeException("Nie znaleziono elementu kolejki o ID: " + id);
         }
     }
 
+    /**
+     * Usuwa element kolejki produkcyjnej o podanym identyfikatorze.
+     *
+     * @param id identyfikator elementu do usunięcia
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
     @Transactional
     public void deleteById(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
@@ -152,13 +195,27 @@ public class ProductionQueueItemService {
             deleteAttachmentsFromMachinePath(item);
             productionQueueItemRepository.deleteById(id);
             machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
+            fileWatcherService.checkQueueFile(queueType);
         }
     }
 
+    /**
+     * Wyszukuje elementy kolejki produkcyjnej według typu kolejki.
+     *
+     * @param queueType typ kolejki
+     * @return lista elementów dla danego typu kolejki
+     */
     public List<ProductionQueueItem> findByQueueType(String queueType) {
         return productionQueueItemRepository.findByQueueType(queueType);
     }
 
+    /**
+     * Przełącza status ukończenia elementu kolejki produkcyjnej.
+     *
+     * @param id identyfikator elementu
+     * @return zaktualizowany element kolejki
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
     @Transactional
     public ProductionQueueItem toggleComplete(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
@@ -179,12 +236,20 @@ public class ProductionQueueItemService {
             ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
             syncAttachmentsToMachinePath(savedItem);
             machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
+            fileWatcherService.checkQueueFile(savedItem.getQueueType());
             return savedItem;
         } else {
-            throw new RuntimeException("ProductionQueueItem with ID " + id + " not found");
+            throw new RuntimeException("Nie znaleziono elementu kolejki o ID: " + id);
         }
     }
 
+    /**
+     * Aktualizuje kolejność elementów w kolejce produkcyjnej.
+     *
+     * @param queueType typ kolejki
+     * @param items lista elementów z nową kolejnością
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
     @Transactional
     public void updateQueueOrder(String queueType, List<OrderItem> items) throws IOException {
         List<Integer> itemIds = items.stream()
@@ -200,7 +265,7 @@ public class ProductionQueueItemService {
         for (OrderItem orderItem : items) {
             ProductionQueueItem item = itemMap.get(orderItem.getId());
             if (item == null) {
-                throw new IllegalArgumentException("Item not found: " + orderItem.getId());
+                throw new IllegalArgumentException("Nie znaleziono elementu: " + orderItem.getId());
             }
             oldQueueTypes.put(item.getId(), item.getQueueType());
             item.setOrder(orderItem.getOrder());
@@ -224,9 +289,16 @@ public class ProductionQueueItemService {
 
         for (String qt : queueTypesToUpdate) {
             machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
+            fileWatcherService.checkQueueFile(qt);
         }
     }
 
+    /**
+     * Sprawdza, czy wszystkie załączniki .MPF dla elementu są ukończone.
+     *
+     * @param item element kolejki
+     * @return true, jeśli wszystkie załączniki .MPF są ukończone, w przeciwnym razie false
+     */
     private boolean checkAllMpfCompleted(ProductionQueueItem item) {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
             return false;
@@ -236,6 +308,12 @@ public class ProductionQueueItemService {
                 .allMatch(ProductionFileInfo::isCompleted);
     }
 
+    /**
+     * Weryfikuje poprawność typu kolejki.
+     *
+     * @param queueType typ kolejki do zweryfikowania
+     * @throws IllegalArgumentException jeśli typ kolejki jest nieprawidłowy
+     */
     private void validateQueueType(String queueType) {
         if (queueType == null || queueType.isEmpty()) {
             return;
@@ -247,13 +325,19 @@ public class ProductionQueueItemService {
         try {
             boolean isValidMachine = machineRepository.existsById(Integer.parseInt(queueType));
             if (!isValidMachine) {
-                throw new IllegalArgumentException("Invalid queueType: " + queueType);
+                throw new IllegalArgumentException("Nieprawidłowy typ kolejki: " + queueType);
             }
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid queueType: " + queueType);
+            throw new IllegalArgumentException("Nieprawidłowy typ kolejki: " + queueType);
         }
     }
 
+    /**
+     * Synchronizuje załączniki elementu z katalogiem maszyny.
+     *
+     * @param item element kolejki
+     * @throws FileOperationException w przypadku błędu operacji na pliku
+     */
     private void syncAttachmentsToMachinePath(ProductionQueueItem item) {
         try {
             String queueType = item.getQueueType();
@@ -263,7 +347,7 @@ public class ProductionQueueItemService {
 
             Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
             if (machineOpt.isEmpty()) {
-                throw new FileOperationException("Machine with ID " + queueType + " not found");
+                throw new FileOperationException("Nie znaleziono maszyny o ID: " + queueType);
             }
 
             Machine machine = machineOpt.get();
@@ -318,10 +402,18 @@ public class ProductionQueueItemService {
             }
 
         } catch (IOException e) {
-            throw new FileOperationException("Failed to sync attachments to machine path: " + e.getMessage(), e);
+            throw new FileOperationException("Nie udało się zsynchronizować załączników z katalogiem maszyny: " + e.getMessage(), e);
         }
     }
 
+    /**
+     * Usuwa załączniki elementu z katalogu maszyny dla starego typu kolejki.
+     *
+     * @param item element kolejki
+     * @param oldQueueType stary typ kolejki
+     * @param newQueueType nowy typ kolejki
+     * @throws FileOperationException w przypadku błędu operacji na pliku
+     */
     private void deleteAttachmentsFromMachinePath(ProductionQueueItem item, String oldQueueType, String newQueueType) {
         try {
             if (oldQueueType == null || "ncQueue".equals(oldQueueType) || "completed".equals(oldQueueType)) {
@@ -370,10 +462,16 @@ public class ProductionQueueItemService {
             }
 
         } catch (IOException e) {
-            throw new FileOperationException("Failed to delete old attachments: " + e.getMessage(), e);
+            throw new FileOperationException("Nie udało się usunąć starych załączników: " + e.getMessage(), e);
         }
     }
 
+    /**
+     * Usuwa załączniki elementu z katalogu maszyny.
+     *
+     * @param item element kolejki
+     * @throws FileOperationException w przypadku błędu operacji na pliku
+     */
     private void deleteAttachmentsFromMachinePath(ProductionQueueItem item) {
         try {
             String queueType = item.getQueueType();
@@ -401,10 +499,17 @@ public class ProductionQueueItemService {
             }
 
         } catch (IOException e) {
-            throw new FileOperationException("Failed to delete attachments: " + e.getMessage(), e);
+            throw new FileOperationException("Nie udało się usunąć załączników: " + e.getMessage(), e);
         }
     }
 
+    /**
+     * Sanitizuje nazwę pliku, usuwając polskie znaki i niedozwolone znaki.
+     *
+     * @param name nazwa do sanitizacji
+     * @param defaultName domyślna nazwa w razie null/pustej wartości
+     * @return sanitizowana nazwa
+     */
     private String sanitizeFileName(String name, String defaultName) {
         if (name == null || name.trim().isEmpty()) {
             return defaultName;
@@ -426,10 +531,24 @@ public class ProductionQueueItemService {
         return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
     }
 
+    /**
+     * Sanitizuje nazwę pliku, używając domyślnej wartości "UNKNOWN".
+     *
+     * @param name nazwa do sanitizacji
+     * @return sanitizowana nazwa
+     */
     private String sanitizeFileName(String name) {
         return sanitizeFileName(name, "UNKNOWN");
     }
 
+    /**
+     * Generuje unikalną ścieżkę dla pliku, dodając numer wersji w razie konfliktu nazw.
+     *
+     * @param basePath katalog bazowy
+     * @param fileName nazwa pliku
+     * @return unikalna ścieżka do pliku
+     * @throws IOException w przypadku braku możliwości znalezienia unikalnej nazwy
+     */
     private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
         Path filePath = basePath.resolve(fileName);
         if (!Files.exists(filePath)) {
@@ -446,11 +565,18 @@ public class ProductionQueueItemService {
             }
             version++;
             if (version > 1000) {
-                throw new FileOperationException("Cannot find unique file name for: " + fileName);
+                throw new FileOperationException("Nie można znaleźć unikalnej nazwy dla pliku: " + fileName);
             }
         }
     }
 
+    /**
+     * Sprawdza, czy katalog jest pusty.
+     *
+     * @param dir ścieżka do katalogu
+     * @return true, jeśli katalog jest pusty, w przeciwnym razie false
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
     private boolean isDirectoryEmpty(Path dir) throws IOException {
         if (!Files.isDirectory(dir)) {
             return false;
@@ -460,6 +586,12 @@ public class ProductionQueueItemService {
         }
     }
 
+    /**
+     * Rekurencyjnie usuwa katalog i jego zawartość.
+     *
+     * @param path ścieżka do katalogu
+     * @throws IOException w przypadku błędu operacji na pliku
+     */
     private void deleteDirectoryRecursively(Path path) throws IOException {
         if (!Files.exists(path)) {
             return;
@@ -479,6 +611,9 @@ public class ProductionQueueItemService {
         });
     }
 
+    /**
+     * Wyjątek rzucany w przypadku błędów operacji na plikach.
+     */
     private static class FileOperationException extends RuntimeException {
         public FileOperationException(String message) {
             super(message);

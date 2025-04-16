@@ -7,20 +7,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.Normalizer;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Serwis odpowiedzialny za obserwowanie zmian w plikach kolejki i aktualizację statusów załączników oraz programów.
+ * Serwis odpowiedzialny za sprawdzanie plików kolejki i aktualizację statusów załączników oraz programów w odpowiedzi na operacje użytkownika.
  */
 @Service
 public class FileWatcherService {
@@ -41,174 +39,71 @@ public class FileWatcherService {
     }
 
     /**
-     * Inicjalizuje obserwację plików kolejki dla wszystkich maszyn.
+     * Sprawdza plik kolejki dla maszyny o podanym queueType i aktualizuje statusy załączników oraz programów.
+     *
+     * @param queueType ID maszyny (jako String)
      */
-    @PostConstruct
-    public void startWatching() {
-        logger.info("Inicjalizacja FileWatcherService...");
-        new Thread(() -> {
-            try {
-                watchQueueFiles();
-            } catch (Exception e) {
-                logger.error("Wątek FileWatcherService zakończył się nieoczekiwanie: {}", e.getMessage(), e);
-                throw e;
-            }
-        }, "FileWatcherThread").start();
-    }
-
-    private void watchQueueFiles() {
-        WatchService watchService = null;
-        Set<Path> registeredDirs = new HashSet<>();
-        int lastMachineCount = -1;
-
+    @Transactional
+    public void checkQueueFile(String queueType) {
+        logger.info("Sprawdzanie pliku kolejki dla queueType: {}", queueType);
         try {
-            watchService = FileSystems.getDefault().newWatchService();
-            logger.info("Utworzono WatchService");
-
-            while (true) {
-                // Pobierz maszyny
-                List<Machine> machines = machineRepository.findAll();
-                int currentMachineCount = machines.size();
-
-                if (currentMachineCount != lastMachineCount) {
-                    logger.info("Zmiana liczby maszyn: {} (poprzednio: {})", currentMachineCount, lastMachineCount);
-                    lastMachineCount = currentMachineCount;
-                }
-
-                logger.debug("Znaleziono {} maszyn do monitorowania", currentMachineCount);
-                for (Machine machine : machines) {
-                    logger.debug("Maszyna: {}, oczekiwany plik: {}/{}.txt", machine.getMachineName(), machine.getQueueFilePath(), machine.getMachineName());
-                }
-
-                // Rejestruj katalogi maszyn
-                for (Machine machine : machines) {
-                    Path queueDir;
-                    try {
-                        queueDir = Paths.get(machine.getQueueFilePath()).toAbsolutePath().normalize();
-                    } catch (Exception e) {
-                        logger.error("Nieprawidłowa ścieżka queueFilePath dla maszyny {}: {}", machine.getMachineName(), machine.getQueueFilePath(), e);
-                        continue;
-                    }
-
-                    Path queueFile = queueDir.resolve(machine.getMachineName() + ".txt");
-                    if (!Files.exists(queueDir)) {
-                        logger.warn("Katalog kolejki {} dla maszyny {} nie istnieje", queueDir, machine.getMachineName());
-                        continue;
-                    }
-                    if (!Files.isDirectory(queueDir)) {
-                        logger.warn("Ścieżka {} dla maszyny {} nie jest katalogiem", queueDir, machine.getMachineName());
-                        continue;
-                    }
-                    if (!Files.isReadable(queueDir)) {
-                        logger.error("Brak uprawnień do odczytu katalogu {} dla maszyny {}", queueDir, machine.getMachineName());
-                        continue;
-                    }
-
-                    if (!registeredDirs.contains(queueDir)) {
-                        try {
-                            queueDir.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
-                            registeredDirs.add(queueDir);
-                            logger.info("Zarejestrowano katalog kolejki: {} dla maszyny {} (plik: {})", queueDir, machine.getMachineName(), queueFile);
-                            // Spróbuj odczytać istniejący plik kolejki
-                            if (Files.exists(queueFile) && Files.isReadable(queueFile)) {
-                                logger.info("Wykryto istniejący plik kolejki: {}, synchronizuję statusy", queueFile);
-                                handleFileChange(queueFile);
-                            } else {
-                                logger.debug("Plik kolejki {} jeszcze nie istnieje", queueFile);
-                            }
-                        } catch (IOException e) {
-                            logger.error("Nie udało się zarejestrować katalogu {} dla maszyny {}: {}", queueDir, machine.getMachineName(), e.getMessage(), e);
-                        }
-                    }
-                }
-
-                // Sprawdź zdarzenia (nieblokująco)
-                logger.debug("Sprawdzanie zdarzeń WatchService...");
-                WatchKey key;
-                while ((key = watchService.poll(1000, TimeUnit.MILLISECONDS)) != null) {
-                    Path watchablePath = (Path) key.watchable();
-                    for (WatchEvent<?> event : key.pollEvents()) {
-                        Path changedFile = watchablePath.resolve((Path) event.context());
-                        // Ignoruj pliki tymczasowe
-                        String fileName = changedFile.getFileName().toString();
-                        if (fileName.endsWith("~") || fileName.endsWith(".tmp")) {
-                            logger.debug("Zignorowano plik tymczasowy: {}", changedFile);
-                            continue;
-                        }
-                        if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
-                            logger.info("Wykryto zmianę w pliku: {}", changedFile);
-                            handleFileChange(changedFile);
-                        } else {
-                            logger.debug("Zignorowano zdarzenie typu: {} dla pliku: {}", event.kind(), event.context());
-                        }
-                    }
-                    boolean valid = key.reset();
-                    if (!valid) {
-                        logger.warn("Klucz WatchService dla {} stał się nieprawidłowy", watchablePath);
-                        registeredDirs.remove(watchablePath);
-                    }
-                }
-
-                // Krótka przerwa
-                Thread.sleep(1000); // 1s na odświeżanie listy maszyn
+            // Pomiń dla ncQueue i completed
+            if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
+                logger.debug("Pominięto sprawdzanie dla queueType: {}", queueType);
+                return;
             }
-        } catch (IOException e) {
-            logger.error("Błąd podczas inicjalizacji WatchService: {}", e.getMessage(), e);
-            throw new RuntimeException("Błąd podczas obserwacji plików kolejki: " + e.getMessage(), e);
-        } catch (InterruptedException e) {
-            logger.error("Przerwano pętlę WatchService: {}", e.getMessage(), e);
-            Thread.currentThread().interrupt();
-        } finally {
-            if (watchService != null) {
-                try {
-                    watchService.close();
-                    logger.info("Zamknięto WatchService");
-                } catch (IOException e) {
-                    logger.error("Błąd podczas zamykania WatchService: {}", e.getMessage(), e);
-                }
+
+            Integer machineId = Integer.parseInt(queueType);
+            Optional<Machine> machineOpt = machineRepository.findById(machineId);
+            if (machineOpt.isEmpty()) {
+                logger.warn("Nie znaleziono maszyny dla queueType: {}", queueType);
+                return;
             }
+
+            Machine machine = machineOpt.get();
+            Path queueFile = Paths.get(machine.getQueueFilePath(), machine.getMachineName() + ".txt").toAbsolutePath().normalize();
+
+            if (!Files.exists(queueFile)) {
+                logger.debug("Plik kolejki {} nie istnieje", queueFile);
+                return;
+            }
+            if (!Files.isReadable(queueFile)) {
+                logger.error("Brak uprawnień do odczytu pliku kolejki: {}", queueFile);
+                return;
+            }
+
+            logger.info("Przetwarzanie pliku kolejki: {}", queueFile);
+            handleFileChange(queueFile, machine);
+
+        } catch (NumberFormatException e) {
+            logger.warn("Nieprawidłowy format queueType: {}", queueType);
+        } catch (Exception e) {
+            logger.error("Błąd podczas sprawdzania pliku kolejki dla queueType {}: {}", queueType, e.getMessage(), e);
         }
     }
 
     /**
      * Obsługuje zmianę pliku kolejki, aktualizując statusy załączników i programów.
      *
-     * @param filePath ścieżka do zmienionego pliku
+     * @param filePath ścieżka do pliku kolejki
+     * @param machine  maszyna powiązana z plikiem
      */
     @Transactional
-    private void handleFileChange(Path filePath) {
-        logger.info("Przetwarzanie zmiany pliku: {}", filePath);
+    private void handleFileChange(Path filePath, Machine machine) {
+        logger.info("Przetwarzanie pliku: {}", filePath);
         try {
-            Optional<Machine> machineOpt = machineRepository.findAll().stream()
-                    .filter(m -> {
-                        Path expectedPath = Paths.get(m.getQueueFilePath(), m.getMachineName() + ".txt").toAbsolutePath().normalize();
-                        return expectedPath.toString().equalsIgnoreCase(filePath.toAbsolutePath().normalize().toString());
-                    })
-                    .findFirst();
-
-            if (machineOpt.isEmpty()) {
-                logger.warn("Nie znaleziono maszyny dla pliku: {}. Oczekiwane pliki:", filePath);
-                machineRepository.findAll().forEach(m ->
-                        logger.warn(" - Maszyna: {}, plik: {}/{}.txt", m.getMachineName(), m.getQueueFilePath(), m.getMachineName()));
-                return;
-            }
-
-            Machine machine = machineOpt.get();
-            logger.info("Plik {} powiązany z maszyną: {}", filePath, machine.getMachineName());
-            String queueType = String.valueOf(machine.getId());
-
             List<String> lines;
             try {
                 lines = Files.readAllLines(filePath);
             } catch (IOException e) {
-                logger.error("Nie udało się przeczytać pliku {}: {}", filePath, e.getMessage(), e);
+                logger.error("Nie udało się odczytać pliku {}: {}", filePath, e.getMessage(), e);
                 return;
             }
-            logger.debug("Przeczytano {} linii z pliku {}", lines.size(), filePath);
+            logger.debug("Odczytano {} linii z pliku {}", lines.size(), filePath);
 
-            // Parser: pozycja. /orderName/partName/fileName - ilość szt. id: ID | [UKONCZONE|NIEUKONCZONE]
+            // Parser: pozycja./orderName/partName/fileName - ilość szt. id: ID | [UKONCZONE|NIEUKONCZONE]
             Pattern pattern = Pattern.compile(
-                    "^(\\d+)\\s*\\.\\s*/([^/]+)/([^/]+)/([^\\s]+?\\.mpf(?:\\.mpf)?)\\s*-\\s*(\\d+)\\s*szt\\.\\s*id:\\s*(\\d+)\\s*\\|\\s*\\[(UKONCZONE|NIEUKONCZONE)]",
+                    "^(\\d+)\\./([^/]+)/([^/]+)/([^\\s]+?\\.mpf(?:\\.mpf)?)\\s*-\\s*(\\d+)\\s*szt\\.\\s*id:\\s*(\\d+)\\s*\\|\\s*\\[(UKONCZONE|NIEUKONCZONE)]",
                     Pattern.CASE_INSENSITIVE
             );
 
@@ -272,7 +167,7 @@ public class FileWatcherService {
      * Sanitizuje nazwę, usuwając polskie znaki i niedozwolone znaki.
      *
      * @param name nazwa do sanitizacji
-     * @return sanitized nazwa
+     * @return sanitizowana nazwa
      */
     private String sanitizeFileName(String name) {
         if (name == null || name.trim().isEmpty()) {
