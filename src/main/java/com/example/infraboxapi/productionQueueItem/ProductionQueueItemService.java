@@ -84,6 +84,7 @@ public class ProductionQueueItemService {
                 ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                         .fileName(sanitizedFileName)
                         .fileType(file.getContentType())
+                        .fileSize(file.getSize()) // Ustawienie rozmiaru pliku
                         .fileContent(file.getBytes())
                         .productionQueueItem(savedItem)
                         .completed(false)
@@ -203,6 +204,7 @@ public class ProductionQueueItemService {
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                             .fileName(sanitizedFileName)
                             .fileType(file.getContentType())
+                            .fileSize(file.getSize()) // Ustawienie rozmiaru pliku
                             .fileContent(file.getBytes())
                             .productionQueueItem(existingItem)
                             .completed(false)
