@@ -102,7 +102,7 @@ public class MachineService {
         File mountDir;
 
         if ("prod".equalsIgnoreCase(appEnv)) {
-            mountDir = new File("/mnt/cnc");
+            mountDir = new File("/cnc");
         } else if ("docker-local".equalsIgnoreCase(appEnv)) {
             mountDir = new File("/cnc");
         } else {
