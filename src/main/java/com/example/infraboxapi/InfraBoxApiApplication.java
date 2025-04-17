@@ -24,8 +24,8 @@ public class InfraBoxApiApplication {
         File mountDir;
 
         if ("prod".equalsIgnoreCase(appEnv)) {
-            // Tryb produkcyjny: sprawdzanie zamontowanego zasobu /mnt/cnc
-            mountDir = new File("/mnt/cnc");
+            // Tryb produkcyjny: sprawdzanie zamontowanego zasobu /cnc
+            mountDir = new File("/cnc");
         } else if ("docker-local".equalsIgnoreCase(appEnv)) {
             // Tryb docker-local: używamy /cnc w kontenerze
             mountDir = new File("/cnc");
