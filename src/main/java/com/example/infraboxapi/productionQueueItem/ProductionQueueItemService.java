@@ -620,10 +620,10 @@ public class ProductionQueueItemService {
         if (name == null || name.trim().isEmpty()) {
             return defaultName;
         }
+
         // Normalizuj znaki i usuń polskie diakrytyki
         String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
                 .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
-        // Zastąp specyficzne polskie znaki
         normalized = normalized.replaceAll("[ąĄ]", "a")
                 .replaceAll("[ćĆ]", "c")
                 .replaceAll("[ęĘ]", "e")
@@ -633,17 +633,46 @@ public class ProductionQueueItemService {
                 .replaceAll("[śŚ]", "s")
                 .replaceAll("[źŹ]", "z")
                 .replaceAll("[żŻ]", "z");
+
         // Usuń niedozwolone znaki
         String sanitized = normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
 
         if (isMpf) {
-            // Dla plików .MPF: skróć nazwę do 24 znaków (bez rozszerzenia)
             String ext = ".MPF";
             String nameWithoutExt = sanitized.replaceFirst("(\\.[^\\.]+)$", "");
-            if (nameWithoutExt.length() > 24) {
-                nameWithoutExt = nameWithoutExt.substring(0, 24);
+
+            // Sprawdź, czy nazwa zawiera końcówkę _macX i opcjonalnie _vY
+            String suffix = "";
+            String baseName = nameWithoutExt;
+            String macPattern = "_mac\\d+"; // _mac i dowolna liczba
+            String versionPattern = "_v\\d+"; // _v i dowolna liczba
+
+            // Szukaj końcówki _macX i _vY
+            if (nameWithoutExt.matches(".*" + macPattern + versionPattern + "$")) {
+                // Jeśli istnieje zarówno _macX_vY
+                int macIndex = nameWithoutExt.lastIndexOf("_mac");
+                suffix = nameWithoutExt.substring(macIndex); // np. _mac22_v10
+                baseName = nameWithoutExt.substring(0, macIndex); // część przed _mac
+            } else if (nameWithoutExt.matches(".*" + macPattern + "$")) {
+                // Jeśli istnieje tylko _macX
+                int macIndex = nameWithoutExt.lastIndexOf("_mac");
+                suffix = nameWithoutExt.substring(macIndex); // np. _mac22
+                baseName = nameWithoutExt.substring(0, macIndex); // część przed _mac
             }
-            return nameWithoutExt + ext;
+
+            // Oblicz maksymalną długość bazowej części nazwy
+            int maxBaseLength = 24 - suffix.length();
+            if (maxBaseLength < 0) {
+                maxBaseLength = 0; // Minimalna ochrona przed błędami
+            }
+
+            // Skróć bazową część nazwy, jeśli jest za długa
+            if (baseName.length() > maxBaseLength) {
+                baseName = baseName.substring(0, maxBaseLength);
+            }
+
+            // Połącz bazową nazwę z końcówką i rozszerzeniem
+            return baseName + suffix + ext;
         }
 
         return sanitized;
