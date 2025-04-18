@@ -22,4 +22,6 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
 
     @Query("SELECT p FROM ProductionQueueItem p LEFT JOIN FETCH p.files WHERE p.id = :id")
     Optional<ProductionQueueItem> findByIdWithFiles(@Param("id") Integer id);
+
+    List<ProductionQueueItem> findByOrderNameAndPartName(String orderName, String partName);
 }

@@ -11,15 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
- * Serwis odpowiedzialny za zarządzanie elementami kolejki produkcyjnej, w tym zapisywanie, aktualizowanie, usuwanie i synchronizację załączników.
+ * Serwis odpowiedzialny za zarządzanie elementami kolejki produkcyjnej, w tym zapisywanie, aktualizowanie i synchronizację załączników.
  */
 @Service
 public class ProductionQueueItemService {
@@ -31,6 +28,7 @@ public class ProductionQueueItemService {
     private final MachineRepository machineRepository;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
     private final FileWatcherService fileWatcherService;
+    private final FileSystemService fileSystemService;
 
     @Autowired
     public ProductionQueueItemService(
@@ -38,12 +36,14 @@ public class ProductionQueueItemService {
             ProductionFileInfoService productionFileInfoService,
             MachineRepository machineRepository,
             MachineQueueFileGeneratorService machineQueueFileGeneratorService,
-            FileWatcherService fileWatcherService) {
+            FileWatcherService fileWatcherService,
+            ProductionQueueItemRepository productionQueueItemRepositoryForFileSystem) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.machineRepository = machineRepository;
         this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
         this.fileWatcherService = fileWatcherService;
+        this.fileSystemService = new FileSystemService(productionQueueItemRepositoryForFileSystem);
     }
 
     /**
@@ -219,11 +219,6 @@ public class ProductionQueueItemService {
 
             syncAttachmentsToMachinePath(savedItem);
 
-            if (oldQueueType != null && !oldQueueType.equals(savedItem.getQueueType()) && !"ncQueue".equals(oldQueueType) && !"completed".equals(oldQueueType)) {
-                deleteAttachmentsFromMachinePath(savedItem, oldQueueType, savedItem.getQueueType());
-                fileWatcherService.checkQueueFile(oldQueueType);
-                machineQueueFileGeneratorService.generateQueueFileForMachine(oldQueueType);
-            }
             fileWatcherService.checkQueueFile(savedItem.getQueueType());
             machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
 
@@ -245,7 +240,6 @@ public class ProductionQueueItemService {
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
             String queueType = item.getQueueType();
-            deleteAttachmentsFromMachinePath(item);
             productionQueueItemRepository.deleteById(id);
             fileWatcherService.checkQueueFile(queueType);
             machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
@@ -352,10 +346,6 @@ public class ProductionQueueItemService {
 
         for (ProductionQueueItem item : toUpdate) {
             syncAttachmentsToMachinePath(item);
-            String oldQueueType = oldQueueTypes.get(item.getId());
-            if (oldQueueType != null && !oldQueueType.equals(queueType) && !"ncQueue".equals(oldQueueType) && !"completed".equals(oldQueueType)) {
-                deleteAttachmentsFromMachinePath(item, oldQueueType, queueType);
-            }
         }
 
         for (String qt : queueTypesToUpdate) {
@@ -404,7 +394,7 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Synchronizuje załączniki elementu z katalogiem maszyny, nadpisując istniejące pliki lub tworząc nowe z sufiksem, jeśli są zablokowane.
+     * Synchronizuje załączniki elementu z katalogiem maszyny.
      *
      * @param item element kolejki
      * @throws FileOperationException w przypadku błędu operacji na pliku
@@ -427,281 +417,9 @@ public class ProductionQueueItemService {
             String orderName = sanitizeFileName(item.getOrderName(), "NoOrderName_" + item.getId());
             String partName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
 
-            Path basePath = Paths.get(programPath, orderName, partName);
-            if (Files.exists(basePath) && !Files.isDirectory(basePath)) {
-                logger.warn("Ścieżka {} istnieje jako plik, usuwanie pliku przed utworzeniem katalogu", basePath);
-                Files.delete(basePath);
-            }
-
-            basePath = getUniqueDirectoryPath(Paths.get(programPath, orderName), partName);
-            Files.createDirectories(basePath);
-
-            // Pobierz listę istniejących plików na dysku
-            Set<String> existingFiles = Files.exists(basePath)
-                    ? Files.list(basePath)
-                    .filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
-                    .collect(Collectors.toSet())
-                    : Collections.emptySet();
-
-            // Pobierz listę plików z aplikacji
-            Set<String> appFiles = item.getFiles() == null
-                    ? Collections.emptySet()
-                    : item.getFiles().stream()
-                    .map(ProductionFileInfo::getFileName)
-                    .collect(Collectors.toSet());
-
-            // Usuń pliki z dysku, które nie znajdują się w liście załączników aplikacji
-            for (String diskFile : existingFiles) {
-                if (!appFiles.contains(diskFile)) {
-                    Path filePath = basePath.resolve(diskFile);
-                    if (isFileAccessible(filePath)) {
-                        Files.deleteIfExists(filePath);
-                        logger.debug("Usunięto niepotrzebny plik: {}", filePath);
-                    } else {
-                        logger.warn("Nie można usunąć pliku {}, ponieważ jest zablokowany. Plik pozostaje na dysku.", filePath);
-                    }
-                }
-            }
-
-            // Zapisz pliki z aplikacji na dysk, nadpisując istniejące lub tworząc z sufiksem
-            if (item.getFiles() != null && !item.getFiles().isEmpty()) {
-                for (ProductionFileInfo file : item.getFiles()) {
-                    String fileName = file.getFileName();
-                    Path filePath = basePath.resolve(fileName);
-
-                    // Spróbuj usunąć istniejący plik, aby nadpisać go nowym
-                    boolean fileDeleted = false;
-                    if (Files.exists(filePath) && existingFiles.contains(fileName)) {
-                        if (isFileAccessible(filePath)) {
-                            Files.delete(filePath);
-                            fileDeleted = true;
-                            logger.debug("Usunięto istniejący plik przed nadpisaniem: {}", filePath);
-                        } else {
-                            logger.warn("Plik {} jest zablokowany, zapisuję nowy plik z sufiksem.", filePath);
-                        }
-                    }
-
-                    // Jeśli plik nie został usunięty (np. z powodu blokady), użyj unikalnej nazwy
-                    if (!fileDeleted && Files.exists(filePath)) {
-                        filePath = getUniqueFilePath(basePath, fileName);
-                        logger.info("Zapisano plik z sufiksem z powodu blokady lub kolizji: {}", filePath);
-                    }
-
-                    // Zapisz nowy plik
-                    Path tempFile = basePath.resolve(fileName + ".tmp");
-                    Files.write(tempFile, file.getFileContent());
-                    Files.move(tempFile, filePath, StandardCopyOption.ATOMIC_MOVE);
-                    logger.debug("Zapisano plik: {}", filePath);
-                }
-            }
-
-            // Usuń pusty katalog, jeśli nie ma załączników
-            if (item.getFiles() == null || item.getFiles().isEmpty()) {
-                if (isDirectoryEmpty(basePath) && isDirectoryAccessible(basePath)) {
-                    deleteDirectoryRecursively(basePath);
-                    logger.debug("Usunięto pusty katalog: {}", basePath);
-                }
-
-                Path orderPath = Paths.get(programPath, orderName);
-                if (isDirectoryEmpty(orderPath) && isDirectoryAccessible(orderPath)) {
-                    deleteDirectoryRecursively(orderPath);
-                    logger.debug("Usunięto pusty katalog nadrzędny: {}", orderPath);
-                }
-            }
-
+            fileSystemService.synchronizeFiles(programPath, orderName, partName, item.getFiles());
         } catch (IOException e) {
             throw new FileOperationException("Nie udało się zsynchronizować załączników z katalogiem maszyny: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Generuje unikalną ścieżkę dla katalogu, dodając numer wersji w razie konfliktu nazw.
-     *
-     * @param parentPath katalog nadrzędny
-     * @param dirName nazwa katalogu
-     * @return unikalna ścieżka do katalogu
-     * @throws IOException w przypadku braku możliwości znalezienia unikalnej nazwy
-     */
-    private Path getUniqueDirectoryPath(Path parentPath, String dirName) throws IOException {
-        Path dirPath = parentPath.resolve(dirName);
-        if (!Files.exists(dirPath) || Files.isDirectory(dirPath)) {
-            return dirPath;
-        }
-
-        String baseName = dirName;
-        int version = 2;
-        while (true) {
-            String versionedName = String.format("%s_v%d", baseName, version);
-            dirPath = parentPath.resolve(versionedName);
-            if (!Files.exists(dirPath) || Files.isDirectory(dirPath)) {
-                return dirPath;
-            }
-            version++;
-            if (version > 1000) {
-                throw new FileOperationException("Nie można znaleźć unikalnej nazwy dla katalogu: " + dirName);
-            }
-        }
-    }
-
-    /**
-     * Sprawdza, czy katalog jest dostępny (niezablokowany) do usuwania.
-     *
-     * @param path ścieżka do katalogu
-     * @return true, jeśli katalog jest dostępny, false w przeciwnym razie
-     */
-    private boolean isDirectoryAccessible(Path path) {
-        if (!Files.exists(path) || !Files.isDirectory(path)) {
-            return true;
-        }
-        try {
-            Files.list(path).findFirst();
-            Path tempFile = path.resolve("temp_" + System.currentTimeMillis() + ".tmp");
-            Files.createFile(tempFile);
-            Files.delete(tempFile);
-            return true;
-        } catch (IOException e) {
-            logger.warn("Katalog {} jest niedostępny: {}", path, e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Sprawdza, czy plik jest dostępny (niezablokowany) do usuwania lub nadpisywania.
-     *
-     * @param filePath ścieżka do pliku
-     * @return true, jeśli plik jest dostępny, false w przeciwnym razie
-     */
-    private boolean isFileAccessible(Path filePath) {
-        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
-            return true;
-        }
-        try {
-            // Spróbuj otworzyć plik z uprawnieniami do zapisu, aby sprawdzić, czy nie jest zablokowany
-            Files.newOutputStream(filePath, StandardOpenOption.WRITE, StandardOpenOption.APPEND).close();
-            return true;
-        } catch (IOException e) {
-            logger.warn("Plik {} jest niedostępny: {}", filePath, e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Usuwa załączniki elementu z katalogu maszyny dla starego typu kolejki.
-     *
-     * @param item element kolejki
-     * @param oldQueueType stary typ kolejki
-     * @param newQueueType nowy typ kolejki
-     * @throws FileOperationException w przypadku błędu operacji na pliku
-     */
-    private void deleteAttachmentsFromMachinePath(ProductionQueueItem item, String oldQueueType, String newQueueType) {
-        try {
-            if (oldQueueType == null || "ncQueue".equals(oldQueueType) || "completed".equals(oldQueueType)) {
-                return;
-            }
-
-            Optional<Machine> oldMachineOpt = machineRepository.findById(Integer.parseInt(oldQueueType));
-            if (oldMachineOpt.isEmpty()) {
-                return;
-            }
-
-            if ("ncQueue".equals(newQueueType) || "completed".equals(newQueueType)) {
-                // Proceed with deletion
-            } else {
-                try {
-                    Optional<Machine> newMachineOpt = machineRepository.findById(Integer.parseInt(newQueueType));
-                    if (newMachineOpt.isEmpty()) {
-                        return;
-                    }
-
-                    Machine oldMachine = oldMachineOpt.get();
-                    Machine newMachine = newMachineOpt.get();
-                    String oldProgramPath = oldMachine.getProgramPath();
-                    String newProgramPath = newMachine.getProgramPath();
-
-                    if (oldProgramPath.equals(newProgramPath)) {
-                        return;
-                    }
-                } catch (NumberFormatException e) {
-                    // newQueueType is not a machine ID, proceed with deletion
-                }
-            }
-
-            Machine oldMachine = oldMachineOpt.get();
-            String oldProgramPath = oldMachine.getProgramPath();
-            String orderName = sanitizeFileName(item.getOrderName(), "NoOrderName_" + item.getId());
-            String partName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
-
-            Path partPath = Paths.get(oldProgramPath, orderName, partName);
-            Path orderPath = Paths.get(oldProgramPath, orderName);
-
-            if (!isDirectoryAccessible(partPath)) {
-                String message = String.format("Nie można usunąć katalogu %s, ponieważ jest zablokowany lub niedostępny. Spróbuj ponownie później.", partPath);
-                logger.warn(message);
-                throw new DirectoryLockedException(message);
-            }
-
-            deleteDirectoryRecursively(partPath);
-
-            if (Files.exists(orderPath) && isDirectoryEmpty(orderPath)) {
-                if (!isDirectoryAccessible(orderPath)) {
-                    String message = String.format("Nie można usunąć katalogu nadrzędnego %s, ponieważ jest zablokowany lub niedostępny.", orderPath);
-                    logger.warn(message);
-                    throw new DirectoryLockedException(message);
-                }
-                deleteDirectoryRecursively(orderPath);
-            }
-
-        } catch (IOException e) {
-            throw new FileOperationException("Nie udało się usunąć starych załączników: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Usuwa załączniki elementu z katalogu maszyny.
-     *
-     * @param item element kolejki
-     * @throws FileOperationException w przypadku błędu operacji na pliku
-     */
-    private void deleteAttachmentsFromMachinePath(ProductionQueueItem item) {
-        try {
-            String queueType = item.getQueueType();
-            if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
-                return;
-            }
-
-            Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
-            if (machineOpt.isEmpty()) {
-                return;
-            }
-
-            Machine machine = machineOpt.get();
-            String programPath = machine.getProgramPath();
-            String orderName = sanitizeFileName(item.getOrderName(), "NoOrderName_" + item.getId());
-            String partName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
-
-            Path partPath = Paths.get(programPath, orderName, partName);
-            Path orderPath = Paths.get(programPath, orderName);
-
-            if (!isDirectoryAccessible(partPath)) {
-                String message = String.format("Nie można usunąć katalogu %s, ponieważ jest zablokowany lub niedostępny. Spróbuj ponownie później.", partPath);
-                logger.warn(message);
-                throw new DirectoryLockedException(message);
-            }
-
-            deleteDirectoryRecursively(partPath);
-
-            if (Files.exists(orderPath) && isDirectoryEmpty(orderPath)) {
-                if (!isDirectoryAccessible(orderPath)) {
-                    String message = String.format("Nie można usunąć katalogu nadrzędnego %s, ponieważ jest zablokowany lub niedostępny.", orderPath);
-                    logger.warn(message);
-                    throw new DirectoryLockedException(message);
-                }
-                deleteDirectoryRecursively(orderPath);
-            }
-
-        } catch (IOException e) {
-            throw new FileOperationException("Nie udało się usunąć załączników: " + e.getMessage(), e);
         }
     }
 
@@ -806,78 +524,6 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Generuje unikalną ścieżkę dla pliku, dodając numer wersji (_v2, _v3, itd.) w razie konfliktu nazw.
-     *
-     * @param basePath katalog bazowy
-     * @param fileName nazwa pliku
-     * @return unikalna ścieżka do pliku
-     * @throws IOException w przypadku braku możliwości znalezienia unikalnej nazwy
-     */
-    private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
-        Path filePath = basePath.resolve(fileName);
-        if (!Files.exists(filePath)) {
-            return filePath;
-        }
-        String nameWithoutExt = fileName.substring(0, fileName.lastIndexOf("."));
-        String ext = fileName.substring(fileName.lastIndexOf("."));
-        int version = 2;
-        while (true) {
-            String versionedName = String.format("%s_v%d%s", nameWithoutExt, version, ext);
-            filePath = basePath.resolve(versionedName);
-            if (!Files.exists(filePath)) {
-                return filePath;
-            }
-            version++;
-            if (version > 1000) {
-                throw new FileOperationException("Nie można znaleźć unikalnej nazwy dla pliku: " + fileName);
-            }
-        }
-    }
-
-    /**
-     * Sprawdza, czy katalog jest pusty.
-     *
-     * @param dir ścieżka do katalogu
-     * @return true, jeśli katalog jest pusty, false w przeciwnym razie
-     * @throws IOException w przypadku błędu operacji na pliku
-     */
-    private boolean isDirectoryEmpty(Path dir) throws IOException {
-        if (!Files.isDirectory(dir)) {
-            return false;
-        }
-        try (Stream<Path> entries = Files.list(dir)) {
-            return !entries.findFirst().isPresent();
-        }
-    }
-
-    /**
-     * Rekurencyjnie usuwa katalog i jego zawartość.
-     *
-     * @param path ścieżka do katalogu
-     * @throws IOException w przypadku błędu operacji na pliku
-     */
-    private void deleteDirectoryRecursively(Path path) throws IOException {
-        if (!Files.exists(path)) {
-            return;
-        }
-        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                Files.delete(file);
-                logger.debug("Usunięto plik: {}", file);
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-                Files.delete(dir);
-                logger.debug("Usunięto katalog: {}", dir);
-                return FileVisitResult.CONTINUE;
-            }
-        });
-    }
-
-    /**
      * Wyjątek rzucany w przypadku błędów operacji na plikach.
      */
     private static class FileOperationException extends RuntimeException {
@@ -887,15 +533,6 @@ public class ProductionQueueItemService {
 
         public FileOperationException(String message, Throwable cause) {
             super(message, cause);
-        }
-    }
-
-    /**
-     * Wyjątek rzucany, gdy katalog jest zablokowany lub niedostępny.
-     */
-    private static class DirectoryLockedException extends RuntimeException {
-        public DirectoryLockedException(String message) {
-            super(message);
         }
     }
 }
