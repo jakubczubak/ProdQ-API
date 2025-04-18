@@ -1,6 +1,8 @@
 package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class MachineQueueFileGeneratorService {
+
+    private static final Logger logger = LoggerFactory.getLogger(ProductionQueueItemService.class);
 
     private final MachineRepository machineRepository;
     private final ProductionQueueItemRepository productionQueueItemRepository;
@@ -48,6 +52,8 @@ public class MachineQueueFileGeneratorService {
      * @throws IOException jeśli operacja na pliku się nie powiedzie
      */
     public void generateQueueFileForMachine(String queueType) throws IOException {
+
+        logger.info("Generowanie pliku kolejki dla queueType: {}", queueType);
         // Pomiń dla ncQueue i completed
         if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
             return;

@@ -180,6 +180,7 @@ public class ProductionQueueItemService {
             ProductionQueueItem existingItem = existingItemOpt.get();
             String oldQueueType = existingItem.getQueueType();
 
+            // Aktualizacja pól
             existingItem.setType(updatedItem.getType());
             existingItem.setSubtype(updatedItem.getSubtype());
             existingItem.setOrderName(updatedItem.getOrderName());
@@ -196,6 +197,7 @@ public class ProductionQueueItemService {
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             existingItem.setAuthor(currentUserEmail);
 
+            // Obsługa nowych załączników
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
                 for (MultipartFile file : files) {
@@ -218,10 +220,22 @@ public class ProductionQueueItemService {
             existingItem.setCompleted(checkAllMpfCompleted(existingItem));
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
 
+            // Synchronizacja załączników
             syncAttachmentsToMachinePath(savedItem);
 
-            fileWatcherService.checkQueueFile(savedItem.getQueueType());
-            machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
+            // Aktualizacja plików kolejki dla nowego i starego queueType
+            Set<String> queueTypesToUpdate = new HashSet<>();
+            queueTypesToUpdate.add(savedItem.getQueueType());
+            if (!oldQueueType.equals(savedItem.getQueueType())) {
+                logger.info("Dodano stary queueType do aktualizacji: {}", oldQueueType);
+                queueTypesToUpdate.add(oldQueueType);
+            }
+
+            for (String queueType : queueTypesToUpdate) {
+                logger.info("Synchronizacja kolejki dla queueType: {}", queueType);
+                fileWatcherService.checkQueueFile(queueType);
+                machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
+            }
 
             return savedItem;
         } else {
@@ -351,6 +365,7 @@ public class ProductionQueueItemService {
         }
 
         for (String qt : queueTypesToUpdate) {
+            logger.info("Synchronizacja kolejki dla queueType: {}", qt);
             fileWatcherService.checkQueueFile(qt);
             machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
         }
