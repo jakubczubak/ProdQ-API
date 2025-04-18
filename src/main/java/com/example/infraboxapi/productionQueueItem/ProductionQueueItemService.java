@@ -292,7 +292,7 @@ public class ProductionQueueItemService {
      * @throws IOException w przypadku błędu operacji na pliku
      */
     @Transactional
-        public ProductionQueueItem toggleComplete(Integer id) throws IOException {
+    public ProductionQueueItem toggleComplete(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
@@ -309,8 +309,8 @@ public class ProductionQueueItemService {
             }
 
             ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
-            syncAttachmentsToMachinePath(savedItem);
 
+            // Aktualizuj plik kolejki, aby odzwierciedlić nowy status
             machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
             return savedItem;
         } else {
