@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.text.Normalizer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -57,6 +56,7 @@ public class ProductionQueueItemService {
      */
     @Transactional
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
+        validateQueueType(item.getQueueType());
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
             item.setQueueType("ncQueue");
         }
@@ -67,7 +67,7 @@ public class ProductionQueueItemService {
         }
 
         // Sanitize partName and ensure it's unique
-        String sanitizedPartName = sanitizeFileName(item.getPartName(), "NoPartName_" + System.currentTimeMillis());
+        String sanitizedPartName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + System.currentTimeMillis());
         sanitizedPartName = getUniquePartName(item.getQueueType(), sanitizedPartName);
         item.setPartName(sanitizedPartName);
 
@@ -80,7 +80,7 @@ public class ProductionQueueItemService {
             List<ProductionFileInfo> fileInfos = new ArrayList<>();
             for (MultipartFile file : files) {
                 String originalFileName = file.getOriginalFilename();
-                String sanitizedFileName = sanitizeFileName(originalFileName, "UNKNOWN", originalFileName.toLowerCase().endsWith(".mpf"));
+                String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
                 ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                         .fileName(sanitizedFileName)
                         .fileType(file.getContentType())
@@ -139,7 +139,7 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findByQueueType(queueType)
                 .stream()
                 .anyMatch(item -> {
-                    String sanitizedExistingPartName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
+                    String sanitizedExistingPartName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
                     return sanitizedExistingPartName.equalsIgnoreCase(partName);
                 });
     }
@@ -174,6 +174,7 @@ public class ProductionQueueItemService {
      */
     @Transactional
     public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
+        validateQueueType(updatedItem.getQueueType());
         Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
         if (existingItemOpt.isPresent()) {
             ProductionQueueItem existingItem = existingItemOpt.get();
@@ -182,7 +183,7 @@ public class ProductionQueueItemService {
             existingItem.setType(updatedItem.getType());
             existingItem.setSubtype(updatedItem.getSubtype());
             existingItem.setOrderName(updatedItem.getOrderName());
-            existingItem.setPartName(updatedItem.getPartName());
+            existingItem.setPartName(fileSystemService.sanitizeName(updatedItem.getPartName(), "NoPartName_" + id));
             existingItem.setQuantity(updatedItem.getQuantity());
             existingItem.setBaseCamTime(updatedItem.getBaseCamTime());
             existingItem.setCamTime(updatedItem.getCamTime());
@@ -199,7 +200,7 @@ public class ProductionQueueItemService {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
                 for (MultipartFile file : files) {
                     String originalFileName = file.getOriginalFilename();
-                    String sanitizedFileName = sanitizeFileName(originalFileName, "UNKNOWN", originalFileName.toLowerCase().endsWith(".mpf"));
+                    String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                             .fileName(sanitizedFileName)
                             .fileType(file.getContentType())
@@ -317,6 +318,7 @@ public class ProductionQueueItemService {
      */
     @Transactional
     public void updateQueueOrder(String queueType, List<OrderItem> items) throws IOException {
+        validateQueueType(queueType);
         List<Integer> itemIds = items.stream()
                 .map(OrderItem::getId)
                 .collect(Collectors.toList());
@@ -414,113 +416,13 @@ public class ProductionQueueItemService {
             Machine machine = machineOpt.get();
             String programPath = machine.getProgramPath();
 
-            String orderName = sanitizeFileName(item.getOrderName(), "NoOrderName_" + item.getId());
-            String partName = sanitizeFileName(item.getPartName(), "NoPartName_" + item.getId());
+            String orderName = fileSystemService.sanitizeName(item.getOrderName(), "NoOrderName_" + item.getId());
+            String partName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
 
             fileSystemService.synchronizeFiles(programPath, orderName, partName, item.getFiles());
         } catch (IOException e) {
             throw new FileOperationException("Nie udało się zsynchronizować załączników z katalogiem maszyny: " + e.getMessage(), e);
         }
-    }
-
-    /**
-     * Sanitizuje nazwę pliku, usuwając polskie znaki i niedozwolone znaki.
-     *
-     * @param name nazwa do sanitizacji
-     * @param defaultName domyślna nazwa w razie null/pustej wartości
-     * @return sanitizowana nazwa
-     */
-    private String sanitizeFileName(String name, String defaultName) {
-        if (name == null || name.trim().isEmpty()) {
-            return defaultName;
-        }
-        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
-        normalized = normalized.replaceAll("[ąĄ]", "a")
-                .replaceAll("[ćĆ]", "c")
-                .replaceAll("[ęĘ]", "e")
-                .replaceAll("[łŁ]", "l")
-                .replaceAll("[ńŃ]", "n")
-                .replaceAll("[óÓ]", "o")
-                .replaceAll("[śŚ]", "s")
-                .replaceAll("[źŹ]", "z")
-                .replaceAll("[żŻ]", "z");
-        return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
-    }
-
-    /**
-     * Sanitizuje nazwę pliku, usuwając polskie znaki i niedozwolone znaki, z opcją skracania dla plików .MPF.
-     *
-     * @param name nazwa do sanitizacji
-     * @param defaultName domyślna nazwa w razie null/pustej wartości
-     * @param isMpf czy plik jest typu .MPF
-     * @return sanitizowana nazwa
-     */
-    private String sanitizeFileName(String name, String defaultName, boolean isMpf) {
-        if (name == null || name.trim().isEmpty()) {
-            return defaultName;
-        }
-
-        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
-                .replaceAll("[ąĄ]", "a")
-                .replaceAll("[ćĆ]", "c")
-                .replaceAll("[ęĘ]", "e")
-                .replaceAll("[łŁ]", "l")
-                .replaceAll("[ńŃ]", "n")
-                .replaceAll("[óÓ]", "o")
-                .replaceAll("[śŚ]", "s")
-                .replaceAll("[źŹ]", "z")
-                .replaceAll("[żŻ]", "z");
-
-        String sanitized = normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
-
-        if (isMpf) {
-            String ext = ".MPF";
-            String nameWithoutExt = sanitized.replaceAll("(\\.MPF)+$", "");
-            String suffix = "";
-            String baseName = nameWithoutExt;
-            String macPattern = "_[Mm][Aa][Cc]\\d+";
-            String subPattern = "_[A-Za-z]";
-            String versionPattern = "_[Vv]\\d+";
-
-            if (nameWithoutExt.matches(".*" + macPattern + subPattern + versionPattern + "$")) {
-                int macIndex = nameWithoutExt.toLowerCase().lastIndexOf("_mac");
-                suffix = nameWithoutExt.substring(macIndex);
-                baseName = nameWithoutExt.substring(0, macIndex);
-            } else if (nameWithoutExt.matches(".*" + macPattern + subPattern + "$")) {
-                int macIndex = nameWithoutExt.toLowerCase().lastIndexOf("_mac");
-                suffix = nameWithoutExt.substring(macIndex);
-                baseName = nameWithoutExt.substring(0, macIndex);
-            } else if (nameWithoutExt.matches(".*" + macPattern + "$")) {
-                int macIndex = nameWithoutExt.toLowerCase().lastIndexOf("_mac");
-                suffix = nameWithoutExt.substring(macIndex);
-                baseName = nameWithoutExt.substring(0, macIndex);
-            }
-
-            int maxBaseLength = 24 - suffix.length() - ext.length();
-            if (maxBaseLength < 0) {
-                maxBaseLength = 0;
-            }
-
-            if (baseName.length() > maxBaseLength) {
-                baseName = baseName.substring(0, maxBaseLength);
-            }
-
-            return baseName + suffix + ext;
-        }
-
-        return sanitized;
-    }
-
-    /**
-     * Sanitizuje nazwę pliku, używając domyślnej wartości "UNKNOWN".
-     *
-     * @param name nazwa do sanitizacji
-     * @return sanitizowana nazwa
-     */
-    private String sanitizeFileName(String name) {
-        return sanitizeFileName(name, "UNKNOWN");
     }
 
     /**

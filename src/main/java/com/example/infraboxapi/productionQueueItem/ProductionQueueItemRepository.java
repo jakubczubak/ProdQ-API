@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 public interface ProductionQueueItemRepository extends JpaRepository<ProductionQueueItem, Integer> {
@@ -15,13 +16,11 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
     @Query("SELECT COALESCE(MAX(p.order), -1) FROM ProductionQueueItem p WHERE p.queueType = :queueType")
     Integer findMaxOrderByQueueType(String queueType);
 
-    List<ProductionQueueItem> findByOrderName(String orderName);
-
-    @Query("SELECT p FROM ProductionQueueItem p WHERE p.orderName = :orderName AND p.partName != :partName")
-    List<ProductionQueueItem> findByOrderNameAndDifferentPartName(String orderName, String partName);
-
     @Query("SELECT p FROM ProductionQueueItem p LEFT JOIN FETCH p.files WHERE p.id = :id")
     Optional<ProductionQueueItem> findByIdWithFiles(@Param("id") Integer id);
 
     List<ProductionQueueItem> findByOrderNameAndPartName(String orderName, String partName);
+
+    @Query("SELECT DISTINCT f.fileName FROM ProductionQueueItem p JOIN p.files f WHERE p.orderName = :orderName AND p.partName = :partName")
+    Set<String> findFileNamesByOrderNameAndPartName(String orderName, String partName);
 }
