@@ -19,7 +19,7 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
     @Query("SELECT p FROM ProductionQueueItem p LEFT JOIN FETCH p.files WHERE p.id = :id")
     Optional<ProductionQueueItem> findByIdWithFiles(@Param("id") Integer id);
 
-    List<ProductionQueueItem> findByOrderNameAndPartName(String orderName, String partName);
+
 
     @Query("SELECT DISTINCT f.fileName FROM ProductionQueueItem p JOIN p.files f WHERE p.orderName = :orderName AND p.partName = :partName")
     Set<String> findFileNamesByOrderNameAndPartName(String orderName, String partName);

@@ -49,11 +49,7 @@ public class FileSystemService {
         logger.debug("Przed synchronizacją: {} plików w katalogu {}", existingFilesCount, basePath);
 
         // Pobierz wszystkie nazwy załączników dla programów z tym samym orderName i partName
-        Set<String> allAppFiles = productionQueueItemRepository.findByOrderNameAndPartName(orderName, partName)
-                .stream()
-                .flatMap(item -> item.getFiles() != null ? item.getFiles().stream() : Collections.<ProductionFileInfo>emptyList().stream())
-                .map(ProductionFileInfo::getFileName)
-                .collect(Collectors.toSet());
+        Set<String> allAppFiles = productionQueueItemRepository.findFileNamesByOrderNameAndPartName(orderName, partName);
 
         // Pobierz listę istniejących plików na dysku
         Set<String> existingFiles = Files.exists(basePath)
