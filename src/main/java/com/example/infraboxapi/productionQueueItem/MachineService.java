@@ -3,6 +3,8 @@ package com.example.infraboxapi.productionQueueItem;
 import com.example.infraboxapi.FileImage.FileImage;
 import com.example.infraboxapi.FileImage.FileImageService;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +28,8 @@ import java.util.zip.ZipOutputStream;
 
 @Service
 public class MachineService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MachineService.class);
 
     private final MachineRepository machineRepository;
     private final FileImageService fileImageService;
@@ -54,7 +63,35 @@ public class MachineService {
                 .queueFilePath(request.getQueueFilePath())
                 .build();
 
-        return machineRepository.save(machine);
+        // Zapisz maszynę w bazie danych
+        Machine savedMachine = machineRepository.save(machine);
+        logger.info("Utworzono maszynę o ID: {} i nazwie: {}", savedMachine.getId(), savedMachine.getMachineName());
+
+        // Utwórz pusty plik kolejki
+        String fileName = savedMachine.getMachineName() + ".txt";
+        Path filePath = Paths.get(savedMachine.getQueueFilePath(), fileName);
+        try {
+            // Utwórz katalogi nadrzędne, jeśli nie istnieją
+            Files.createDirectories(filePath.getParent());
+            // Generuj treść pustego pliku kolejki
+            StringBuilder content = new StringBuilder();
+            content.append("# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n");
+            content.append("# Przyklad: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n");
+            content.append("# Sciezka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n");
+            content.append("# Bledy w formacie linii moga zostac zignorowane przez system.\n");
+            content.append(String.format("# Wygenerowano: %s\n",
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+            content.append("# Brak programow w kolejce dla tej maszyny.\n");
+
+            // Zapisz plik
+            Files.writeString(filePath, content.toString());
+            logger.info("Utworzono pusty plik kolejki: {}", filePath);
+        } catch (IOException e) {
+            logger.error("Błąd podczas tworzenia pliku kolejki: {}", filePath, e);
+            throw new IOException("Nie udało się utworzyć pliku kolejki dla maszyny: " + filePath, e);
+        }
+
+        return savedMachine;
     }
 
     public Optional<Machine> findById(Integer id) {
@@ -94,7 +131,31 @@ public class MachineService {
 
     @Transactional
     public void deleteById(Integer id) {
+        Optional<Machine> machineOpt = machineRepository.findById(id);
+        if (machineOpt.isEmpty()) {
+            logger.warn("Próba usunięcia nieistniejącej maszyny o ID: {}", id);
+            return;
+        }
+
+        Machine machine = machineOpt.get();
+        // Usuń plik kolejki (machineName.txt)
+        String fileName = machine.getMachineName() + ".txt";
+        Path filePath = Paths.get(machine.getQueueFilePath(), fileName);
+        try {
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                logger.info("Usunięto plik kolejki: {}", filePath);
+            } else {
+                logger.info("Plik kolejki nie istnieje: {}", filePath);
+            }
+        } catch (IOException e) {
+            logger.error("Błąd podczas usuwania pliku kolejki: {}", filePath, e);
+            // Kontynuuj usuwanie maszyny, nawet jeśli plik nie mógł zostać usunięty
+        }
+
+        // Usuń maszynę
         machineRepository.deleteById(id);
+        logger.info("Maszyna o ID: {} została usunięta", id);
     }
 
     public List<String> getAvailableLocations() {
