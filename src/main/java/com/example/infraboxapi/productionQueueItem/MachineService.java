@@ -34,14 +34,17 @@ public class MachineService {
     private final MachineRepository machineRepository;
     private final FileImageService fileImageService;
     private final ProductionQueueItemService productionQueueItemService;
+    private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
 
     public MachineService(
             MachineRepository machineRepository,
             FileImageService fileImageService,
-            ProductionQueueItemService productionQueueItemService) {
+            ProductionQueueItemService productionQueueItemService,
+            MachineQueueFileGeneratorService machineQueueFileGeneratorService) {
         this.machineRepository = machineRepository;
         this.fileImageService = fileImageService;
         this.productionQueueItemService = productionQueueItemService;
+        this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
     }
 
     @Transactional
@@ -110,17 +113,45 @@ public class MachineService {
         }
 
         Machine existingMachine = existingMachineOpt.get();
+        String oldMachineName = existingMachine.getMachineName(); // Zachowaj starą nazwę do zmiany pliku kolejki
 
         // Sprawdź unikalność machineName, pomijając bieżącą maszynę
-        if (!existingMachine.getMachineName().equals(request.getMachineName()) &&
+        if (!oldMachineName.equals(request.getMachineName()) &&
                 machineRepository.existsByMachineName(request.getMachineName())) {
             throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
         }
 
+        // Zaktualizuj dane maszyny
         existingMachine.setMachineName(request.getMachineName());
         existingMachine.setProgramPath(request.getProgramPath());
         existingMachine.setQueueFilePath(request.getQueueFilePath());
 
+        // Jeśli zmieniono nazwę maszyny, zaktualizuj plik kolejki
+        if (!oldMachineName.equals(request.getMachineName())) {
+            // Usuń stary plik kolejki
+            String oldFileName = oldMachineName + ".txt";
+            Path oldFilePath = Paths.get(existingMachine.getQueueFilePath(), oldFileName);
+            try {
+                if (Files.exists(oldFilePath)) {
+                    Files.delete(oldFilePath);
+                    logger.info("Deleted old queue file: {}", oldFilePath);
+                }
+            } catch (IOException e) {
+                logger.error("Error deleting old queue file {}: {}", oldFilePath, e.getMessage(), e);
+                // Kontynuuj, nawet jeśli plik nie mógł zostać usunięty
+            }
+
+            // Wygeneruj nowy plik kolejki z nową nazwą
+            try {
+                machineQueueFileGeneratorService.generateQueueFileForMachine(String.valueOf(id));
+                logger.info("Generated new queue file for updated machine name: {}", request.getMachineName());
+            } catch (IOException e) {
+                logger.error("Error generating new queue file for machine ID {}: {}", id, e.getMessage(), e);
+                throw new IOException("Failed to generate new queue file after renaming machine", e);
+            }
+        }
+
+        // Zaktualizuj obraz, jeśli przesłano nowy
         if (imageFile != null && !imageFile.isEmpty()) {
             FileImage newImage = fileImageService.updateFile(imageFile, existingMachine.getImage());
             existingMachine.setImage(newImage);
