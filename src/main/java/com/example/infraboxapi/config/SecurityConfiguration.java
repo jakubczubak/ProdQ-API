@@ -29,14 +29,13 @@ public class SecurityConfiguration {
                 .cors(withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-
                         // AUTH
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/api/va/auth/**").permitAll()
-                        .requestMatchers("/material_reports/**").permitAll() // Dostęp do starych raportów PDF
-                        .requestMatchers("/api/material_reports/**").permitAll() // Dostęp do nowych raportów w bazie danych
-                        .requestMatchers("/tool_reports/**").permitAll() // Dostęp do raportów PDF
-                        .requestMatchers("/accessorie_reports/**").permitAll() // Dostęp do raportów PDF
+                        .requestMatchers("/material_reports/**").permitAll() // Access to old PDF reports
+                        .requestMatchers("/api/material_reports/**").permitAll() // Access to new reports in the database
+                        .requestMatchers("/tool_reports/**").permitAll() // Access to PDF reports
+                        .requestMatchers("/accessorie_reports/**").permitAll() // Access to PDF reports
 
                         // MATERIAL TYPE
                         .requestMatchers("/api/material_type/all").hasAnyAuthority("ADMIN", "USER")
@@ -134,6 +133,10 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/production-queue-item/{id}/toggle-complete").hasAuthority("ADMIN") // PATCH
                         .requestMatchers("/api/production-queue-item/files/*").hasAnyAuthority("ADMIN", "USER") // GET file content
                         .requestMatchers("/api/sync-with-machine/*").hasAnyAuthority("ADMIN", "USER") // GET file content
+
+                        // DIRECTORY CLEANUP
+                        .requestMatchers("/api/cleanup/all").hasAuthority("ADMIN")
+                        .requestMatchers("/api/cleanup/machine/*").hasAuthority("ADMIN")
 
                         // OTHER
                         .anyRequest().authenticated()

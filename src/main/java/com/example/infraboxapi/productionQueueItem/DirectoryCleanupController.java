@@ -33,9 +33,9 @@ public class DirectoryCleanupController {
     public ResponseEntity<String> triggerFullCleanup() {
         try {
             directoryCleanupService.cleanupAllMachines();
-            return ResponseEntity.ok("Ręczne czyszczenie katalogów dla wszystkich maszyn zostało uruchomione.");
+            return ResponseEntity.ok("Manual directory cleanup for all machines has been triggered.");
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Błąd podczas ręcznego czyszczenia: " + e.getMessage());
+            return ResponseEntity.status(500).body("Error during manual cleanup: " + e.getMessage());
         }
     }
 
@@ -46,23 +46,28 @@ public class DirectoryCleanupController {
             Integer machineId = Integer.parseInt(queueType);
             var machineOpt = machineRepository.findById(machineId);
             if (machineOpt.isEmpty()) {
-                return ResponseEntity.status(404).body("Maszyna o queueType " + queueType + " nie istnieje.");
+                return ResponseEntity.status(404).body("Machine with queueType " + queueType + " does not exist.");
             }
             Machine machine = machineOpt.get();
             DirectoryCleanupService.CleanupResult result = directoryCleanupService.cleanUnusedDirectories(machine.getProgramPath(), queueType);
 
-            // Wysłanie powiadomienia systemowego
+            // Send system notification
             String description = String.format(
-                    "Ręczne czyszczenie katalogów dla maszyny %s (queueType: %s) zakończone. Usunięto %d katalogów. %d katalogów było zablokowanych i wymaga dalszej uwagi.",
-                    machine.getMachineName(), queueType, result.deletedDirectories, result.blockedDirectories
+                    "Manual directory cleanup for machine %s completed. Deleted %d directories. %d directories were blocked and require further attention.",
+                    machine.getMachineName(), result.deletedDirectories, result.blockedDirectories
             );
             notificationService.createAndSendSystemNotification(description, NotificationDescription.DirectoryCleanupCompleted);
 
-            return ResponseEntity.ok("Ręczne czyszczenie katalogów dla queueType " + queueType + " zostało uruchomione.");
+            return ResponseEntity.ok(
+                    String.format(
+                            "Manual directory cleanup for machine %s (queueType: %s) triggered successfully. Deleted %d directories, %d blocked.",
+                            machine.getMachineName(), queueType, result.deletedDirectories, result.blockedDirectories
+                    )
+            );
         } catch (NumberFormatException e) {
-            return ResponseEntity.status(400).body("Nieprawidłowy format queueType: " + queueType);
+            return ResponseEntity.status(400).body("Invalid queueType format: " + queueType);
         } catch (IOException e) {
-            return ResponseEntity.status(500).body("Błąd podczas ręcznego czyszczenia: " + e.getMessage());
+            return ResponseEntity.status(500).body("Error during manual cleanup: " + e.getMessage());
         }
     }
 }
