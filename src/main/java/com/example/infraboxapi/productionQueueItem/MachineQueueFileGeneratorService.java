@@ -102,7 +102,7 @@ public class MachineQueueFileGeneratorService {
                 List<ProductionFileInfo> mpfFiles = program.getFiles() != null ?
                         program.getFiles().stream()
                                 .filter(file -> file.getFileName().toLowerCase().endsWith(".mpf"))
-                                .sorted(Comparator.comparing(ProductionFileInfo::getFileName, String.CASE_INSENSITIVE_ORDER))
+                                .sorted(Comparator.comparing(ProductionFileInfo::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
                                 .collect(Collectors.toList()) :
                         List.of();
 
