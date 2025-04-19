@@ -29,7 +29,6 @@ public enum NotificationDescription {
 
     DepartmentCostUpdated("Department cost adjusted"),
 
-
     OrderAdded("New order placed"),
     OrderDeleted("Order removed from records"),
     OrderUpdated("Order details updated"),
@@ -72,8 +71,9 @@ public enum NotificationDescription {
     AccessoriesItemAdded("New accessories item added"),
     AccessoriesItemUpdated("Accessories item details updated"),
     AccessoriesItemDeleted("Accessories item removed"),
-    AccessorieItemScanner("Accessories have been successfully scanned");
+    AccessorieItemScanner("Accessories have been successfully scanned"),
 
+    DirectoryCleanupCompleted("Directory cleanup completed");
 
     private final String description;
 

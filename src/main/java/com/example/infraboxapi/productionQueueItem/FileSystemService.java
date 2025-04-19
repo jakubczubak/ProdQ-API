@@ -202,7 +202,7 @@ public class FileSystemService {
      * @param filePath ścieżka do pliku
      * @return true, jeśli plik jest dostępny, false w przeciwnym razie
      */
-    private boolean isFileAccessible(Path filePath) {
+    public boolean isFileAccessible(Path filePath) {
         if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
             return true;
         }
