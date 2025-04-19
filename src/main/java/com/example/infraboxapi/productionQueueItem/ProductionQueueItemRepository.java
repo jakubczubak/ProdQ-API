@@ -16,10 +16,8 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
     @Query("SELECT COALESCE(MAX(p.order), -1) FROM ProductionQueueItem p WHERE p.queueType = :queueType")
     Integer findMaxOrderByQueueType(String queueType);
 
-    @Query("SELECT p FROM ProductionQueueItem p LEFT JOIN FETCH p.files WHERE p.id = :id")
+    @Query("SELECT p FROM ProductionQueueItem p LEFT JOIN FETCH p.files f WHERE p.id = :id ORDER BY f.order ASC")
     Optional<ProductionQueueItem> findByIdWithFiles(@Param("id") Integer id);
-
-
 
     @Query("SELECT DISTINCT f.fileName FROM ProductionQueueItem p JOIN p.files f WHERE p.orderName = :orderName AND p.partName = :partName")
     Set<String> findFileNamesByOrderNameAndPartName(String orderName, String partName);

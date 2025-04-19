@@ -33,4 +33,5 @@ public class ProductionQueueItemRequest {
     private boolean completed;
     private Integer order;
     private List<MultipartFile> file;
+    private String fileOrderMapping; // Nowe pole dla mapowania kolejności plików
 }

@@ -2,6 +2,8 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,16 +48,10 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Zapisuje nowy element kolejki produkcyjnej wraz z załącznikami.
-     * Jeśli partName już istnieje w danej queueType, dodaje unikalny suffix (np. _2, _3, itp.).
-     *
-     * @param item element kolejki do zapisania
-     * @param files lista załączników do zapisania
-     * @return zapisany element kolejki
-     * @throws IOException w przypadku błędu operacji na pliku
+     * Zapisuje nowy element kolejki produkcyjnej wraz z załącznikami i uwzględnia fileOrderMapping.
      */
     @Transactional
-    public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files) throws IOException {
+    public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files, String fileOrderMapping) throws IOException {
         validateQueueType(item.getQueueType());
         if (item.getQueueType() == null || item.getQueueType().isEmpty()) {
             item.setQueueType("ncQueue");
@@ -78,9 +74,22 @@ public class ProductionQueueItemService {
 
         if (files != null && !files.isEmpty()) {
             List<ProductionFileInfo> fileInfos = new ArrayList<>();
+            Map<String, Integer> orderMap = parseFileOrderMapping(fileOrderMapping);
+
+            // Logowanie kolejności załączników przed zapisaniem
+            logger.info("Kolejność załączników przed zapisaniem w metodzie save dla partName: {}", sanitizedPartName);
             for (MultipartFile file : files) {
                 String originalFileName = file.getOriginalFilename();
                 String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
+                Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
+                logger.info("Plik: {}, kolejność: {}", sanitizedFileName, fileOrder);
+            }
+
+            for (MultipartFile file : files) {
+                String originalFileName = file.getOriginalFilename();
+                String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
+                Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
+
                 ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                         .fileName(sanitizedFileName)
                         .fileType(file.getContentType())
@@ -88,6 +97,7 @@ public class ProductionQueueItemService {
                         .fileContent(file.getBytes())
                         .productionQueueItem(savedItem)
                         .completed(false)
+                        .order(fileOrder)
                         .build();
                 fileInfos.add(fileInfo);
             }
@@ -106,74 +116,10 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Generuje unikalną nazwę partName, dodając suffix _2, _3, itp., jeśli nazwa już istnieje w danej queueType.
-     *
-     * @param queueType typ kolejki
-     * @param partName nazwa części do sprawdzenia
-     * @return unikalna nazwa partName
-     */
-    private String getUniquePartName(String queueType, String partName) {
-        String basePartName = partName;
-        int suffix = 2;
-        String candidatePartName = basePartName;
-
-        while (isPartNameDuplicate(queueType, candidatePartName)) {
-            candidatePartName = basePartName + "_" + suffix;
-            suffix++;
-            if (suffix > 1000) {
-                throw new IllegalStateException("Nie można znaleźć unikalnej nazwy dla partName: " + basePartName);
-            }
-        }
-
-        return candidatePartName;
-    }
-
-    /**
-     * Sprawdza, czy partName już istnieje w danej queueType.
-     *
-     * @param queueType typ kolejki
-     * @param partName nazwa części do sprawdzenia
-     * @return true, jeśli partName istnieje, w przeciwnym razie false
-     */
-    private boolean isPartNameDuplicate(String queueType, String partName) {
-        return productionQueueItemRepository.findByQueueType(queueType)
-                .stream()
-                .anyMatch(item -> {
-                    String sanitizedExistingPartName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
-                    return sanitizedExistingPartName.equalsIgnoreCase(partName);
-                });
-    }
-
-    /**
-     * Wyszukuje element kolejki po identyfikatorze.
-     *
-     * @param id identyfikator elementu
-     * @return Optional zawierający znaleziony element lub pusty, jeśli nie istnieje
-     */
-    public Optional<ProductionQueueItem> findById(Integer id) {
-        return productionQueueItemRepository.findById(id);
-    }
-
-    /**
-     * Zwraca wszystkie elementy kolejki produkcyjnej.
-     *
-     * @return lista wszystkich elementów kolejki
-     */
-    public List<ProductionQueueItem> findAll() {
-        return productionQueueItemRepository.findAll();
-    }
-
-    /**
-     * Aktualizuje istniejący element kolejki produkcyjnej oraz jego załączniki.
-     *
-     * @param id identyfikator elementu do aktualizacji
-     * @param updatedItem zaktualizowane dane elementu
-     * @param files nowe załączniki do dodania
-     * @return zaktualizowany element kolejki
-     * @throws IOException w przypadku błędu operacji na pliku
+     * Aktualizuje istniejący element kolejki produkcyjnej oraz jego załączniki z uwzględnieniem fileOrderMapping.
      */
     @Transactional
-    public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files) throws IOException {
+    public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files, String fileOrderMapping) throws IOException {
         validateQueueType(updatedItem.getQueueType());
         Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
         if (existingItemOpt.isPresent()) {
@@ -197,12 +143,30 @@ public class ProductionQueueItemService {
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             existingItem.setAuthor(currentUserEmail);
 
+            // Logowanie istniejących załączników
+            logger.info("Kolejność istniejących załączników przed aktualizacją dla ID: {}", id);
+            for (ProductionFileInfo file : existingItem.getFiles()) {
+                logger.info("Plik: {}, kolejność: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
+            }
+
             // Obsługa nowych załączników
+            Map<String, Integer> orderMap = parseFileOrderMapping(fileOrderMapping);
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
+                // Logowanie nowych załączników
+                logger.info("Kolejność nowych załączników przed zapisaniem dla ID: {}", id);
                 for (MultipartFile file : files) {
                     String originalFileName = file.getOriginalFilename();
                     String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
+                    Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
+                    logger.info("Plik: {}, kolejność: {}", sanitizedFileName, fileOrder);
+                }
+
+                for (MultipartFile file : files) {
+                    String originalFileName = file.getOriginalFilename();
+                    String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
+                    Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
+
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                             .fileName(sanitizedFileName)
                             .fileType(file.getContentType())
@@ -210,6 +174,7 @@ public class ProductionQueueItemService {
                             .fileContent(file.getBytes())
                             .productionQueueItem(existingItem)
                             .completed(false)
+                            .order(fileOrder)
                             .build();
                     fileInfos.add(fileInfo);
                 }
@@ -217,9 +182,24 @@ public class ProductionQueueItemService {
                 productionFileInfoService.saveAll(fileInfos);
             }
 
+            // Aktualizacja kolejności istniejących plików
+            if (orderMap != null && !orderMap.isEmpty()) {
+                for (ProductionFileInfo file : existingItem.getFiles()) {
+                    Integer newOrder = orderMap.get(file.getFileName());
+                    if (newOrder != null) {
+                        file.setOrder(newOrder);
+                    }
+                }
+            }
+
+            // Logowanie po aktualizacji kolejności
+            logger.info("Kolejność załączników po aktualizacji dla ID: {}", id);
+            for (ProductionFileInfo file : existingItem.getFiles()) {
+                logger.info("Plik: {}, kolejność: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
+            }
+
             existingItem.setCompleted(checkAllMpfCompleted(existingItem));
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
-
             // Synchronizacja załączników
             syncAttachmentsToMachinePath(savedItem);
 
@@ -242,12 +222,81 @@ public class ProductionQueueItemService {
             throw new RuntimeException("Nie znaleziono elementu kolejki o ID: " + id);
         }
     }
+    /**
+     * Parsuje fileOrderMapping z JSON na mapę nazwa pliku -> kolejność.
+     */
+    private Map<String, Integer> parseFileOrderMapping(String fileOrderMapping) throws IOException {
+        if (fileOrderMapping == null || fileOrderMapping.isEmpty()) {
+            return new HashMap<>();
+        }
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, Object>> mappingList = mapper.readValue(fileOrderMapping, new TypeReference<>() {});
+        Map<String, Integer> orderMap = new HashMap<>();
+        for (Map<String, Object> entry : mappingList) {
+            String name = (String) entry.get("name");
+            Integer order = (Integer) entry.get("order");
+            if (name != null && order != null) {
+                orderMap.put(name, order);
+            }
+        }
+        return orderMap;
+    }
+
+    /**
+     * Generuje unikalną nazwę partName, dodając suffix _2, _3, itp., jeśli nazwa już istnieje w danej queueType.
+     */
+    private String getUniquePartName(String queueType, String partName) {
+        String basePartName = partName;
+        int suffix = 2;
+        String candidatePartName = basePartName;
+
+        while (isPartNameDuplicate(queueType, candidatePartName)) {
+            candidatePartName = basePartName + "_" + suffix;
+            suffix++;
+            if (suffix > 1000) {
+                throw new IllegalStateException("Nie można znaleźć unikalnej nazwy dla partName: " + basePartName);
+            }
+        }
+
+        return candidatePartName;
+    }
+
+    /**
+     * Sprawdza, czy partName już istnieje w danej queueType.
+     */
+    private boolean isPartNameDuplicate(String queueType, String partName) {
+        return productionQueueItemRepository.findByQueueType(queueType)
+                .stream()
+                .anyMatch(item -> {
+                    String sanitizedExistingPartName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
+                    return sanitizedExistingPartName.equalsIgnoreCase(partName);
+                });
+    }
+
+
+    /**
+     * Wyszukuje element kolejki po identyfikatorze.
+     */
+    public Optional<ProductionQueueItem> findById(Integer id) {
+        Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findByIdWithFiles(id);
+        itemOpt.ifPresent(item -> {
+            logger.info("Pobrano element kolejki ID: {}. Kolejność załączników:", id);
+            item.getFiles().forEach(file ->
+                    logger.info("Plik: {}, order: {}, id: {}", file.getFileName(), file.getOrder(), file.getId())
+            );
+        });
+        return itemOpt;
+    }
+
+    /**
+     * Zwraca wszystkie elementy kolejki produkcyjnej.
+     */
+    public List<ProductionQueueItem> findAll() {
+        return productionQueueItemRepository.findAll();
+    }
 
     /**
      * Usuwa element kolejki produkcyjnej o podanym identyfikatorze.
-     *
-     * @param id identyfikator elementu do usunięcia
-     * @throws IOException w przypadku błędu operacji na pliku
      */
     @Transactional
     public void deleteById(Integer id) throws IOException {
@@ -263,9 +312,6 @@ public class ProductionQueueItemService {
 
     /**
      * Wyszukuje elementy kolejki produkcyjnej według typu kolejki.
-     *
-     * @param queueType typ kolejki
-     * @return lista elementów dla danego typu kolejki
      */
     public List<ProductionQueueItem> findByQueueType(String queueType) {
         logger.info("Pobieranie kolejki dla queueType: {}", queueType);
@@ -280,9 +326,6 @@ public class ProductionQueueItemService {
 
     /**
      * Synchronizuje statusy kolejki produkcyjnej z plikiem kolejki maszyny.
-     *
-     * @param queueType typ kolejki (np. ID maszyny)
-     * @throws IOException w przypadku błędu operacji na pliku
      */
     @Transactional
     public void syncWithMachine(String queueType) throws IOException {
@@ -293,10 +336,6 @@ public class ProductionQueueItemService {
 
     /**
      * Przełącza status ukończenia elementu kolejki produkcyjnej.
-     *
-     * @param id identyfikator elementu
-     * @return zaktualizowany element kolejki
-     * @throws IOException w przypadku błędu operacji na pliku
      */
     @Transactional
     public ProductionQueueItem toggleComplete(Integer id) throws IOException {
@@ -325,10 +364,6 @@ public class ProductionQueueItemService {
 
     /**
      * Aktualizuje kolejność elementów w kolejce produkcyjnej.
-     *
-     * @param queueType typ kolejki
-     * @param items lista elementów z nową kolejnością
-     * @throws IOException w przypadku błędu operacji na pliku
      */
     @Transactional
     public void updateQueueOrder(String queueType, List<OrderItem> items) throws IOException {
@@ -373,9 +408,6 @@ public class ProductionQueueItemService {
 
     /**
      * Sprawdza, czy wszystkie załączniki .MPF dla elementu są ukończone.
-     *
-     * @param item element kolejki
-     * @return true, jeśli wszystkie załączniki .MPF są ukończone, w przeciwnym razie false
      */
     private boolean checkAllMpfCompleted(ProductionQueueItem item) {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
@@ -388,9 +420,6 @@ public class ProductionQueueItemService {
 
     /**
      * Weryfikuje poprawność typu kolejki.
-     *
-     * @param queueType typ kolejki do zweryfikowania
-     * @throws IllegalArgumentException jeśli typ kolejki jest nieprawidłowy
      */
     private void validateQueueType(String queueType) {
         if (queueType == null || queueType.isEmpty()) {
@@ -412,9 +441,6 @@ public class ProductionQueueItemService {
 
     /**
      * Synchronizuje załączniki elementu z katalogiem maszyny.
-     *
-     * @param item element kolejki
-     * @throws FileOperationException w przypadku błędu operacji na pliku
      */
     private void syncAttachmentsToMachinePath(ProductionQueueItem item) {
         try {

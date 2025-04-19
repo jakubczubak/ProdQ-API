@@ -33,4 +33,6 @@ public class ProductionFileInfo {
 
     @Column(name = "completed", nullable = false)
     private boolean completed = false;
+    @Column(name = "order_position")
+    private Integer order; // Nowe pole dla kolejności pliku
 }

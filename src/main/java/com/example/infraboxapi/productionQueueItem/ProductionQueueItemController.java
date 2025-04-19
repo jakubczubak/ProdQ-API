@@ -44,6 +44,7 @@ public class ProductionQueueItemController {
         }
 
         List<MultipartFile> files = request.getFile();
+        String fileOrderMapping = request.getFileOrderMapping();
 
         ProductionQueueItem item = ProductionQueueItem.builder()
                 .type(request.getType())
@@ -61,7 +62,7 @@ public class ProductionQueueItemController {
                 .order(request.getOrder())
                 .build();
 
-        ProductionQueueItem savedItem = productionQueueItemService.save(item, files);
+        ProductionQueueItem savedItem = productionQueueItemService.save(item, files, fileOrderMapping);
         return ResponseEntity.ok(savedItem);
     }
 
@@ -110,7 +111,7 @@ public class ProductionQueueItemController {
                 .order(request.getOrder())
                 .build();
 
-        ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile());
+        ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile(), request.getFileOrderMapping());
         return ResponseEntity.ok(savedItem);
     }
 
@@ -148,13 +149,6 @@ public class ProductionQueueItemController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * Synchronizuje statusy kolejki produkcyjnej z plikiem kolejki maszyny dla podanego queueType.
-     *
-     * @param queueType typ kolejki (np. ID maszyny)
-     * @return lista zaktualizowanych elementów kolejki
-     * @throws IOException w przypadku błędu operacji na pliku
-     */
     @PostMapping("/sync-with-machine")
     public ResponseEntity<List<ProductionQueueItem>> syncWithMachine(@RequestParam String queueType) throws IOException {
         if (queueType == null || queueType.isEmpty()) {
