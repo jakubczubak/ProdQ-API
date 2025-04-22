@@ -203,16 +203,27 @@ public class MachineService {
 
         List<String> locations = new java.util.ArrayList<>();
 
+        // Sprawdź, czy główny katalog istnieje i jest dostępny
         if (mountDir.exists() && mountDir.isDirectory() && mountDir.canRead() && mountDir.canWrite()) {
-            locations.add(mountDir.getAbsolutePath());
+            // Pobierz bezpośrednie podkatalogi w mountDir (pierwszy poziom)
+            File[] firstLevelDirs = mountDir.listFiles(File::isDirectory);
+            if (firstLevelDirs != null && firstLevelDirs.length > 0) {
+                for (File firstLevelDir : firstLevelDirs) {
+                    if (firstLevelDir.canRead() && firstLevelDir.canWrite()) {
+                        // Dodaj katalog pierwszego poziomu
+                        locations.add(firstLevelDir.getAbsolutePath());
 
-            File[] subDirs = mountDir.listFiles(File::isDirectory);
-            if (subDirs != null && subDirs.length > 0) {
-                List<String> subDirPaths = Arrays.stream(subDirs)
-                        .filter(dir -> dir.canRead() && dir.canWrite())
-                        .map(File::getAbsolutePath)
-                        .collect(Collectors.toList());
-                locations.addAll(subDirPaths);
+                        // Pobierz podkatalogi drugiego poziomu
+                        File[] secondLevelDirs = firstLevelDir.listFiles(File::isDirectory);
+                        if (secondLevelDirs != null && secondLevelDirs.length > 0) {
+                            List<String> secondLevelPaths = Arrays.stream(secondLevelDirs)
+                                    .filter(dir -> dir.canRead() && dir.canWrite())
+                                    .map(File::getAbsolutePath)
+                                    .collect(Collectors.toList());
+                            locations.addAll(secondLevelPaths);
+                        }
+                    }
+                }
             }
         }
 

@@ -89,7 +89,7 @@ public class FileWatcherService {
      * @param machine  maszyna powiązana z plikiem
      */
     @Transactional
-    private void handleFileChange(Path filePath, Machine machine) {
+    protected void handleFileChange(Path filePath, Machine machine) {
         logger.info("Przetwarzanie pliku: {}", filePath);
         try {
             List<String> lines;
