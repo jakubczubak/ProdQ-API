@@ -19,10 +19,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -201,33 +200,31 @@ public class MachineService {
             mountDir = new File("./cnc");
         }
 
-        List<String> locations = new java.util.ArrayList<>();
+        List<String> locations = new ArrayList<>();
 
         // Sprawdź, czy główny katalog istnieje i jest dostępny
         if (mountDir.exists() && mountDir.isDirectory() && mountDir.canRead() && mountDir.canWrite()) {
-            // Pobierz bezpośrednie podkatalogi w mountDir (pierwszy poziom)
-            File[] firstLevelDirs = mountDir.listFiles(File::isDirectory);
-            if (firstLevelDirs != null && firstLevelDirs.length > 0) {
-                for (File firstLevelDir : firstLevelDirs) {
-                    if (firstLevelDir.canRead() && firstLevelDir.canWrite()) {
-                        // Dodaj katalog pierwszego poziomu
-                        locations.add(firstLevelDir.getAbsolutePath());
-
-                        // Pobierz podkatalogi drugiego poziomu
-                        File[] secondLevelDirs = firstLevelDir.listFiles(File::isDirectory);
-                        if (secondLevelDirs != null && secondLevelDirs.length > 0) {
-                            List<String> secondLevelPaths = Arrays.stream(secondLevelDirs)
-                                    .filter(dir -> dir.canRead() && dir.canWrite())
-                                    .map(File::getAbsolutePath)
-                                    .collect(Collectors.toList());
-                            locations.addAll(secondLevelPaths);
-                        }
-                    }
-                }
-            }
+            // Rekurencyjnie przeszukaj wszystkie podkatalogi
+            collectDirectories(mountDir, locations);
         }
 
         return locations;
+    }
+
+    // Rekurencyjna metoda do zbierania wszystkich podkatalogów
+    private void collectDirectories(File directory, List<String> locations) {
+        // Dodaj bieżący katalog, jeśli ma odpowiednie uprawnienia
+        if (directory.canRead() && directory.canWrite()) {
+            locations.add(directory.getAbsolutePath());
+        }
+
+        // Pobierz wszystkie podkatalogi i przeszukaj je rekurencyjnie
+        File[] subDirs = directory.listFiles(File::isDirectory);
+        if (subDirs != null) {
+            for (File subDir : subDirs) {
+                collectDirectories(subDir, locations);
+            }
+        }
     }
 
     public ResponseEntity<byte[]> downloadMachinePrograms(Integer machineId) throws IOException {
