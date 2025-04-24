@@ -37,16 +37,15 @@ public class MachineQueueFileGeneratorService {
 
     /**
      * Generuje plik tekstowy z listą programów dla danej maszyny w formacie:
-     * "pozycja./[orderName]/[partName]/załącznik - ilość szt. id: ID | [status]"
+     * "pozycja./orderName/partName/załącznik id: ID | [status]"
+     * Ilość jest dodawana w nagłówku programu w formacie: "Ilość: ilość szt"
      * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "/** Uwagi: additionalInfo "
      * Jeśli istnieje author, jest dodawane w formacie: "Autor: sanitized_author"
      * Długie additionalInfo są dzielone na linie po maksymalnie 80 znaków.
      * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
-     * Programy są sortowane według pola 'order', a załączniki alfabetycznie według nazwy.
-     * Wpisy dla różnych partName są oddzielone pustą linią.
-     * Status załącznika to [UKONCZONE] lub [NIEUKONCZONE], oddzielony znakiem '|'.
-     * orderName, additionalInfo, author i mpfFileName są sanitizowane, aby usunąć polskie znaki.
-     * partName jest używane bezpośrednio z bazy danych, ponieważ jest już sanitizowane i unikalne.
+     * Programy są sortowane według pola 'order', a załączniki według pola 'order'.
+     * Status załącznika to [OK] lub [NOK], oddzielony znakiem '|'.
+     * orderName, partName i mpfFileName nie są skracane.
      * Plik zawiera instrukcje, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
      *
      * @param queueType ID maszyny (jako String)
@@ -82,14 +81,14 @@ public class MachineQueueFileGeneratorService {
 
             // Debugowanie: wyświetl pobrane programy
             System.out.println("Pobrane programy dla queueType " + queueType + ":");
-            programs.forEach(program -> System.out.println("ID: " + program.getId() + ", orderName: " + program.getOrderName() + ", partName: " + program.getPartName()));
+            programs.forEach(program -> System.out.println("ID: " + program.getId() + ", orderName: " + program.getOrderName() + ", partName: " + program.getPartName() + ", order: " + program.getOrder()));
 
             // Generuj treść pliku
             StringBuilder content = new StringBuilder();
             // Dodaj komentarz i datę generowania przed listą programów
-            content.append("# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n");
-            content.append("# Przykład: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n");
-            content.append("# Ścieżka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n");
+            content.append("# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n");
+            content.append("# Przykład: zmień '[NOK]' na '[OK]'. Nie zmieniaj ID, nazw ani innych danych!\n");
+            content.append("# Ścieżka /orderName/partName/załącznik wskazuje lokalizację programu.\n");
             content.append("# Błędy w formacie linii mogą zostać zignorowane przez system.\n");
             content.append(String.format("# Wygenerowano: %s\n\n",
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
@@ -99,7 +98,7 @@ public class MachineQueueFileGeneratorService {
             Integer lastProgramId = null;
 
             for (ProductionQueueItem program : programs) {
-                // Filtruj tylko pliki .MPF i posortuj alfabetycznie
+                // Filtruj tylko pliki .MPF i posortuj według pola 'order'
                 List<ProductionFileInfo> mpfFiles = program.getFiles() != null ?
                         program.getFiles().stream()
                                 .filter(file -> file.getFileName().toLowerCase().endsWith(".mpf"))
@@ -118,20 +117,21 @@ public class MachineQueueFileGeneratorService {
                             sanitizeFileName(program.getAuthor(), "") : "";
                     int quantity = program.getQuantity();
 
-                    // Debugowanie: wyświetl użyte partName
-                    System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + partName);
+                    // Debugowanie: wyświetl użyte partName i order
+                    System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + partName + ", order: " + program.getOrder());
 
                     // Dodaj separator dla nowego programu (różne ID)
                     if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
                         content.append("\n---\n\n");
                     }
 
-                    // Dodaj nagłówek programu, autora i additionalInfo w jednym bloku /** ... */
+                    // Dodaj nagłówek programu, autora, ilość i additionalInfo w jednym bloku /** ... */
                     content.append("/**\n");
                     content.append(String.format("Program: %s/%s\n", orderName, partName));
                     if (!author.isEmpty()) {
                         content.append(String.format("Autor: %s\n", author));
                     }
+                    content.append(String.format("Ilość: %d szt\n", quantity));
                     if (!additionalInfo.isEmpty()) {
                         content.append(wrapCommentWithPrefix(additionalInfo, "Uwagi: "));
                     }
@@ -145,15 +145,14 @@ public class MachineQueueFileGeneratorService {
 
                     for (ProductionFileInfo mpfFile : mpfFiles) {
                         boolean isFileCompleted = mpfFile.isCompleted();
-                        String status = isFileCompleted ? "[UKONCZONE]" : "[NIEUKONCZONE]";
+                        String status = isFileCompleted ? "[OK]" : "[NOK]";
                         String mpfFileName = sanitizeFileName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
-                        // Format: pozycja./[orderName]/[partName]/załącznik - ilość szt. id: ID | [status]
-                        String entry = String.format("%d./%s/%s/%-30s - %d szt. id: %-5d | %s\n",
+                        // Format: pozycja./orderName/partName/załącznik id: ID | [status]
+                        String entry = String.format("%d./%s/%s/%s id: %d | %s\n",
                                 position++,
                                 orderName,
                                 partName,
                                 mpfFileName,
-                                quantity,
                                 program.getId(),
                                 status);
                         content.append(entry);
@@ -174,9 +173,9 @@ public class MachineQueueFileGeneratorService {
                 Files.createFile(filePath);
                 // Utwórz pusty plik z komentarzem i informacją
                 Files.writeString(filePath,
-                        "# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n" +
-                                "# Przykład: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
-                                "# Ścieżka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n" +
+                        "# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n" +
+                                "# Przykład: zmień '[NOK]' na '[OK]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
+                                "# Ścieżka /orderName/partName/załącznik wskazuje lokalizację programu.\n" +
                                 "# Błędy w formacie linii mogą zostać zignorowane przez system.\n" +
                                 String.format("# Wygenerowano: %s\n",
                                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +

@@ -101,16 +101,17 @@ public class FileWatcherService {
                 return;
             }
 
-            // Parser: pozycja./orderName/partName/fileName - ilość szt. id: ID | [UKONCZONE|NIEUKONCZONE]
+            // Parser: pozycja./orderName/partName/fileName id:ID|[OK|NOK]
             Pattern pattern = Pattern.compile(
-                    "^(\\d+)\\./([^/]+)/([^/]+)/([^\\s]+?\\.mpf(?:\\.mpf)?)\\s*-\\s*(\\d+)\\s*szt\\.\\s*id:\\s*(\\d+)\\s*\\|\\s*\\[(UKONCZONE|NIEUKONCZONE)]",
+                    "^(\\d+)\\./([^/]+)/([^/]+)/([^\\s]+?\\.[mM][pP][fF](?:\\.[mM][pP][fF])?)\\s*id:\\s*(\\d+)\\s*\\|\\s*\\[(OK|NOK)]",
                     Pattern.CASE_INSENSITIVE
             );
 
             for (String line : lines) {
                 String trimmedLine = line.trim();
                 if (trimmedLine.isEmpty() || trimmedLine.startsWith("#") || trimmedLine.equals("---") ||
-                        trimmedLine.startsWith("/**") || trimmedLine.startsWith("Program:") || trimmedLine.equals("*/")) {
+                        trimmedLine.startsWith("/**") || trimmedLine.startsWith("Program:") || trimmedLine.equals("*/") ||
+                        trimmedLine.startsWith("Autor:") || trimmedLine.startsWith("Ilość:") || trimmedLine.startsWith("Uwagi:")) {
                     logger.debug("Pominięto linię: {}", trimmedLine);
                     continue;
                 }
@@ -120,11 +121,11 @@ public class FileWatcherService {
                 if (matcher.matches()) {
                     String fileName = matcher.group(4);
                     String partName = matcher.group(3);
-                    Integer programId = Integer.parseInt(matcher.group(6));
-                    boolean isCompleted = "UKONCZONE".equalsIgnoreCase(matcher.group(7));
+                    Integer programId = Integer.parseInt(matcher.group(5));
+                    boolean isCompleted = "OK".equalsIgnoreCase(matcher.group(6));
 
                     logger.debug("Rozpoznano: fileName={}, partName={}, programId={}, status={}",
-                            fileName, partName, programId, isCompleted ? "UKONCZONE" : "NIEUKONCZONE");
+                            fileName, partName, programId, isCompleted ? "OK" : "NOK");
 
                     Optional<ProductionQueueItem> programOpt = productionQueueItemRepository.findByIdWithFiles(programId);
                     if (programOpt.isPresent()) {
@@ -138,11 +139,11 @@ public class FileWatcherService {
                         if (fileInfoOpt.isPresent()) {
                             ProductionFileInfo fileInfo = fileInfoOpt.get();
                             logger.debug("Baza: fileName={}, completed={}, Plik: status={}",
-                                    fileInfo.getFileName(), fileInfo.isCompleted(), isCompleted ? "UKONCZONE" : "NIEUKONCZONE");
+                                    fileInfo.getFileName(), fileInfo.isCompleted(), isCompleted ? "OK" : "NOK");
                             if (fileInfo.isCompleted() != isCompleted) {
                                 fileInfo.setCompleted(isCompleted);
                                 productionFileInfoService.save(fileInfo);
-                                logger.info("Zaktualizowano status pliku {} dla programu {} na {}", fileName, programId, isCompleted ? "UKONCZONE" : "NIEUKONCZONE");
+                                logger.info("Zaktualizowano status pliku {} dla programu {} na {}", fileName, programId, isCompleted ? "OK" : "NOK");
 
                                 // Sprawdź, czy wszystkie załączniki .MPF są ukończone
                                 boolean allMpfCompleted = program.getFiles().stream()
@@ -165,6 +166,7 @@ public class FileWatcherService {
                     }
                 } else {
                     logger.warn("Niepoprawny format linii w pliku {}: '{}'", filePath, trimmedLine);
+                    logger.debug("Szczegóły niedopasowania: linia='{}', regex='{}'", trimmedLine, pattern.pattern());
                 }
             }
         } catch (Exception e) {
