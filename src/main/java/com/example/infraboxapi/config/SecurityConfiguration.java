@@ -137,10 +137,11 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/machine").hasAnyAuthority("ADMIN", "USER") // GET all
                         .requestMatchers("/api/machine/{id}/image").hasAnyAuthority("ADMIN", "USER") // GET image
                         .requestMatchers("/api/machine/available-locations").hasAnyAuthority("ADMIN", "USER") // GET available locations
+                        .requestMatchers("/api/machine/directory-structure-hash").hasAnyAuthority("ADMIN", "USER") // GET directory structure hash
                         .requestMatchers("/api/machine/{id}/download-programs").hasAnyAuthority("ADMIN", "USER") // GET download programs
                         .requestMatchers("/api/machine/add").hasAuthority("ADMIN") // POST add
-                        .requestMatchers("/api/machine/{id}").hasAuthority("ADMIN") // PUT update
-                        .requestMatchers("/api/machine/{id}").hasAuthority("ADMIN") // DELETE
+                        .requestMatchers(HttpMethod.PUT, "/api/machine/{id}").hasAuthority("ADMIN") // PUT update
+                        .requestMatchers(HttpMethod.DELETE, "/api/machine/{id}").hasAuthority("ADMIN") // DELETE
 
                         // DIRECTORY CLEANUP
                         .requestMatchers("/api/cleanup/all").hasAuthority("ADMIN")

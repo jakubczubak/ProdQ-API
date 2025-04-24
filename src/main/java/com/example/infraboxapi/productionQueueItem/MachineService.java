@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -212,6 +214,27 @@ public class MachineService {
         }
 
         return locations;
+    }
+
+    public String getDirectoryStructureHash() {
+        List<String> locations = getAvailableLocations();
+        try {
+            MessageDigest digest = MessageDigest.getInstance("MD5");
+            // Sortuj lokalizacje, aby hash był spójny
+            locations.sort(String::compareTo);
+            String combined = String.join("", locations);
+            byte[] hashBytes = digest.digest(combined.getBytes());
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("Błąd podczas obliczania hasha struktury katalogów", e);
+            throw new RuntimeException("Nie udało się obliczyć hasha struktury katalogów", e);
+        }
     }
 
     // Rekurencyjna metoda do zbierania wszystkich podkatalogów

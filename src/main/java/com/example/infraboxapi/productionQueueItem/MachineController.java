@@ -103,6 +103,11 @@ public class MachineController {
         return ResponseEntity.ok(machineService.getAvailableLocations());
     }
 
+    @GetMapping("/directory-structure-hash")
+    public ResponseEntity<String> getDirectoryStructureHash() {
+        return ResponseEntity.ok(machineService.getDirectoryStructureHash());
+    }
+
     @GetMapping("/{id}/download-programs")
     public ResponseEntity<byte[]> downloadMachinePrograms(@PathVariable Integer id) throws IOException {
         return machineService.downloadMachinePrograms(id);
