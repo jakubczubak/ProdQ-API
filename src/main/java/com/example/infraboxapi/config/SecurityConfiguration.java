@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -125,14 +126,21 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/accessorie/item/delete/*").hasAuthority("ADMIN")
 
                         // PRODUCTION QUEUE ITEM
-                        .requestMatchers("/api/production-queue-item").hasAnyAuthority("ADMIN", "USER") // GET all
-                        .requestMatchers("/api/production-queue-item/*").hasAnyAuthority("ADMIN", "USER") // GET by ID
-                        .requestMatchers("/api/production-queue-item/add").hasAuthority("ADMIN") // POST
-                        .requestMatchers("/api/production-queue-item/*").hasAuthority("ADMIN") // PUT (update)
-                        .requestMatchers("/api/production-queue-item/*").hasAuthority("ADMIN") // DELETE
-                        .requestMatchers("/api/production-queue-item/{id}/toggle-complete").hasAuthority("ADMIN") // PATCH
-                        .requestMatchers("/api/production-queue-item/files/*").hasAnyAuthority("ADMIN", "USER") // GET file content
-                        .requestMatchers("/api/sync-with-machine/*").hasAnyAuthority("ADMIN", "USER") // GET file content
+                        .requestMatchers(HttpMethod.GET, "/api/production-queue-item", "/api/production-queue-item/*", "/api/production-queue-item/files/*", "/api/sync-with-machine/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.POST, "/api/production-queue-item/add", "/api/sync-with-machine").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/production-queue-item/*", "/api/production-queue-item/update-order").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/production-queue-item/*", "/api/production-queue-item/files/*").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/production-queue-item/*/toggle-complete").hasAuthority("ADMIN")
+
+                        // MACHINE
+                        .requestMatchers("/api/machine/{id}").hasAnyAuthority("ADMIN", "USER") // GET by ID
+                        .requestMatchers("/api/machine").hasAnyAuthority("ADMIN", "USER") // GET all
+                        .requestMatchers("/api/machine/{id}/image").hasAnyAuthority("ADMIN", "USER") // GET image
+                        .requestMatchers("/api/machine/available-locations").hasAnyAuthority("ADMIN", "USER") // GET available locations
+                        .requestMatchers("/api/machine/{id}/download-programs").hasAnyAuthority("ADMIN", "USER") // GET download programs
+                        .requestMatchers("/api/machine/add").hasAuthority("ADMIN") // POST add
+                        .requestMatchers("/api/machine/{id}").hasAuthority("ADMIN") // PUT update
+                        .requestMatchers("/api/machine/{id}").hasAuthority("ADMIN") // DELETE
 
                         // DIRECTORY CLEANUP
                         .requestMatchers("/api/cleanup/all").hasAuthority("ADMIN")
