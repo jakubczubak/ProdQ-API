@@ -39,16 +39,17 @@ public class MachineQueueFileGeneratorService {
      * Generuje plik tekstowy z listą programów dla danej maszyny w formacie:
      * "pozycja./[orderName]/[partName]/załącznik - ilość szt. id: ID | [status]"
      * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "/** Uwagi: additionalInfo "
-            * Długie additionalInfo są dzielone na linie po max 80 znaków.
+     * Jeśli istnieje author, jest dodawane w formacie: "Autor: sanitized_author"
+     * Długie additionalInfo są dzielone na linie po maksymalnie 80 znaków.
      * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
      * Programy są sortowane według pola 'order', a załączniki alfabetycznie według nazwy.
      * Wpisy dla różnych partName są oddzielone pustą linią.
-            * Status załącznika to [UKONCZONE] lub [NIEUKONCZONE], oddzielony znakiem '|'.
-            * Nazwy orderName, additionalInfo i mpfFileName są sanitizowane, aby usunąć polskie znaki.
+     * Status załącznika to [UKONCZONE] lub [NIEUKONCZONE], oddzielony znakiem '|'.
+     * orderName, additionalInfo, author i mpfFileName są sanitizowane, aby usunąć polskie znaki.
      * partName jest używane bezpośrednio z bazy danych, ponieważ jest już sanitizowane i unikalne.
-            * Plik zawiera komentarz z instrukcjami, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
-            *
-            * @param queueType ID maszyny (jako String)
+     * Plik zawiera instrukcje, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
+     *
+     * @param queueType ID maszyny (jako String)
      * @throws IOException jeśli operacja na pliku się nie powiedzie
      */
     public void generateQueueFileForMachine(String queueType) throws IOException {
@@ -87,9 +88,9 @@ public class MachineQueueFileGeneratorService {
             StringBuilder content = new StringBuilder();
             // Dodaj komentarz i datę generowania przed listą programów
             content.append("# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n");
-            content.append("# Przyklad: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n");
-            content.append("# Sciezka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n");
-            content.append("# Bledy w formacie linii moga zostac zignorowane przez system.\n");
+            content.append("# Przykład: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n");
+            content.append("# Ścieżka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n");
+            content.append("# Błędy w formacie linii mogą zostać zignorowane przez system.\n");
             content.append(String.format("# Wygenerowano: %s\n\n",
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
 
@@ -113,6 +114,8 @@ public class MachineQueueFileGeneratorService {
                             program.getPartName() : "NoPartName_" + program.getId();
                     String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ?
                             sanitizeFileName(program.getAdditionalInfo(), "") : "";
+                    String author = program.getAuthor() != null && !program.getAuthor().isEmpty() ?
+                            sanitizeFileName(program.getAuthor(), "") : "";
                     int quantity = program.getQuantity();
 
                     // Debugowanie: wyświetl użyte partName
@@ -123,9 +126,12 @@ public class MachineQueueFileGeneratorService {
                         content.append("\n---\n\n");
                     }
 
-                    // Dodaj nagłówek programu i additionalInfo w jednym bloku /** ... */
+                    // Dodaj nagłówek programu, autora i additionalInfo w jednym bloku /** ... */
                     content.append("/**\n");
                     content.append(String.format("Program: %s/%s\n", orderName, partName));
+                    if (!author.isEmpty()) {
+                        content.append(String.format("Autor: %s\n", author));
+                    }
                     if (!additionalInfo.isEmpty()) {
                         content.append(wrapCommentWithPrefix(additionalInfo, "Uwagi: "));
                     }
@@ -169,12 +175,12 @@ public class MachineQueueFileGeneratorService {
                 // Utwórz pusty plik z komentarzem i informacją
                 Files.writeString(filePath,
                         "# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n" +
-                                "# Przyklad: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
-                                "# Sciezka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n" +
-                                "# Bledy w formacie linii moga zostac zignorowane przez system.\n" +
+                                "# Przykład: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
+                                "# Ścieżka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.\n" +
+                                "# Błędy w formacie linii mogą zostać zignorowane przez system.\n" +
                                 String.format("# Wygenerowano: %s\n",
                                         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
-                                "# Brak programow w kolejce dla tej maszyny.\n");
+                                "# Brak programów w kolejce dla tej maszyny.\n");
             }
         } catch (NumberFormatException e) {
             // queueType nie jest ID maszyny, pomiń
@@ -187,7 +193,7 @@ public class MachineQueueFileGeneratorService {
      *
      * @param name nazwa do sanitizacji
      * @param defaultName domyślna nazwa w razie null/pustej wartości
-     * @return sanitized nazwa
+     * @return sanitizowana nazwa
      */
     private String sanitizeFileName(String name, String defaultName) {
         if (name == null || name.trim().isEmpty()) {

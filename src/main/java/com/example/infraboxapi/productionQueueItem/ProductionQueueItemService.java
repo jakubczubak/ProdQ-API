@@ -2,6 +2,8 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
+import com.example.infraboxapi.user.User;
+import com.example.infraboxapi.user.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -17,7 +19,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Serwis odpowiedzialny za zarządzanie elementami kolejki produkcyjnej, w tym zapisywanie, aktualizowanie i synchronizację załączników.
+ * Service responsible for managing production queue items, including saving, updating, and synchronizing attachments.
  */
 @Service
 public class ProductionQueueItemService {
@@ -30,6 +32,7 @@ public class ProductionQueueItemService {
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
     private final FileWatcherService fileWatcherService;
     private final FileSystemService fileSystemService;
+    private final UserRepository userRepository;
 
     @Autowired
     public ProductionQueueItemService(
@@ -38,17 +41,19 @@ public class ProductionQueueItemService {
             MachineRepository machineRepository,
             MachineQueueFileGeneratorService machineQueueFileGeneratorService,
             FileWatcherService fileWatcherService,
-            ProductionQueueItemRepository productionQueueItemRepositoryForFileSystem) {
+            ProductionQueueItemRepository productionQueueItemRepositoryForFileSystem,
+            UserRepository userRepository) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.machineRepository = machineRepository;
         this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
         this.fileWatcherService = fileWatcherService;
         this.fileSystemService = new FileSystemService(productionQueueItemRepositoryForFileSystem);
+        this.userRepository = userRepository;
     }
 
     /**
-     * Zapisuje nowy element kolejki produkcyjnej wraz z załącznikami i uwzględnia fileOrderMapping.
+     * Saves a new production queue item along with its attachments and considers fileOrderMapping.
      */
     @Transactional
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files, String fileOrderMapping) throws IOException {
@@ -67,8 +72,10 @@ public class ProductionQueueItemService {
         sanitizedPartName = getUniquePartName(item.getQueueType(), sanitizedPartName);
         item.setPartName(sanitizedPartName);
 
+        // Set author as firstName + lastName
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        item.setAuthor(currentUserEmail);
+        String author = getUserFullName(currentUserEmail);
+        item.setAuthor(author);
 
         ProductionQueueItem savedItem = productionQueueItemRepository.save(item);
 
@@ -76,13 +83,13 @@ public class ProductionQueueItemService {
             List<ProductionFileInfo> fileInfos = new ArrayList<>();
             Map<String, Integer> orderMap = parseFileOrderMapping(fileOrderMapping);
 
-            // Logowanie kolejności załączników przed zapisaniem
-            logger.info("Kolejność załączników przed zapisaniem w metodzie save dla partName: {}", sanitizedPartName);
+            // Log attachment order before saving
+            logger.info("Attachment order before saving in save method for partName: {}", sanitizedPartName);
             for (MultipartFile file : files) {
                 String originalFileName = file.getOriginalFilename();
                 String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
                 Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
-                logger.info("Plik: {}, kolejność: {}", sanitizedFileName, fileOrder);
+                logger.info("File: {}, order: {}", sanitizedFileName, fileOrder);
             }
 
             for (MultipartFile file : files) {
@@ -116,7 +123,7 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Aktualizuje istniejący element kolejki produkcyjnej oraz jego załączniki z uwzględnieniem fileOrderMapping.
+     * Updates an existing production queue item and its attachments, considering fileOrderMapping.
      */
     @Transactional
     public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files, String fileOrderMapping) throws IOException {
@@ -126,7 +133,7 @@ public class ProductionQueueItemService {
             ProductionQueueItem existingItem = existingItemOpt.get();
             String oldQueueType = existingItem.getQueueType();
 
-            // Aktualizacja pól
+            // Update fields
             existingItem.setType(updatedItem.getType());
             existingItem.setSubtype(updatedItem.getSubtype());
             existingItem.setOrderName(updatedItem.getOrderName());
@@ -140,26 +147,28 @@ public class ProductionQueueItemService {
             existingItem.setQueueType(updatedItem.getQueueType());
             existingItem.setOrder(updatedItem.getOrder());
 
+            // Set author as firstName + lastName
             String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-            existingItem.setAuthor(currentUserEmail);
+            String author = getUserFullName(currentUserEmail);
+            existingItem.setAuthor(author);
 
-            // Logowanie istniejących załączników
-            logger.info("Kolejność istniejących załączników przed aktualizacją dla ID: {}", id);
+            // Log existing attachments
+            logger.info("Order of existing attachments before update for ID: {}", id);
             for (ProductionFileInfo file : existingItem.getFiles()) {
-                logger.info("Plik: {}, kolejność: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
+                logger.info("File: {}, order: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
             }
 
-            // Obsługa nowych załączników
+            // Handle new attachments
             Map<String, Integer> orderMap = parseFileOrderMapping(fileOrderMapping);
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
-                // Logowanie nowych załączników
-                logger.info("Kolejność nowych załączników przed zapisaniem dla ID: {}", id);
+                // Log new attachments
+                logger.info("Order of new attachments before saving for ID: {}", id);
                 for (MultipartFile file : files) {
                     String originalFileName = file.getOriginalFilename();
                     String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
                     Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
-                    logger.info("Plik: {}, kolejność: {}", sanitizedFileName, fileOrder);
+                    logger.info("File: {}, order: {}", sanitizedFileName, fileOrder);
                 }
 
                 for (MultipartFile file : files) {
@@ -182,7 +191,7 @@ public class ProductionQueueItemService {
                 productionFileInfoService.saveAll(fileInfos);
             }
 
-            // Aktualizacja kolejności istniejących plików
+            // Update order of existing files
             if (orderMap != null && !orderMap.isEmpty()) {
                 for (ProductionFileInfo file : existingItem.getFiles()) {
                     Integer newOrder = orderMap.get(file.getFileName());
@@ -192,38 +201,55 @@ public class ProductionQueueItemService {
                 }
             }
 
-            // Logowanie po aktualizacji kolejności
-            logger.info("Kolejność załączników po aktualizacji dla ID: {}", id);
+            // Log after updating order
+            logger.info("Order of attachments after update for ID: {}", id);
             for (ProductionFileInfo file : existingItem.getFiles()) {
-                logger.info("Plik: {}, kolejność: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
+                logger.info("File: {}, order: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
             }
 
             existingItem.setCompleted(checkAllMpfCompleted(existingItem));
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
-            // Synchronizacja załączników
+            // Synchronize attachments
             syncAttachmentsToMachinePath(savedItem);
 
-            // Aktualizacja plików kolejki dla nowego i starego queueType
+            // Update queue files for new and old queueType
             Set<String> queueTypesToUpdate = new HashSet<>();
             queueTypesToUpdate.add(savedItem.getQueueType());
             if (!oldQueueType.equals(savedItem.getQueueType())) {
-                logger.info("Dodano stary queueType do aktualizacji: {}", oldQueueType);
+                logger.info("Added old queueType for update: {}", oldQueueType);
                 queueTypesToUpdate.add(oldQueueType);
             }
 
             for (String queueType : queueTypesToUpdate) {
-                logger.info("Synchronizacja kolejki dla queueType: {}", queueType);
+                logger.info("Synchronizing queue for queueType: {}", queueType);
                 fileWatcherService.checkQueueFile(queueType);
                 machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
             }
 
             return savedItem;
         } else {
-            throw new RuntimeException("Nie znaleziono elementu kolejki o ID: " + id);
+            throw new RuntimeException("Production queue item not found with ID: " + id);
         }
     }
+
     /**
-     * Parsuje fileOrderMapping z JSON na mapę nazwa pliku -> kolejność.
+     * Retrieves the full name (firstName + lastName) of the user based on their email.
+     * If the user is not found or names are empty, returns the email as fallback.
+     */
+    private String getUserFullName(String email) {
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String firstName = user.getFirstName() != null && !user.getFirstName().isEmpty() ? user.getFirstName() : "";
+            String lastName = user.getLastName() != null && !user.getLastName().isEmpty() ? user.getLastName() : "";
+            String fullName = (firstName + " " + lastName).trim();
+            return fullName.isEmpty() ? email : fullName;
+        }
+        return email; // Fallback to email if user not found
+    }
+
+    /**
+     * Parses fileOrderMapping from JSON to a map of file name -> order.
      */
     private Map<String, Integer> parseFileOrderMapping(String fileOrderMapping) throws IOException {
         if (fileOrderMapping == null || fileOrderMapping.isEmpty()) {
@@ -243,7 +269,7 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Generuje unikalną nazwę partName, dodając suffix _2, _3, itp., jeśli nazwa już istnieje w danej queueType.
+     * Generates a unique partName by adding a suffix _2, _3, etc., if the name already exists in the queueType.
      */
     private String getUniquePartName(String queueType, String partName) {
         String basePartName = partName;
@@ -254,7 +280,7 @@ public class ProductionQueueItemService {
             candidatePartName = basePartName + "_" + suffix;
             suffix++;
             if (suffix > 1000) {
-                throw new IllegalStateException("Nie można znaleźć unikalnej nazwy dla partName: " + basePartName);
+                throw new IllegalStateException("Cannot find a unique name for partName: " + basePartName);
             }
         }
 
@@ -262,7 +288,7 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Sprawdza, czy partName już istnieje w danej queueType.
+     * Checks if partName already exists in the given queueType.
      */
     private boolean isPartNameDuplicate(String queueType, String partName) {
         return productionQueueItemRepository.findByQueueType(queueType)
@@ -273,30 +299,29 @@ public class ProductionQueueItemService {
                 });
     }
 
-
     /**
-     * Wyszukuje element kolejki po identyfikatorze.
+     * Finds a production queue item by ID.
      */
     public Optional<ProductionQueueItem> findById(Integer id) {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findByIdWithFiles(id);
         itemOpt.ifPresent(item -> {
-            logger.info("Pobrano element kolejki ID: {}. Kolejność załączników:", id);
+            logger.info("Retrieved production queue item ID: {}. Attachment order:", id);
             item.getFiles().forEach(file ->
-                    logger.info("Plik: {}, order: {}, id: {}", file.getFileName(), file.getOrder(), file.getId())
+                    logger.info("File: {}, order: {}, id: {}", file.getFileName(), file.getOrder(), file.getId())
             );
         });
         return itemOpt;
     }
 
     /**
-     * Zwraca wszystkie elementy kolejki produkcyjnej.
+     * Returns all production queue items.
      */
     public List<ProductionQueueItem> findAll() {
         return productionQueueItemRepository.findAll();
     }
 
     /**
-     * Usuwa element kolejki produkcyjnej o podanym identyfikatorze.
+     * Deletes a production queue item by ID.
      */
     @Transactional
     public void deleteById(Integer id) throws IOException {
@@ -311,31 +336,31 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Wyszukuje elementy kolejki produkcyjnej według typu kolejki.
+     * Finds production queue items by queue type.
      */
     public List<ProductionQueueItem> findByQueueType(String queueType) {
-        logger.info("Pobieranie kolejki dla queueType: {}", queueType);
+        logger.info("Fetching queue for queueType: {}", queueType);
         if (queueType == null) {
-            logger.warn("queueType jest null, zwracam pustą listę");
+            logger.warn("queueType is null, returning empty list");
             return Collections.emptyList();
         }
         List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
-        logger.debug("Znaleziono {} elementów dla queueType: {}", items.size(), queueType);
+        logger.debug("Found {} items for queueType: {}", items.size(), queueType);
         return items;
     }
 
     /**
-     * Synchronizuje statusy kolejki produkcyjnej z plikiem kolejki maszyny.
+     * Synchronizes production queue statuses with the machine queue file.
      */
     @Transactional
     public void syncWithMachine(String queueType) throws IOException {
-        logger.info("Rozpoczęcie synchronizacji z maszyną dla queueType: {}", queueType);
+        logger.info("Starting synchronization with machine for queueType: {}", queueType);
         fileWatcherService.checkQueueFile(queueType);
-        logger.info("Zakończono synchronizację z maszyną dla queueType: {}", queueType);
+        logger.info("Completed synchronization with machine for queueType: {}", queueType);
     }
 
     /**
-     * Przełącza status ukończenia elementu kolejki produkcyjnej.
+     * Toggles the completion status of a production queue item.
      */
     @Transactional
     public ProductionQueueItem toggleComplete(Integer id) throws IOException {
@@ -358,12 +383,12 @@ public class ProductionQueueItemService {
             machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
             return savedItem;
         } else {
-            throw new RuntimeException("Nie znaleziono elementu kolejki o ID: " + id);
+            throw new RuntimeException("Production queue item not found with ID: " + id);
         }
     }
 
     /**
-     * Aktualizuje kolejność elementów w kolejce produkcyjnej.
+     * Updates the order of items in the production queue.
      */
     @Transactional
     public void updateQueueOrder(String queueType, List<OrderItem> items) throws IOException {
@@ -381,7 +406,7 @@ public class ProductionQueueItemService {
         for (OrderItem orderItem : items) {
             ProductionQueueItem item = itemMap.get(orderItem.getId());
             if (item == null) {
-                throw new IllegalArgumentException("Nie znaleziono elementu: " + orderItem.getId());
+                throw new IllegalArgumentException("Item not found: " + orderItem.getId());
             }
             oldQueueTypes.put(item.getId(), item.getQueueType());
             item.setOrder(orderItem.getOrder());
@@ -400,14 +425,14 @@ public class ProductionQueueItemService {
         }
 
         for (String qt : queueTypesToUpdate) {
-            logger.info("Synchronizacja kolejki dla queueType: {}", qt);
+            logger.info("Synchronizing queue for queueType: {}", qt);
             fileWatcherService.checkQueueFile(qt);
             machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
         }
     }
 
     /**
-     * Sprawdza, czy wszystkie załączniki .MPF dla elementu są ukończone.
+     * Checks if all .MPF attachments for an item are completed.
      */
     private boolean checkAllMpfCompleted(ProductionQueueItem item) {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
@@ -419,7 +444,7 @@ public class ProductionQueueItemService {
     }
 
     /**
-     * Weryfikuje poprawność typu kolejki.
+     * Validates the queue type.
      */
     private void validateQueueType(String queueType) {
         if (queueType == null || queueType.isEmpty()) {
@@ -432,15 +457,15 @@ public class ProductionQueueItemService {
         try {
             boolean isValidMachine = machineRepository.existsById(Integer.parseInt(queueType));
             if (!isValidMachine) {
-                throw new IllegalArgumentException("Nieprawidłowy typ kolejki: " + queueType);
+                throw new IllegalArgumentException("Invalid queue type: " + queueType);
             }
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Nieprawidłowy typ kolejki: " + queueType);
+            throw new IllegalArgumentException("Invalid queue type: " + queueType);
         }
     }
 
     /**
-     * Synchronizuje załączniki elementu z katalogiem maszyny.
+     * Synchronizes item attachments with the machine directory.
      */
     private void syncAttachmentsToMachinePath(ProductionQueueItem item) {
         try {
@@ -451,7 +476,7 @@ public class ProductionQueueItemService {
 
             Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
             if (machineOpt.isEmpty()) {
-                throw new FileOperationException("Nie znaleziono maszyny o ID: " + queueType);
+                throw new FileOperationException("Machine not found with ID: " + queueType);
             }
 
             Machine machine = machineOpt.get();
@@ -462,12 +487,12 @@ public class ProductionQueueItemService {
 
             fileSystemService.synchronizeFiles(programPath, orderName, partName, item.getFiles());
         } catch (IOException e) {
-            throw new FileOperationException("Nie udało się zsynchronizować załączników z katalogiem maszyny: " + e.getMessage(), e);
+            throw new FileOperationException("Failed to synchronize attachments with machine directory: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Wyjątek rzucany w przypadku błędów operacji na plikach.
+     * Exception thrown for file operation errors.
      */
     private static class FileOperationException extends RuntimeException {
         public FileOperationException(String message) {
