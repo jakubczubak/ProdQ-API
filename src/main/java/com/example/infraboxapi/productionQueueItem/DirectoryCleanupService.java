@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -132,18 +133,22 @@ public class DirectoryCleanupService {
                 }
 
                 // Delete orderName directory if it is empty
-                if (isDirectoryEmpty(orderPath)) {
+                if (fileSystemService.isDirectoryAccessible(orderPath) && isDirectoryEmpty(orderPath)) {
                     try {
                         if (Files.deleteIfExists(orderPath)) {
                             auditDeletion(orderPath, queueType);
                             logger.info("Deleted empty orderName directory: {}", orderPath);
                             deletedDirectories++;
                         } else {
-                            logger.warn("Failed to delete empty orderName directory: {}, possibly already removed", orderPath);
+                            logger.warn("Failed to delete orderName directory {}, possibly already removed or inaccessible", orderPath);
                         }
                     } catch (IOException e) {
                         logger.warn("Failed to delete orderName directory {}: {}", orderPath, e.getMessage());
+                        blockedDirectories++;
                     }
+                } else if (!fileSystemService.isDirectoryAccessible(orderPath)) {
+                    logger.warn("OrderName directory {} is blocked and cannot be deleted", orderPath);
+                    blockedDirectories++;
                 }
             }
         }
@@ -229,11 +234,11 @@ public class DirectoryCleanupService {
     }
 
     /**
-     * Attempts to delete a directory and its contents, handling locked files.
+     * Attempts to delete a directory and its contents, handling locked files and directories.
      *
      * @param dirPath   Path to the directory
      * @param queueType Machine ID
-     * @return true if the directory was deleted, false if it contains locked files
+     * @return true if the directory was deleted, false if it contains locked files or is itself locked
      * @throws IOException If a filesystem operation fails
      */
     private boolean attemptDirectoryDeletion(Path dirPath, String queueType) throws IOException {
@@ -253,7 +258,8 @@ public class DirectoryCleanupService {
                             auditDeletion(filePath, queueType);
                             logger.debug("Deleted file: {}", filePath);
                         } else {
-                            logger.warn("Failed to delete file: {}, possibly already removed", filePath);
+                            logger.warn("Failed to delete file {}, possibly already removed or inaccessible", filePath);
+                            hasLockedFiles = true;
                         }
                     } else {
                         hasLockedFiles = true;
@@ -261,16 +267,39 @@ public class DirectoryCleanupService {
                     }
                 }
             }
+        } catch (IOException e) {
+            logger.error("Error while scanning files in directory {}: {}", dirPath, e.getMessage(), e);
+            hasLockedFiles = true;
         }
 
-        // Attempt to delete the directory if it is empty
+        // Attempt to delete the directory if it is empty and not locked
         if (!hasLockedFiles && isDirectoryEmpty(dirPath)) {
-            if (Files.deleteIfExists(dirPath)) {
-                auditDeletion(dirPath, queueType);
-                logger.info("Deleted unused directory: {}", dirPath);
-                return true;
+            if (fileSystemService.isDirectoryAccessible(dirPath)) {
+                if (Files.deleteIfExists(dirPath)) {
+                    auditDeletion(dirPath, queueType);
+                    logger.info("Successfully deleted unused directory: {}", dirPath);
+                    return true;
+                } else {
+                    logger.warn("Failed to delete directory {}, possibly already removed or inaccessible", dirPath);
+                    // Sprawdź, czy katalog nadal istnieje
+                    if (Files.exists(dirPath)) {
+                        logger.error("Directory {} still exists after deletion attempt", dirPath);
+                        return false;
+                    }
+                    return true;
+                }
             } else {
-                logger.warn("Failed to delete directory: {}, possibly already removed or inaccessible", dirPath);
+                logger.warn("Directory {} is locked and cannot be deleted", dirPath);
+                // Register the blocked directory in the database
+                BlockedDirectory blockedDir = BlockedDirectory.builder()
+                        .path(dirPath.toString())
+                        .queueType(queueType)
+                        .attempts(1)
+                        .createdAt(LocalDateTime.now())
+                        .lastAttempt(LocalDateTime.now())
+                        .build();
+                blockedDirectoryRepository.save(blockedDir);
+                logger.info("Registered blocked directory: {}. Attempt: 1", dirPath);
                 return false;
             }
         } else if (hasLockedFiles) {

@@ -168,7 +168,6 @@ public class FileSystemService {
         Path basePath = Paths.get(programPath, orderName, partName);
         try {
             Files.createDirectories(basePath);
-            setDirectoryPermissions(basePath);
             logger.debug("Utworzono lub użyto istniejącej struktury katalogów: {}", basePath);
             return basePath;
         } catch (FileAlreadyExistsException e) {
@@ -181,40 +180,6 @@ public class FileSystemService {
         } catch (IOException e) {
             logger.error("Błąd podczas tworzenia katalogu {}: {}", basePath, e.getMessage());
             throw new IOException("Nie udało się utworzyć katalogu: " + basePath, e);
-        }
-    }
-
-    /**
-     * Ustawia uprawnienia katalogu, aby był dostępny dla wszystkich użytkowników (Windows ACL).
-     *
-     * @param path ścieżka do katalogu
-     * @throws IOException w przypadku błędu ustawiania uprawnień
-     */
-    private void setDirectoryPermissions(Path path) throws IOException {
-        try {
-            java.nio.file.attribute.AclFileAttributeView aclAttr = Files.getFileAttributeView(path, java.nio.file.attribute.AclFileAttributeView.class);
-            if (aclAttr != null) {
-                java.nio.file.attribute.UserPrincipal everyone = path.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName("Everyone");
-                java.nio.file.attribute.AclEntry entry = java.nio.file.attribute.AclEntry.newBuilder()
-                        .setType(java.nio.file.attribute.AclEntryType.ALLOW)
-                        .setPrincipal(everyone)
-                        .setPermissions(
-                                java.nio.file.attribute.AclEntryPermission.READ_DATA,
-                                java.nio.file.attribute.AclEntryPermission.WRITE_DATA,
-                                java.nio.file.attribute.AclEntryPermission.DELETE,
-                                java.nio.file.attribute.AclEntryPermission.READ_ATTRIBUTES,
-                                java.nio.file.attribute.AclEntryPermission.WRITE_ATTRIBUTES
-                        )
-                        .build();
-                List<java.nio.file.attribute.AclEntry> acl = aclAttr.getAcl();
-                acl.add(entry);
-                aclAttr.setAcl(acl);
-                logger.debug("Ustawiono uprawnienia dla katalogu: {}", path);
-            } else {
-                logger.warn("ACL nie jest obsługiwane na tej platformie dla ścieżki: {}", path);
-            }
-        } catch (Exception e) {
-            logger.warn("Nie udało się ustawić uprawnień dla katalogu {}: {}", path, e.getMessage());
         }
     }
 
@@ -254,8 +219,12 @@ public class FileSystemService {
      * @return true, jeśli plik jest dostępny, false w przeciwnym razie
      */
     public boolean isFileAccessible(Path filePath) {
-        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
-            logger.debug("Plik {} nie istnieje lub nie jest zwykłym plikiem", filePath);
+        if (!Files.exists(filePath)) {
+            logger.debug("Plik {} nie istnieje", filePath);
+            return true;
+        }
+        if (!Files.isRegularFile(filePath)) {
+            logger.debug("Ścieżka {} nie jest zwykłym plikiem", filePath);
             return true;
         }
         try {
@@ -263,7 +232,35 @@ public class FileSystemService {
             logger.debug("Plik {} jest dostępny do zapisu", filePath);
             return true;
         } catch (IOException e) {
-            logger.warn("Plik {} jest niedostępny: {}", filePath, e.getMessage());
+            logger.warn("Plik {} jest niedostępny (prawdopodobnie zablokowany): {}", filePath, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * Sprawdza, czy katalog jest dostępny (niezablokowany) do usuwania.
+     *
+     * @param dirPath ścieżka do katalogu
+     * @return true, jeśli katalog jest dostępny, false w przeciwnym razie
+     */
+    public boolean isDirectoryAccessible(Path dirPath) {
+        if (!Files.exists(dirPath)) {
+            logger.debug("Katalog {} nie istnieje", dirPath);
+            return true;
+        }
+        if (!Files.isDirectory(dirPath)) {
+            logger.debug("Ścieżka {} nie jest katalogiem", dirPath);
+            return true;
+        }
+        try {
+            // Spróbuj utworzyć tymczasowy plik w katalogu, aby sprawdzić, czy jest dostępny
+            Path tempFile = dirPath.resolve("temp_" + System.currentTimeMillis() + ".tmp");
+            Files.createFile(tempFile);
+            Files.deleteIfExists(tempFile);
+            logger.debug("Katalog {} jest dostępny do zapisu i usuwania", dirPath);
+            return true;
+        } catch (IOException e) {
+            logger.warn("Katalog {} jest niedostępny (prawdopodobnie zablokowany): {}", dirPath, e.getMessage(), e);
             return false;
         }
     }
