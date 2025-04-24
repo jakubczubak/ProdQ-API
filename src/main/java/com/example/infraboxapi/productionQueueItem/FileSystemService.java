@@ -42,50 +42,56 @@ public class FileSystemService {
     public void synchronizeFiles(String programPath, String orderName, String partName, List<ProductionFileInfo> files) throws IOException {
         Path basePath = createDirectoryStructure(programPath, orderName, partName);
 
-        // Pobierz liczbę istniejących plików przed synchronizacją
         long existingFilesCount = Files.exists(basePath)
                 ? Files.list(basePath).filter(Files::isRegularFile).count()
                 : 0;
         logger.debug("Przed synchronizacją: {} plików w katalogu {}", existingFilesCount, basePath);
 
-        // Pobierz wszystkie nazwy załączników dla programów z tym samym orderName i partName
         Set<String> allAppFiles = productionQueueItemRepository.findFileNamesByOrderNameAndPartName(orderName, partName);
-
-        // Pobierz listę istniejących plików na dysku
         Set<String> existingFiles = Files.exists(basePath)
                 ? Files.list(basePath)
                 .filter(Files::isRegularFile)
                 .map(path -> path.getFileName().toString())
                 .collect(Collectors.toSet())
                 : Collections.emptySet();
-
-        // Pobierz listę plików dla bieżącego elementu
         Set<String> currentAppFiles = files == null
                 ? Collections.emptySet()
                 : files.stream()
                 .map(ProductionFileInfo::getFileName)
                 .collect(Collectors.toSet());
 
-        // Utwórz tymczasowy katalog dla synchronizacji
         Path tempDir = Paths.get(basePath.toString(), ".temp_" + System.currentTimeMillis());
         try {
+            if (!Files.isWritable(basePath)) {
+                logger.error("Katalog {} nie jest zapisywalny", basePath);
+                throw new IOException("Brak uprawnień do zapisu w katalogu: " + basePath);
+            }
             Files.createDirectories(tempDir);
             logger.trace("Utworzono tymczasowy katalog: {}", tempDir);
 
-            // Zapisz pliki do tymczasowego katalogu
             if (files != null && !files.isEmpty()) {
                 for (ProductionFileInfo file : files) {
                     String fileName = file.getFileName();
                     validateAttachment(file);
                     Path tempFilePath = tempDir.resolve(fileName);
 
-                    // Zapisz plik do tymczasowego katalogu
-                    Files.write(tempFilePath, file.getFileContent());
-                    logger.trace("Zapisano tymczasowy plik: {}", tempFilePath);
+                    byte[] content = file.getFileContent();
+                    if (content == null || content.length == 0) {
+                        logger.error("Zawartość pliku {} jest pusta lub null", fileName);
+                        throw new IllegalArgumentException("Pusta zawartość pliku: " + fileName);
+                    }
+
+                    try {
+                        logger.debug("Próba zapisu pliku tymczasowego: {}, rozmiar: {} bajtów", tempFilePath, content.length);
+                        Files.write(tempFilePath, content);
+                        logger.debug("Zapisano tymczasowy plik: {}", tempFilePath);
+                    } catch (IOException e) {
+                        logger.error("Błąd podczas zapisu pliku tymczasowego {}: {}", tempFilePath, e.getMessage());
+                        throw new IOException("Nie udało się zapisać pliku tymczasowego: " + tempFilePath, e);
+                    }
                 }
             }
 
-            // Usuń nieużywane pliki z docelowego katalogu
             for (String diskFile : existingFiles) {
                 if (!allAppFiles.contains(diskFile)) {
                     Path filePath = basePath.resolve(diskFile);
@@ -98,27 +104,43 @@ public class FileSystemService {
                 }
             }
 
-            // Przenieś pliki z tymczasowego katalogu do docelowego
             if (files != null && !files.isEmpty()) {
                 for (ProductionFileInfo file : files) {
                     String fileName = file.getFileName();
                     Path tempFilePath = tempDir.resolve(fileName);
                     Path filePath = basePath.resolve(fileName);
 
-                    // Sprawdź, czy plik istnieje i jest zablokowany
-                    if (Files.exists(filePath) && !isFileAccessible(filePath)) {
-                        logger.warn("Plik {} jest zablokowany, zapisuję pod unikalną nazwą", filePath);
-                        filePath = getUniqueFilePath(basePath, fileName);
+                    if (!Files.exists(tempFilePath)) {
+                        logger.error("Plik tymczasowy {} nie istnieje", tempFilePath);
+                        throw new IOException("Plik tymczasowy nie istnieje: " + tempFilePath);
                     }
 
-                    // Przenieś plik atomowo
-                    Files.move(tempFilePath, filePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                    logger.info("Zapisano plik: {}, rozmiar: {} bajtów, czas: {}", filePath, file.getFileSize(), Instant.now());
+                    if (Files.exists(filePath)) {
+                        if (!isFileAccessible(filePath)) {
+                            logger.warn("Plik {} jest zablokowany, zapisuję pod unikalną nazwą", filePath);
+                            filePath = getUniqueFilePath(basePath, fileName);
+                        } else {
+                            logger.info("Plik {} już istnieje, zostanie nadpisany", filePath);
+                        }
+                    }
+
+                    try {
+                        logger.debug("Próba przeniesienia pliku z {} do {}", tempFilePath, filePath);
+                        Files.move(tempFilePath, filePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                        logger.info("Zapisano plik: {}, rozmiar: {} bajtów, czas: {}", filePath, file.getFileSize(), Instant.now());
+                    } catch (IOException e) {
+                        logger.error("Błąd podczas przenoszenia pliku z {} do {}: {}", tempFilePath, filePath, e.getMessage());
+                        throw new IOException("Nie udało się przenieść pliku: " + tempFilePath + " -> " + filePath, e);
+                    }
                 }
             }
 
+            long finalFilesCount = Files.exists(basePath)
+                    ? Files.list(basePath).filter(Files::isRegularFile).count()
+                    : 0;
+            logger.debug("Po synchronizacji: {} plików w katalogu {}", finalFilesCount, basePath);
+
         } finally {
-            // Wyczyść tymczasowy katalog
             if (Files.exists(tempDir)) {
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(tempDir)) {
                     for (Path file : stream) {
@@ -131,12 +153,6 @@ public class FileSystemService {
                 }
             }
         }
-
-        // Pobierz liczbę plików po synchronizacji
-        long finalFilesCount = Files.exists(basePath)
-                ? Files.list(basePath).filter(Files::isRegularFile).count()
-                : 0;
-        logger.debug("Po synchronizacji: {} plików w katalogu {}", finalFilesCount, basePath);
     }
 
     /**
