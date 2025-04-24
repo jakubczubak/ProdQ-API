@@ -95,11 +95,11 @@ public class FileWatcherService {
             List<String> lines;
             try {
                 lines = Files.readAllLines(filePath);
+                logger.debug("Odczytano {} linii z pliku {}", lines.size(), filePath);
             } catch (IOException e) {
                 logger.error("Nie udało się odczytać pliku {}: {}", filePath, e.getMessage(), e);
                 return;
             }
-            logger.debug("Odczytano {} linii z pliku {}", lines.size(), filePath);
 
             // Parser: pozycja./orderName/partName/fileName - ilość szt. id: ID | [UKONCZONE|NIEUKONCZONE]
             Pattern pattern = Pattern.compile(

@@ -168,6 +168,7 @@ public class FileSystemService {
         Path basePath = Paths.get(programPath, orderName, partName);
         try {
             Files.createDirectories(basePath);
+            setDirectoryPermissions(basePath);
             logger.debug("Utworzono lub użyto istniejącej struktury katalogów: {}", basePath);
             return basePath;
         } catch (FileAlreadyExistsException e) {
@@ -180,6 +181,40 @@ public class FileSystemService {
         } catch (IOException e) {
             logger.error("Błąd podczas tworzenia katalogu {}: {}", basePath, e.getMessage());
             throw new IOException("Nie udało się utworzyć katalogu: " + basePath, e);
+        }
+    }
+
+    /**
+     * Ustawia uprawnienia katalogu, aby był dostępny dla wszystkich użytkowników (Windows ACL).
+     *
+     * @param path ścieżka do katalogu
+     * @throws IOException w przypadku błędu ustawiania uprawnień
+     */
+    private void setDirectoryPermissions(Path path) throws IOException {
+        try {
+            java.nio.file.attribute.AclFileAttributeView aclAttr = Files.getFileAttributeView(path, java.nio.file.attribute.AclFileAttributeView.class);
+            if (aclAttr != null) {
+                java.nio.file.attribute.UserPrincipal everyone = path.getFileSystem().getUserPrincipalLookupService().lookupPrincipalByName("Everyone");
+                java.nio.file.attribute.AclEntry entry = java.nio.file.attribute.AclEntry.newBuilder()
+                        .setType(java.nio.file.attribute.AclEntryType.ALLOW)
+                        .setPrincipal(everyone)
+                        .setPermissions(
+                                java.nio.file.attribute.AclEntryPermission.READ_DATA,
+                                java.nio.file.attribute.AclEntryPermission.WRITE_DATA,
+                                java.nio.file.attribute.AclEntryPermission.DELETE,
+                                java.nio.file.attribute.AclEntryPermission.READ_ATTRIBUTES,
+                                java.nio.file.attribute.AclEntryPermission.WRITE_ATTRIBUTES
+                        )
+                        .build();
+                List<java.nio.file.attribute.AclEntry> acl = aclAttr.getAcl();
+                acl.add(entry);
+                aclAttr.setAcl(acl);
+                logger.debug("Ustawiono uprawnienia dla katalogu: {}", path);
+            } else {
+                logger.warn("ACL nie jest obsługiwane na tej platformie dla ścieżki: {}", path);
+            }
+        } catch (Exception e) {
+            logger.warn("Nie udało się ustawić uprawnień dla katalogu {}: {}", path, e.getMessage());
         }
     }
 
@@ -220,10 +255,12 @@ public class FileSystemService {
      */
     public boolean isFileAccessible(Path filePath) {
         if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+            logger.debug("Plik {} nie istnieje lub nie jest zwykłym plikiem", filePath);
             return true;
         }
         try {
             Files.newOutputStream(filePath, StandardOpenOption.WRITE, StandardOpenOption.APPEND).close();
+            logger.debug("Plik {} jest dostępny do zapisu", filePath);
             return true;
         } catch (IOException e) {
             logger.warn("Plik {} jest niedostępny: {}", filePath, e.getMessage());

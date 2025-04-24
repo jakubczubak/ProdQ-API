@@ -50,6 +50,7 @@ public class MachineService {
     public Machine createMachine(MachineRequest request, MultipartFile imageFile) throws IOException {
         // Sprawdź, czy machineName już istnieje
         if (machineRepository.existsByMachineName(request.getMachineName())) {
+            logger.warn("Próba utworzenia maszyny o istniejącej nazwie: {}", request.getMachineName());
             throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
         }
 
@@ -108,6 +109,7 @@ public class MachineService {
     public Machine updateMachine(Integer id, MachineRequest request, MultipartFile imageFile) throws IOException {
         Optional<Machine> existingMachineOpt = machineRepository.findById(id);
         if (existingMachineOpt.isEmpty()) {
+            logger.warn("Próba aktualizacji nieistniejącej maszyny o ID: {}", id);
             throw new RuntimeException("Machine with ID " + id + " not found");
         }
 
@@ -117,6 +119,7 @@ public class MachineService {
         // Sprawdź unikalność machineName, pomijając bieżącą maszynę
         if (!oldMachineName.equals(request.getMachineName()) &&
                 machineRepository.existsByMachineName(request.getMachineName())) {
+            logger.warn("Próba zmiany nazwy maszyny na już istniejącą: {}", request.getMachineName());
             throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
         }
 
