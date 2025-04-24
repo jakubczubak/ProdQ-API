@@ -51,7 +51,7 @@ public class DirectoryCleanupService {
      * Scheduled task running daily at 6 AM to clean unused directories for all machines
      * and process blocked directories stored in the database.
      */
-    @Scheduled(cron = "0 0 6 * * ?") // Daily at 06:00
+//    @Scheduled(cron = "0 0 6 * * ?") // Daily at 06:00
     @Async
     @Transactional
     public void cleanupAllMachines() {
