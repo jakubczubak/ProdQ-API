@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -56,6 +56,10 @@ public class MachineService {
             throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
         }
 
+        // Waliduj ścieżki
+        validatePath(request.getProgramPath(), "Program path");
+        validatePath(request.getQueueFilePath(), "Queue file path");
+
         FileImage image = null;
         if (imageFile != null && !imageFile.isEmpty()) {
             image = fileImageService.createFile(imageFile);
@@ -64,8 +68,8 @@ public class MachineService {
         Machine machine = Machine.builder()
                 .machineName(request.getMachineName())
                 .image(image)
-                .programPath(request.getProgramPath())
-                .queueFilePath(request.getQueueFilePath())
+                .programPath(normalizePath(request.getProgramPath()))
+                .queueFilePath(normalizePath(request.getQueueFilePath()))
                 .build();
 
         // Zapisz maszynę w bazie danych
@@ -125,10 +129,14 @@ public class MachineService {
             throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
         }
 
+        // Waliduj ścieżki
+        validatePath(request.getProgramPath(), "Program path");
+        validatePath(request.getQueueFilePath(), "Queue file path");
+
         // Zaktualizuj dane maszyny
         existingMachine.setMachineName(request.getMachineName());
-        existingMachine.setProgramPath(request.getProgramPath());
-        existingMachine.setQueueFilePath(request.getQueueFilePath());
+        existingMachine.setProgramPath(normalizePath(request.getProgramPath()));
+        existingMachine.setQueueFilePath(normalizePath(request.getQueueFilePath()));
 
         // Jeśli zmieniono nazwę maszyny, zaktualizuj plik kolejki
         if (!oldMachineName.equals(request.getMachineName())) {
@@ -195,25 +203,33 @@ public class MachineService {
 
     public List<String> getAvailableLocations() {
         String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
-        File mountDir;
+        Path mountDir;
 
         if ("prod".equalsIgnoreCase(appEnv)) {
-            mountDir = new File("/cnc");
+            mountDir = Paths.get("/cnc");
         } else if ("docker-local".equalsIgnoreCase(appEnv)) {
-            mountDir = new File("/cnc");
+            mountDir = Paths.get("/cnc");
         } else {
-            mountDir = new File("./cnc");
+            mountDir = Paths.get("./cnc");
         }
 
         List<String> locations = new ArrayList<>();
 
         // Sprawdź, czy główny katalog istnieje i jest dostępny
-        if (mountDir.exists() && mountDir.isDirectory() && mountDir.canRead() && mountDir.canWrite()) {
+        if (Files.exists(mountDir) && Files.isDirectory(mountDir) && Files.isReadable(mountDir) && Files.isWritable(mountDir)) {
             // Rekurencyjnie przeszukaj wszystkie podkatalogi
             collectDirectories(mountDir, locations);
+        } else {
+            logger.warn("Katalog główny {} nie istnieje lub nie jest dostępny", mountDir);
         }
 
-        return locations;
+        // Normalizuj ścieżki do formatu Unix i usuń prefiks katalogu głównego
+        List<String> normalizedLocations = locations.stream()
+                .map(path -> relativizePath(path, mountDir))
+                .sorted()
+                .collect(Collectors.toList());
+        logger.info("Zwracane lokalizacje: {}", normalizedLocations);
+        return normalizedLocations;
     }
 
     public String getDirectoryStructureHash() {
@@ -238,18 +254,69 @@ public class MachineService {
     }
 
     // Rekurencyjna metoda do zbierania wszystkich podkatalogów
-    private void collectDirectories(File directory, List<String> locations) {
+    private void collectDirectories(Path directory, List<String> locations) {
         // Dodaj bieżący katalog, jeśli ma odpowiednie uprawnienia
-        if (directory.canRead() && directory.canWrite()) {
-            locations.add(directory.getAbsolutePath());
+        if (Files.isReadable(directory) && Files.isWritable(directory)) {
+            locations.add(directory.toString());
         }
 
         // Pobierz wszystkie podkatalogi i przeszukaj je rekurencyjnie
-        File[] subDirs = directory.listFiles(File::isDirectory);
-        if (subDirs != null) {
-            for (File subDir : subDirs) {
-                collectDirectories(subDir, locations);
-            }
+        try (var subDirs = Files.list(directory).filter(Files::isDirectory)) {
+            subDirs.forEach(subDir -> collectDirectories(subDir, locations));
+        } catch (IOException e) {
+            logger.error("Błąd podczas przeszukiwania katalogu: {}", directory, e);
+        }
+    }
+
+    // Normalizuj ścieżki do formatu Unix (z ukośnikami /, bez liter dysku)
+    private String normalizePath(String path) {
+        if (path == null) return "";
+        Path normalizedPath = Paths.get(path).normalize();
+        // Usuń literę dysku na Windows (np. C:)
+        String result = normalizedPath.toString().replaceFirst("^[A-Za-z]:", "");
+        // Zamień ukośniki wsteczne na ukośniki w formacie Unix
+        return result.replace("\\", "/");
+    }
+
+    // Relatywizuj ścieżki względem katalogu głównego
+    private String relativizePath(String path, Path mountDir) {
+        Path normalizedPath = Paths.get(path).normalize();
+        Path relativePath = mountDir.relativize(normalizedPath);
+        String result = relativePath.toString().replace("\\", "/");
+        return result.isEmpty() ? "cnc" : "cnc/" + result;
+    }
+
+    // Waliduj ścieżki
+    private void validatePath(String path, String fieldName) {
+        if (path == null || path.trim().isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " cannot be blank");
+        }
+        // Sprawdź niedozwolone znaki
+        if (path.matches(".*[:*?\"<>|].*")) {
+            throw new IllegalArgumentException(fieldName + " contains illegal characters: " + path);
+        }
+        // Usuń początkowy ukośnik i prefiks cnc/
+        String cleanedPath = path.replaceFirst("^/+", "").replaceFirst("^cnc/?", "");
+        // Określ katalog główny w zależności od środowiska
+        String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
+        Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
+                ? Paths.get("/cnc")
+                : Paths.get("./cnc");
+        // Rozwiąż ścieżkę względem katalogu głównego
+        Path resolvedPath = cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
+        logger.info("Walidacja ścieżki {}: cleanedPath={}, resolvedPath={}, istnieje={}, jest katalogiem={}",
+                path, cleanedPath, resolvedPath, Files.exists(resolvedPath), Files.isDirectory(resolvedPath));
+        // Sprawdź, czy ścieżka istnieje
+        if (!Files.exists(resolvedPath)) {
+            throw new IllegalArgumentException(fieldName + " does not exist: " + path);
+        }
+        // Sprawdź, czy jest katalogiem
+        if (!Files.isDirectory(resolvedPath)) {
+            throw new IllegalArgumentException(fieldName + " is not a directory: " + path);
+        }
+        // Sprawdź uprawnienia
+        if (!Files.isReadable(resolvedPath) || !Files.isWritable(resolvedPath)) {
+            throw new IllegalArgumentException(fieldName + " is not accessible (read/write permissions required): " + path);
         }
     }
 

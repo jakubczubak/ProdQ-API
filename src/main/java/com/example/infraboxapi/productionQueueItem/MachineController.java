@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -33,6 +36,16 @@ public class MachineController {
             String errorMessage = commonService.handleBindingResult(bindingResult).getBody();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                     new ErrorResponse(errorMessage)
+            );
+        }
+
+        // Waliduj ścieżki
+        try {
+            validatePath(request.getProgramPath(), "Program path");
+            validatePath(request.getQueueFilePath(), "Queue file path");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new ErrorResponse(e.getMessage())
             );
         }
 
@@ -68,6 +81,16 @@ public class MachineController {
             String errorMessage = commonService.handleBindingResult(bindingResult).getBody();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                     new ErrorResponse(errorMessage)
+            );
+        }
+
+        // Waliduj ścieżki
+        try {
+            validatePath(request.getProgramPath(), "Program path");
+            validatePath(request.getQueueFilePath(), "Queue file path");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new ErrorResponse(e.getMessage())
             );
         }
 
@@ -111,6 +134,22 @@ public class MachineController {
     @GetMapping("/{id}/download-programs")
     public ResponseEntity<byte[]> downloadMachinePrograms(@PathVariable Integer id) throws IOException {
         return machineService.downloadMachinePrograms(id);
+    }
+
+    // Waliduj ścieżki
+    private void validatePath(String path, String fieldName) {
+        if (path == null || path.trim().isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " cannot be blank");
+        }
+        // Sprawdź niedozwolone znaki
+        if (path.matches(".*[:*?\"<>|].*")) {
+            throw new IllegalArgumentException(fieldName + " contains illegal characters: " + path);
+        }
+        // Sprawdź, czy ścieżka jest poprawna
+        Path resolvedPath = Paths.get(path).normalize();
+        if (!Files.exists(resolvedPath) || !Files.isDirectory(resolvedPath)) {
+            throw new IllegalArgumentException(fieldName + " is not a valid directory: " + path);
+        }
     }
 
     // Klasa pomocnicza do formatowania odpowiedzi błędu

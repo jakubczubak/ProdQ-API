@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 @Service
 public class MachineQueueFileGeneratorService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ProductionQueueItemService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MachineQueueFileGeneratorService.class);
 
     private final MachineRepository machineRepository;
     private final ProductionQueueItemRepository productionQueueItemRepository;
@@ -68,7 +68,14 @@ public class MachineQueueFileGeneratorService {
 
             Machine machine = machineOpt.get();
             String fileName = machine.getMachineName() + ".txt";
-            Path filePath = Paths.get(machine.getQueueFilePath(), fileName);
+            // Normalizuj queueFilePath i rozwiąż względem katalogu głównego
+            String cleanedPath = machine.getQueueFilePath().replaceFirst("^/+", "").replaceFirst("^cnc/?", "");
+            String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
+            Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
+                    ? Paths.get("/cnc")
+                    : Paths.get("./cnc");
+            Path resolvedPath = cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
+            Path filePath = resolvedPath.resolve(fileName);
 
             // Utwórz katalogi nadrzędne
             Files.createDirectories(filePath.getParent());
