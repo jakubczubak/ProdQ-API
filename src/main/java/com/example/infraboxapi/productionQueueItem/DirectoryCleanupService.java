@@ -5,7 +5,6 @@ import com.example.infraboxapi.notification.NotificationDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,14 +47,13 @@ public class DirectoryCleanupService {
     }
 
     /**
-     * Scheduled task running daily at 6 AM to clean unused directories for all machines
-     * and process blocked directories stored in the database.
+     * Cleans up unused directories for all machines and processes blocked directories stored in the database.
+     * This method is invoked automatically after application startup.
      */
-    // @Scheduled(cron = "0 0 6 * * ?") // Daily at 06:00
     @Async
     @Transactional
     public void cleanupAllMachines() {
-        logger.info("Started scheduled cleanup of unused directories for all machines.");
+        logger.info("Started cleanup of unused directories for all machines.");
         List<Machine> machines = machineRepository.findAll();
         int totalDeleted = 0;
         int totalBlocked = 0;
@@ -78,7 +76,7 @@ public class DirectoryCleanupService {
         // Send system notification
         sendCleanupNotification(totalDeleted, totalBlocked);
 
-        logger.info("Completed scheduled cleanup of unused directories. Deleted: {}, Blocked: {}", totalDeleted, totalBlocked);
+        logger.info("Completed cleanup of unused directories. Deleted: {}, Blocked: {}", totalDeleted, totalBlocked);
     }
 
     /**
