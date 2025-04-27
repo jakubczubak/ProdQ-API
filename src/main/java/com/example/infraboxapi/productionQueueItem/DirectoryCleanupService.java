@@ -51,7 +51,7 @@ public class DirectoryCleanupService {
      * Scheduled task running daily at 6 AM to clean unused directories for all machines
      * and process blocked directories stored in the database.
      */
-//    @Scheduled(cron = "0 0 6 * * ?") // Daily at 06:00
+    // @Scheduled(cron = "0 0 6 * * ?") // Daily at 06:00
     @Async
     @Transactional
     public void cleanupAllMachines() {
@@ -95,8 +95,8 @@ public class DirectoryCleanupService {
         int deletedDirectories = 0;
         int blockedDirectories = 0;
 
-        // Retrieve active orderName/partName pairs from the database
-        Set<String> activePaths = getActiveDirectoryPaths(queueType);
+        // Retrieve active orderName/partName pairs for all machines using this programPath
+        Set<String> activePaths = getActiveDirectoryPathsForProgramPath(programPath);
         Path basePath = Paths.get(programPath).toAbsolutePath().normalize();
 
         if (!Files.exists(basePath) || !Files.isDirectory(basePath)) {
@@ -121,7 +121,7 @@ public class DirectoryCleanupService {
                         String partName = partPath.getFileName().toString();
                         String relativePath = String.format("%s/%s", orderName, partName);
 
-                        // Check if the directory is in use
+                        // Check if the directory is in use by any machine
                         if (!activePaths.contains(relativePath)) {
                             if (attemptDirectoryDeletion(partPath, queueType)) {
                                 deletedDirectories++;
@@ -217,20 +217,31 @@ public class DirectoryCleanupService {
     }
 
     /**
-     * Retrieves active directory paths ([orderName]/[partName]) for the given queueType.
+     * Retrieves active directory paths ([orderName]/[partName]) for all machines using the specified programPath.
      *
-     * @param queueType Machine ID
+     * @param programPath Path to the machine's program directory
      * @return Set of active paths
      */
-    private Set<String> getActiveDirectoryPaths(String queueType) {
-        List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
-        return items.stream()
-                .map(item -> {
-                    String orderName = fileSystemService.sanitizeName(item.getOrderName(), "NoOrderName_" + item.getId());
-                    String partName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
-                    return String.format("%s/%s", orderName, partName);
-                })
-                .collect(Collectors.toSet());
+    private Set<String> getActiveDirectoryPathsForProgramPath(String programPath) {
+        // Find all machines using this programPath
+        List<Machine> machines = machineRepository.findByProgramPath(programPath);
+        Set<String> activePaths = new HashSet<>();
+
+        // Collect active paths for each machine
+        for (Machine machine : machines) {
+            String queueType = String.valueOf(machine.getId());
+            List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
+            activePaths.addAll(items.stream()
+                    .map(item -> {
+                        String orderName = fileSystemService.sanitizeName(item.getOrderName(), "NoOrderName_" + item.getId());
+                        String partName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
+                        return String.format("%s/%s", orderName, partName);
+                    })
+                    .collect(Collectors.toSet()));
+        }
+
+        logger.debug("Active directory paths for programPath {}: {}", programPath, activePaths);
+        return activePaths;
     }
 
     /**
