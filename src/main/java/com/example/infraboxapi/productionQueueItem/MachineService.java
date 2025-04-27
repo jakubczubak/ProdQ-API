@@ -3,6 +3,8 @@ package com.example.infraboxapi.productionQueueItem;
 import com.example.infraboxapi.FileImage.FileImage;
 import com.example.infraboxapi.FileImage.FileImageService;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -22,7 +24,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -36,16 +40,25 @@ public class MachineService {
     private final FileImageService fileImageService;
     private final ProductionQueueItemService productionQueueItemService;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
+    private final Cache<String, List<String>> locationsCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(10, TimeUnit.MINUTES) // Odświeżaj co 10 minut
+            .build();
 
     public MachineService(
             MachineRepository machineRepository,
             FileImageService fileImageService,
             ProductionQueueItemService productionQueueItemService,
             MachineQueueFileGeneratorService machineQueueFileGeneratorService) {
-        this.machineRepository = machineRepository;
-        this.fileImageService = fileImageService;
-        this.productionQueueItemService = productionQueueItemService;
-        this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
+        try {
+            this.machineRepository = Objects.requireNonNull(machineRepository, "MachineRepository cannot be null");
+            this.fileImageService = Objects.requireNonNull(fileImageService, "FileImageService cannot be null");
+            this.productionQueueItemService = Objects.requireNonNull(productionQueueItemService, "ProductionQueueItemService cannot be null");
+            this.machineQueueFileGeneratorService = Objects.requireNonNull(machineQueueFileGeneratorService, "MachineQueueFileGeneratorService cannot be null");
+            logger.info("MachineService initialized successfully");
+        } catch (Exception e) {
+            logger.error("Failed to initialize MachineService", e);
+            throw new RuntimeException("Failed to initialize MachineService", e);
+        }
     }
 
     @Transactional
@@ -203,42 +216,110 @@ public class MachineService {
 
     public List<String> getAvailableLocations() {
         String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
-        Path mountDir;
+        Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
+                ? Paths.get("/cnc")
+                : Paths.get("./cnc");
+        String tempCacheKey = mountDir.toString();
 
-        if ("prod".equalsIgnoreCase(appEnv)) {
-            mountDir = Paths.get("/cnc");
-        } else if ("docker-local".equalsIgnoreCase(appEnv)) {
-            mountDir = Paths.get("/cnc");
-        } else {
-            mountDir = Paths.get("./cnc");
+        List<String> cachedLocations = locationsCache.getIfPresent(tempCacheKey);
+        if (cachedLocations != null) {
+            logger.info("Returning cached locations for key: {}", tempCacheKey);
+            return cachedLocations;
         }
 
-        List<String> locations = new ArrayList<>();
+        try {
+            logger.debug("Starting directory scan for mountDir: {}", mountDir);
+            long startTime = System.nanoTime();
+            List<String> locations = new ArrayList<>();
+            if (!Files.exists(mountDir) || !Files.isDirectory(mountDir) || !Files.isReadable(mountDir) || !Files.isWritable(mountDir)) {
+                logger.warn("Root directory {} does not exist or is not accessible", mountDir);
+                return locations;
+            }
 
-        // Sprawdź, czy główny katalog istnieje i jest dostępny
-        if (Files.exists(mountDir) && Files.isDirectory(mountDir) && Files.isReadable(mountDir) && Files.isWritable(mountDir)) {
-            // Rekurencyjnie przeszukaj wszystkie podkatalogi
-            collectDirectories(mountDir, locations);
-        } else {
-            logger.warn("Katalog główny {} nie istnieje lub nie jest dostępny", mountDir);
+            try (var paths = Files.walk(mountDir, 3)) { // Limit to 3 levels
+                locations = paths
+                        .filter(Files::isDirectory)
+                        .map(Path::toString)
+                        .collect(Collectors.toList());
+                logger.info("Processed {} directories", locations.size());
+            } catch (IOException e) {
+                logger.error("Error walking directory structure: {}", mountDir, e);
+                throw new RuntimeException("Failed to scan directory structure", e);
+            }
+
+            List<String> normalizedLocations = locations.stream()
+                    .map(path -> relativizePath(path, mountDir))
+                    .filter(Objects::nonNull)
+                    .sorted()
+                    .collect(Collectors.toList());
+
+            String finalCacheKey = computeDirectoryStructureHash(normalizedLocations);
+            locationsCache.put(finalCacheKey, normalizedLocations);
+            locationsCache.put(tempCacheKey, normalizedLocations);
+            long duration = (System.nanoTime() - startTime) / 1_000_000; // ms
+            logger.info("Returning locations: {}, execution time: {} ms", normalizedLocations.size(), duration);
+            return normalizedLocations;
+        } catch (Exception e) {
+            logger.error("Unexpected error in getAvailableLocations", e);
+            throw new RuntimeException("Failed to retrieve available locations", e);
         }
-
-        // Normalizuj ścieżki do formatu Unix i usuń prefiks katalogu głównego
-        List<String> normalizedLocations = locations.stream()
-                .map(path -> relativizePath(path, mountDir))
-                .sorted()
-                .collect(Collectors.toList());
-        logger.info("Zwracane lokalizacje: {}", normalizedLocations);
-        return normalizedLocations;
     }
 
     public String getDirectoryStructureHash() {
-        List<String> locations = getAvailableLocations();
+        String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
+        Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
+                ? Paths.get("/cnc")
+                : Paths.get("./cnc");
+        String tempCacheKey = mountDir.toString();
+
+        List<String> cachedLocations = locationsCache.getIfPresent(tempCacheKey);
+        if (cachedLocations != null) {
+            logger.info("Using cached locations for hash computation: {}", tempCacheKey);
+            return computeDirectoryStructureHash(cachedLocations);
+        }
+
         try {
+            logger.debug("Computing directory structure hash for mountDir: {}", mountDir);
+            List<String> locations = new ArrayList<>();
+            if (!Files.exists(mountDir) || !Files.isDirectory(mountDir) || !Files.isReadable(mountDir) || !Files.isWritable(mountDir)) {
+                logger.warn("Root directory {} does not exist or is not accessible", mountDir);
+                return computeDirectoryStructureHash(locations);
+            }
+
+            try (var paths = Files.walk(mountDir, 3)) {
+                locations = paths
+                        .filter(Files::isDirectory)
+                        .map(Path::toString)
+                        .collect(Collectors.toList());
+                logger.info("Processed {} directories for hash", locations.size());
+            } catch (IOException e) {
+                logger.error("Error walking directory structure for hash: {}", mountDir, e);
+                throw new RuntimeException("Failed to compute directory structure hash", e);
+            }
+
+            List<String> normalizedLocations = locations.stream()
+                    .map(path -> relativizePath(path, mountDir))
+                    .filter(Objects::nonNull)
+                    .sorted()
+                    .collect(Collectors.toList());
+
+            String hash = computeDirectoryStructureHash(normalizedLocations);
+            locationsCache.put(hash, normalizedLocations);
+            locationsCache.put(tempCacheKey, normalizedLocations);
+            return hash;
+        } catch (Exception e) {
+            logger.error("Unexpected error in getDirectoryStructureHash", e);
+            throw new RuntimeException("Failed to compute directory structure hash", e);
+        }
+    }
+
+    private String computeDirectoryStructureHash(List<String> locations) {
+        try {
+            logger.debug("Computing hash for {} locations", locations.size());
             MessageDigest digest = MessageDigest.getInstance("MD5");
-            // Sortuj lokalizacje, aby hash był spójny
-            locations.sort(String::compareTo);
-            String combined = String.join("", locations);
+            List<String> sortedLocations = new ArrayList<>(locations);
+            sortedLocations.sort(String::compareTo);
+            String combined = String.join("", sortedLocations);
             byte[] hashBytes = digest.digest(combined.getBytes());
             StringBuilder hexString = new StringBuilder();
             for (byte b : hashBytes) {
@@ -248,42 +329,41 @@ public class MachineService {
             }
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            logger.error("Błąd podczas obliczania hasha struktury katalogów", e);
-            throw new RuntimeException("Nie udało się obliczyć hasha struktury katalogów", e);
-        }
-    }
-
-    // Rekurencyjna metoda do zbierania wszystkich podkatalogów
-    private void collectDirectories(Path directory, List<String> locations) {
-        // Dodaj bieżący katalog, jeśli ma odpowiednie uprawnienia
-        if (Files.isReadable(directory) && Files.isWritable(directory)) {
-            locations.add(directory.toString());
-        }
-
-        // Pobierz wszystkie podkatalogi i przeszukaj je rekurencyjnie
-        try (var subDirs = Files.list(directory).filter(Files::isDirectory)) {
-            subDirs.forEach(subDir -> collectDirectories(subDir, locations));
-        } catch (IOException e) {
-            logger.error("Błąd podczas przeszukiwania katalogu: {}", directory, e);
+            logger.error("Error computing directory structure hash", e);
+            throw new RuntimeException("Failed to compute directory structure hash", e);
         }
     }
 
     // Normalizuj ścieżki do formatu Unix (z ukośnikami /, bez liter dysku)
     private String normalizePath(String path) {
         if (path == null) return "";
-        Path normalizedPath = Paths.get(path).normalize();
-        // Usuń literę dysku na Windows (np. C:)
-        String result = normalizedPath.toString().replaceFirst("^[A-Za-z]:", "");
-        // Zamień ukośniki wsteczne na ukośniki w formacie Unix
-        return result.replace("\\", "/");
+        try {
+            Path normalizedPath = Paths.get(path).normalize();
+            // Usuń literę dysku na Windows (np. C:)
+            String result = normalizedPath.toString().replaceFirst("^[A-Za-z]:", "");
+            // Zamień ukośniki wsteczne na ukośniki w formacie Unix
+            return result.replace("\\", "/");
+        } catch (Exception e) {
+            logger.error("Failed to normalize path: {}", path, e);
+            return "";
+        }
     }
 
     // Relatywizuj ścieżki względem katalogu głównego
     private String relativizePath(String path, Path mountDir) {
-        Path normalizedPath = Paths.get(path).normalize();
-        Path relativePath = mountDir.relativize(normalizedPath);
-        String result = relativePath.toString().replace("\\", "/");
-        return result.isEmpty() ? "cnc" : "cnc/" + result;
+        try {
+            if (path == null || mountDir == null) {
+                logger.warn("Null path or mountDir in relativizePath: path={}, mountDir={}", path, mountDir);
+                return null;
+            }
+            Path normalizedPath = Paths.get(path).normalize();
+            Path relativePath = mountDir.relativize(normalizedPath);
+            String result = relativePath.toString().replace("\\", "/");
+            return result.isEmpty() ? "cnc" : "cnc/" + result;
+        } catch (Exception e) {
+            logger.error("Failed to relativize path: path={}, mountDir={}", path, mountDir, e);
+            return null;
+        }
     }
 
     // Waliduj ścieżki
@@ -304,7 +384,7 @@ public class MachineService {
                 : Paths.get("./cnc");
         // Rozwiąż ścieżkę względem katalogu głównego
         Path resolvedPath = cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
-        logger.info("Walidacja ścieżki {}: cleanedPath={}, resolvedPath={}, istnieje={}, jest katalogiem={}",
+        logger.info("Validating path {}: cleanedPath={}, resolvedPath={}, exists={}, isDirectory={}",
                 path, cleanedPath, resolvedPath, Files.exists(resolvedPath), Files.isDirectory(resolvedPath));
         // Sprawdź, czy ścieżka istnieje
         if (!Files.exists(resolvedPath)) {

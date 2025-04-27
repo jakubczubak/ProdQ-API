@@ -2,6 +2,8 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.common.CommonService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -10,14 +12,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/machine")
 public class MachineController {
+
+    private static final Logger logger = LoggerFactory.getLogger(MachineController.class);
 
     private final MachineService machineService;
     private final CommonService commonService;
@@ -36,16 +37,6 @@ public class MachineController {
             String errorMessage = commonService.handleBindingResult(bindingResult).getBody();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                     new ErrorResponse(errorMessage)
-            );
-        }
-
-        // Waliduj ścieżki
-        try {
-            validatePath(request.getProgramPath(), "Program path");
-            validatePath(request.getQueueFilePath(), "Queue file path");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    new ErrorResponse(e.getMessage())
             );
         }
 
@@ -84,16 +75,6 @@ public class MachineController {
             );
         }
 
-        // Waliduj ścieżki
-        try {
-            validatePath(request.getProgramPath(), "Program path");
-            validatePath(request.getQueueFilePath(), "Queue file path");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                    new ErrorResponse(e.getMessage())
-            );
-        }
-
         try {
             Machine updatedMachine = machineService.updateMachine(id, request, image);
             return ResponseEntity.ok(updatedMachine);
@@ -123,33 +104,30 @@ public class MachineController {
 
     @GetMapping("/available-locations")
     public ResponseEntity<List<String>> getAvailableLocations() {
-        return ResponseEntity.ok(machineService.getAvailableLocations());
+        try {
+            List<String> locations = machineService.getAvailableLocations();
+            return ResponseEntity.ok(locations);
+        } catch (RuntimeException e) {
+            logger.error("Error retrieving available locations", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(List.of("Error fetching locations: " + e.getMessage()));
+        }
     }
 
     @GetMapping("/directory-structure-hash")
     public ResponseEntity<String> getDirectoryStructureHash() {
-        return ResponseEntity.ok(machineService.getDirectoryStructureHash());
+        try {
+            return ResponseEntity.ok(machineService.getDirectoryStructureHash());
+        } catch (RuntimeException e) {
+            logger.error("Error computing directory structure hash", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error computing directory structure hash: " + e.getMessage());
+        }
     }
 
     @GetMapping("/{id}/download-programs")
     public ResponseEntity<byte[]> downloadMachinePrograms(@PathVariable Integer id) throws IOException {
         return machineService.downloadMachinePrograms(id);
-    }
-
-    // Waliduj ścieżki
-    private void validatePath(String path, String fieldName) {
-        if (path == null || path.trim().isEmpty()) {
-            throw new IllegalArgumentException(fieldName + " cannot be blank");
-        }
-        // Sprawdź niedozwolone znaki
-        if (path.matches(".*[:*?\"<>|].*")) {
-            throw new IllegalArgumentException(fieldName + " contains illegal characters: " + path);
-        }
-        // Sprawdź, czy ścieżka jest poprawna
-        Path resolvedPath = Paths.get(path).normalize();
-        if (!Files.exists(resolvedPath) || !Files.isDirectory(resolvedPath)) {
-            throw new IllegalArgumentException(fieldName + " is not a valid directory: " + path);
-        }
     }
 
     // Klasa pomocnicza do formatowania odpowiedzi błędu
