@@ -157,11 +157,6 @@ public class ProductionQueueItemService {
                 logger.debug("updatedItem.getOrder() jest null, zachowuję oryginalną wartość order: {}", existingItem.getOrder());
             }
 
-            // Set author as firstName + lastName
-            String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-            String author = getUserFullName(currentUserEmail);
-            existingItem.setAuthor(author);
-
             // Log existing attachments
             logger.info("Kolejność istniejących załączników przed aktualizacją dla ID: {}", id);
             for (ProductionFileInfo file : existingItem.getFiles()) {
