@@ -38,6 +38,9 @@ public class ProductionQueueItem {
     private String baseCamTime;
     private String camTime;
     private String deadline;
+    @ElementCollection
+    private List<String> selectedDays;
+
     private String additionalInfo;
     private String fileDirectory;
     private String author;
