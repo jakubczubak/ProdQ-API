@@ -157,4 +157,10 @@ public class ProductionQueueItemController {
         List<ProductionQueueItem> items = productionQueueItemService.findByQueueType(queueType);
         return ResponseEntity.ok(items);
     }
+
+    @PatchMapping("/move-completed/{machineId}")
+    public ResponseEntity<List<ProductionQueueItem>> moveCompletedPrograms(@PathVariable Integer machineId) throws IOException {
+        List<ProductionQueueItem> updatedItems = productionQueueItemService.moveCompletedPrograms(machineId);
+        return ResponseEntity.ok(updatedItems);
+    }
 }
