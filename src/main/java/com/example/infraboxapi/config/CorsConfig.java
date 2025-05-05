@@ -28,8 +28,9 @@ public class CorsConfig {
         config.addAllowedMethod("PATCH");
         config.addAllowedMethod("PUT");
         config.addAllowedMethod("DELETE");
+        // Ujawnij nagłówek Content-Disposition
+        config.addExposedHeader("Content-Disposition");
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }
 }
-
