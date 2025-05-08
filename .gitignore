@@ -67,4 +67,5 @@ build/
 .vscode/
 
 # database
-data/testdb.mv.db
+data/*.mv.db
+data/*.trace.db
