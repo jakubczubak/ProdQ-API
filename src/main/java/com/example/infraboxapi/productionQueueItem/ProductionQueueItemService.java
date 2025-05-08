@@ -386,6 +386,45 @@ public class ProductionQueueItemService {
         }
     }
 
+    @Transactional
+    public List<ProductionQueueItem> moveCompletedPrograms(Integer machineId) throws IOException {
+        logger.info("Przenoszenie ukończonych programów dla maszyny ID: {}", machineId);
+        String queueType = String.valueOf(machineId);
+        List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
+        List<ProductionQueueItem> completedItems = items.stream()
+                .filter(ProductionQueueItem::isCompleted)
+                .collect(Collectors.toList());
+
+        if (completedItems.isEmpty()) {
+            logger.info("Brak ukończonych programów do przeniesienia dla maszyny ID: {}", machineId);
+            return Collections.emptyList();
+        }
+
+        Integer maxCompletedOrder = productionQueueItemRepository.findMaxOrderByQueueType("completed");
+        int nextOrder = maxCompletedOrder != null ? maxCompletedOrder + 1 : 1;
+
+        for (ProductionQueueItem item : completedItems) {
+            String oldQueueType = item.getQueueType();
+            item.setQueueType("completed");
+            item.setOrder(nextOrder++);
+            syncAttachmentsToMachinePath(item);
+            productionQueueItemRepository.save(item);
+            logger.info("Przeniesiono program ID: {} z queueType: {} do completed", item.getId(), oldQueueType);
+        }
+
+        Set<String> queueTypesToUpdate = new HashSet<>();
+        queueTypesToUpdate.add(queueType);
+        queueTypesToUpdate.add("completed");
+
+        for (String qt : queueTypesToUpdate) {
+            logger.info("Synchronizacja kolejki dla queueType: {}", qt);
+            fileWatcherService.checkQueueFile(qt);
+            machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
+        }
+
+        return completedItems;
+    }
+
     private boolean checkAllMpfCompleted(ProductionQueueItem item) {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
             return false;

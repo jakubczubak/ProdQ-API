@@ -131,6 +131,7 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.PUT, "/api/production-queue-item/*", "/api/production-queue-item/update-order").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/production-queue-item/*", "/api/production-queue-item/files/*").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/production-queue-item/*/toggle-complete").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/production-queue-item/move-completed/*").hasAuthority("ADMIN")
 
                         // MACHINE
                         .requestMatchers("/api/machine/{id}").hasAnyAuthority("ADMIN", "USER") // GET by ID
