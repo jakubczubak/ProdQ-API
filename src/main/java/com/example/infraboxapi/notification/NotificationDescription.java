@@ -73,7 +73,8 @@ public enum NotificationDescription {
     AccessoriesItemDeleted("Accessories item removed"),
     AccessorieItemScanner("Accessories have been successfully scanned"),
 
-    DirectoryCleanupCompleted("Directory cleanup completed");
+    DirectoryCleanupCompleted("Directory cleanup completed"),
+    QueueSyncFailed("Failed to synchronize queue for a machine");
 
     private final String description;
 

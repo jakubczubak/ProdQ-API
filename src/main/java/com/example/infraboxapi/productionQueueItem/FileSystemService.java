@@ -7,15 +7,17 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.xml.bind.DatatypeConverter;
 
 /**
- * Serwis odpowiedzialny za operacje na systemie plików, w tym tworzenie katalogów, zapisywanie i usuwanie plików.
+ * Service responsible for file system operations, including directory creation, file writing, and deletion.
  */
 @Service
 public class FileSystemService {
@@ -29,15 +31,15 @@ public class FileSystemService {
     }
 
     /**
-     * Synchronizuje załączniki z katalogiem maszyny, nadpisując istniejące pliki i usuwając nieużywane.
-     * Jeśli plik jest zablokowany, zapisuje go pod unikalną nazwą z sufiksem.
-     * Używa tego samego katalogu dla identycznych orderName i partName.
+     * Synchronizes attachments with the machine's directory, overwriting existing files and removing unused ones.
+     * If a file is locked, it is saved under a unique name with a suffix.
+     * Uses the same directory for identical orderName and partName.
      *
-     * @param programPath ścieżka programowa maszyny
-     * @param orderName nazwa zamówienia
-     * @param partName nazwa części
-     * @param files lista załączników do zsynchronizowania
-     * @throws IOException w przypadku błędu operacji na pliku
+     * @param programPath Path to the machine's program directory
+     * @param orderName   Order name
+     * @param partName    Part name
+     * @param files       List of attachments to synchronize
+     * @throws IOException If a file operation fails
      */
     public void synchronizeFiles(String programPath, String orderName, String partName, List<ProductionFileInfo> files) throws IOException {
         Path basePath = createDirectoryStructure(programPath, orderName, partName);
@@ -45,7 +47,7 @@ public class FileSystemService {
         long existingFilesCount = Files.exists(basePath)
                 ? Files.list(basePath).filter(Files::isRegularFile).count()
                 : 0;
-        logger.debug("Przed synchronizacją: {} plików w katalogu {}", existingFilesCount, basePath);
+        logger.debug("Before synchronization: {} files in directory {}", existingFilesCount, basePath);
 
         Set<String> allAppFiles = productionQueueItemRepository.findFileNamesByOrderNameAndPartName(orderName, partName);
         Set<String> existingFiles = Files.exists(basePath)
@@ -63,11 +65,11 @@ public class FileSystemService {
         Path tempDir = Paths.get(basePath.toString(), ".temp_" + System.currentTimeMillis());
         try {
             if (!Files.isWritable(basePath)) {
-                logger.error("Katalog {} nie jest zapisywalny", basePath);
-                throw new IOException("Brak uprawnień do zapisu w katalogu: " + basePath);
+                logger.error("Directory {} is not writable", basePath);
+                throw new IOException("No write permissions for directory: " + basePath);
             }
             Files.createDirectories(tempDir);
-            logger.trace("Utworzono tymczasowy katalog: {}", tempDir);
+            logger.trace("Created temporary directory: {}", tempDir);
 
             if (files != null && !files.isEmpty()) {
                 for (ProductionFileInfo file : files) {
@@ -77,17 +79,24 @@ public class FileSystemService {
 
                     byte[] content = file.getFileContent();
                     if (content == null || content.length == 0) {
-                        logger.error("Zawartość pliku {} jest pusta lub null", fileName);
-                        throw new IllegalArgumentException("Pusta zawartość pliku: " + fileName);
+                        logger.error("File content for {} is empty or null", fileName);
+                        throw new IllegalArgumentException("Empty file content: " + fileName);
+                    }
+
+                    // Check if file content has changed
+                    Path filePath = basePath.resolve(fileName);
+                    if (Files.exists(filePath) && isFileAccessible(filePath) && contentMatches(filePath, content)) {
+                        logger.debug("File {} content unchanged, skipping write", filePath);
+                        continue;
                     }
 
                     try {
-                        logger.debug("Próba zapisu pliku tymczasowego: {}, rozmiar: {} bajtów", tempFilePath, content.length);
+                        logger.debug("Attempting to write temporary file: {}, size: {} bytes", tempFilePath, content.length);
                         Files.write(tempFilePath, content);
-                        logger.debug("Zapisano tymczasowy plik: {}", tempFilePath);
+                        logger.debug("Wrote temporary file: {}", tempFilePath);
                     } catch (IOException e) {
-                        logger.error("Błąd podczas zapisu pliku tymczasowego {}: {}", tempFilePath, e.getMessage());
-                        throw new IOException("Nie udało się zapisać pliku tymczasowego: " + tempFilePath, e);
+                        logger.error("Error writing temporary file {}: {}", tempFilePath, e.getMessage());
+                        throw new IOException("Failed to write temporary file: " + tempFilePath, e);
                     }
                 }
             }
@@ -97,9 +106,9 @@ public class FileSystemService {
                     Path filePath = basePath.resolve(diskFile);
                     if (isFileAccessible(filePath)) {
                         Files.deleteIfExists(filePath);
-                        logger.info("Usunięto niepotrzebny plik: {}, czas: {}", filePath, Instant.now());
+                        logger.debug("Deleted unused file: {}, time: {}", filePath, Instant.now());
                     } else {
-                        logger.warn("Nie można usunąć pliku {}, ponieważ jest zablokowany", filePath);
+                        logger.warn("Cannot delete file {}, it is locked", filePath);
                     }
                 }
             }
@@ -111,26 +120,25 @@ public class FileSystemService {
                     Path filePath = basePath.resolve(fileName);
 
                     if (!Files.exists(tempFilePath)) {
-                        logger.error("Plik tymczasowy {} nie istnieje", tempFilePath);
-                        throw new IOException("Plik tymczasowy nie istnieje: " + tempFilePath);
+                        continue; // File was not written (content unchanged)
                     }
 
                     if (Files.exists(filePath)) {
                         if (!isFileAccessible(filePath)) {
-                            logger.warn("Plik {} jest zablokowany, zapisuję pod unikalną nazwą", filePath);
+                            logger.warn("File {} is locked, saving under unique name", filePath);
                             filePath = getUniqueFilePath(basePath, fileName);
                         } else {
-                            logger.info("Plik {} już istnieje, zostanie nadpisany", filePath);
+                            logger.debug("File {} exists, will be overwritten", filePath);
                         }
                     }
 
                     try {
-                        logger.debug("Próba przeniesienia pliku z {} do {}", tempFilePath, filePath);
+                        logger.debug("Attempting to move file from {} to {}", tempFilePath, filePath);
                         Files.move(tempFilePath, filePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                        logger.info("Zapisano plik: {}, rozmiar: {} bajtów, czas: {}", filePath, file.getFileSize(), Instant.now());
+                        logger.debug("Wrote file: {}, size: {} bytes, time: {}", filePath, file.getFileSize(), Instant.now());
                     } catch (IOException e) {
-                        logger.error("Błąd podczas przenoszenia pliku z {} do {}: {}", tempFilePath, filePath, e.getMessage());
-                        throw new IOException("Nie udało się przenieść pliku: " + tempFilePath + " -> " + filePath, e);
+                        logger.error("Error moving file from {} to {}: {}", tempFilePath, filePath, e.getMessage());
+                        throw new IOException("Failed to move file: " + tempFilePath + " -> " + filePath, e);
                     }
                 }
             }
@@ -138,7 +146,7 @@ public class FileSystemService {
             long finalFilesCount = Files.exists(basePath)
                     ? Files.list(basePath).filter(Files::isRegularFile).count()
                     : 0;
-            logger.debug("Po synchronizacji: {} plików w katalogu {}", finalFilesCount, basePath);
+            logger.debug("After synchronization: {} files in directory {}", finalFilesCount, basePath);
 
         } finally {
             if (Files.exists(tempDir)) {
@@ -147,49 +155,69 @@ public class FileSystemService {
                         Files.deleteIfExists(file);
                     }
                     Files.deleteIfExists(tempDir);
-                    logger.trace("Usunięto tymczasowy katalog: {}", tempDir);
+                    logger.trace("Deleted temporary directory: {}", tempDir);
                 } catch (IOException e) {
-                    logger.warn("Nie udało się usunąć tymczasowego katalogu {}: {}", tempDir, e.getMessage());
+                    logger.warn("Failed to delete temporary directory {}: {}", tempDir, e.getMessage());
                 }
             }
         }
     }
 
     /**
-     * Tworzy strukturę katalogów dla podanych nazw zamówienia i części, używając zawsze oryginalnej nazwy partName.
+     * Checks if the file content matches the provided byte array using MD5 hash.
      *
-     * @param programPath ścieżka programowa maszyny
-     * @param orderName nazwa zamówienia
-     * @param partName nazwa części
-     * @return ścieżka do katalogu części
-     * @throws IOException w przypadku błędu operacji na pliku
+     * @param filePath Path to the existing file
+     * @param content  Byte array to compare
+     * @return true if content matches, false otherwise
+     */
+    private boolean contentMatches(Path filePath, byte[] content) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] fileContent = Files.readAllBytes(filePath);
+            String fileHash = DatatypeConverter.printHexBinary(md.digest(fileContent));
+            String contentHash = DatatypeConverter.printHexBinary(md.digest(content));
+            return fileHash.equals(contentHash);
+        } catch (Exception e) {
+            logger.warn("Error computing hash for file {}: {}", filePath, e.getMessage());
+            return false; // Assume different in case of error
+        }
+    }
+
+    /**
+     * Creates the directory structure for the given order and part names, always using the original partName.
+     *
+     * @param programPath Path to the machine's program directory
+     * @param orderName   Order name
+     * @param partName    Part name
+     * @return Path to the part directory
+     * @throws IOException If a file operation fails
      */
     private Path createDirectoryStructure(String programPath, String orderName, String partName) throws IOException {
         Path basePath = Paths.get(programPath, orderName, partName);
         try {
             Files.createDirectories(basePath);
-            logger.debug("Utworzono lub użyto istniejącej struktury katalogów: {}", basePath);
+            logger.debug("Created or used existing directory structure: {}", basePath);
             return basePath;
         } catch (FileAlreadyExistsException e) {
             if (!Files.isDirectory(basePath)) {
-                logger.error("Ścieżka {} istnieje jako plik, nie można utworzyć katalogu", basePath);
-                throw new IOException("Ścieżka istnieje jako plik: " + basePath, e);
+                logger.error("Path {} exists as a file, cannot create directory", basePath);
+                throw new IOException("Path exists as a file: " + basePath, e);
             }
-            logger.debug("Katalog {} już istnieje", basePath);
+            logger.debug("Directory {} already exists", basePath);
             return basePath;
         } catch (IOException e) {
-            logger.error("Błąd podczas tworzenia katalogu {}: {}", basePath, e.getMessage());
-            throw new IOException("Nie udało się utworzyć katalogu: " + basePath, e);
+            logger.error("Error creating directory {}: {}", basePath, e.getMessage());
+            throw new IOException("Failed to create directory: " + basePath, e);
         }
     }
 
     /**
-     * Generuje unikalną ścieżkę dla pliku, dodając numer wersji (_v2, _v3, itd.) w razie konfliktu nazw.
+     * Generates a unique file path by adding a version number (_v2, _v3, etc.) in case of name conflicts.
      *
-     * @param basePath katalog bazowy
-     * @param fileName nazwa pliku
-     * @return unikalna ścieżka do pliku
-     * @throws IOException w przypadku braku możliwości znalezienia unikalnej nazwy
+     * @param basePath Base directory
+     * @param fileName File name
+     * @return Unique file path
+     * @throws IOException If a unique name cannot be found
      */
     private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
         Path filePath = basePath.resolve(fileName);
@@ -207,71 +235,71 @@ public class FileSystemService {
             }
             version++;
             if (version > 1000) {
-                throw new IOException("Nie można znaleźć unikalnej nazwy dla pliku: " + fileName);
+                throw new IOException("Cannot find unique name for file: " + fileName);
             }
         }
     }
 
     /**
-     * Sprawdza, czy plik jest dostępny (niezablokowany) do usuwania lub nadpisywania.
+     * Checks if a file is accessible (not locked) for deletion or overwriting.
      *
-     * @param filePath ścieżka do pliku
-     * @return true, jeśli plik jest dostępny, false w przeciwnym razie
+     * @param filePath Path to the file
+     * @return true if the file is accessible, false otherwise
      */
     public boolean isFileAccessible(Path filePath) {
         if (!Files.exists(filePath)) {
-            logger.debug("Plik {} nie istnieje", filePath);
+            logger.debug("File {} does not exist", filePath);
             return true;
         }
         if (!Files.isRegularFile(filePath)) {
-            logger.debug("Ścieżka {} nie jest zwykłym plikiem", filePath);
+            logger.debug("Path {} is not a regular file", filePath);
             return true;
         }
         try {
             Files.newOutputStream(filePath, StandardOpenOption.WRITE, StandardOpenOption.APPEND).close();
-            logger.debug("Plik {} jest dostępny do zapisu", filePath);
+            logger.debug("File {} is accessible for writing", filePath);
             return true;
         } catch (IOException e) {
-            logger.warn("Plik {} jest niedostępny (prawdopodobnie zablokowany): {}", filePath, e.getMessage(), e);
+            logger.warn("File {} is inaccessible (likely locked): {}", filePath, e.getMessage(), e);
             return false;
         }
     }
 
     /**
-     * Sprawdza, czy katalog jest dostępny (niezablokowany) do usuwania.
+     * Checks if a directory is accessible (not locked) for deletion.
      *
-     * @param dirPath ścieżka do katalogu
-     * @return true, jeśli katalog jest dostępny, false w przeciwnym razie
+     * @param dirPath Path to the directory
+     * @return true if the directory is accessible, false otherwise
      */
     public boolean isDirectoryAccessible(Path dirPath) {
         if (!Files.exists(dirPath)) {
-            logger.debug("Katalog {} nie istnieje", dirPath);
+            logger.debug("Directory {} does not exist", dirPath);
             return true;
         }
         if (!Files.isDirectory(dirPath)) {
-            logger.debug("Ścieżka {} nie jest katalogiem", dirPath);
+            logger.debug("Path {} is not a directory", dirPath);
             return true;
         }
         try {
-            // Spróbuj utworzyć tymczasowy plik w katalogu, aby sprawdzić, czy jest dostępny
+            // Try creating a temporary file in the directory to check accessibility
             Path tempFile = dirPath.resolve("temp_" + System.currentTimeMillis() + ".tmp");
             Files.createFile(tempFile);
             Files.deleteIfExists(tempFile);
-            logger.debug("Katalog {} jest dostępny do zapisu i usuwania", dirPath);
+            logger.debug("Directory {} is accessible for writing and deletion", dirPath);
             return true;
         } catch (IOException e) {
-            logger.warn("Katalog {} jest niedostępny (prawdopodobnie zablokowany): {}", dirPath, e.getMessage(), e);
+            logger.warn("Directory {} is inaccessible (likely locked): {}", dirPath, e.getMessage(), e);
             return false;
         }
     }
 
     /**
-     * Sanitizuje nazwę pliku lub katalogu, usuwając niedozwolone znaki i opcjonalnie skracając dla plików .MPF.
+     * Sanitizes a file or directory name, removing invalid characters and optionally truncating for .MPF files.
      *
-     * @param name nazwa do sanitizacji
-     * @param defaultName domyślna nazwa w razie null/pustej wartości
-     * @param isMpf czy nazwa dotyczy pliku .MPF
-     * @return sanitizowana nazwa
+     * @param name        Name to sanitize
+     * @param defaultName Default name if null or empty
+     * @param isMpf       Whether the name is for an .MPF file
+     * @return Sanitized name
      */
     public String sanitizeName(String name, String defaultName, boolean isMpf) {
         if (name == null || name.trim().isEmpty()) {
@@ -331,33 +359,33 @@ public class FileSystemService {
     }
 
     /**
-     * Sanitizuje nazwę pliku lub katalogu, używając domyślnej wartości.
+     * Sanitizes a file or directory name, using a default value.
      *
-     * @param name nazwa do sanitizacji
-     * @param defaultName domyślna nazwa
-     * @return sanitizowana nazwa
+     * @param name        Name to sanitize
+     * @param defaultName Default name
+     * @return Sanitized name
      */
     public String sanitizeName(String name, String defaultName) {
         return sanitizeName(name, defaultName, false);
     }
 
     /**
-     * Waliduje załącznik, sprawdzając jego poprawność.
+     * Validates an attachment, checking its correctness.
      *
-     * @param file załącznik do walidacji
-     * @throws IllegalArgumentException w przypadku niepoprawnego załącznika
+     * @param file Attachment to validate
+     * @throws IllegalArgumentException If the attachment is invalid
      */
     private void validateAttachment(ProductionFileInfo file) {
         if (file.getFileName() == null || file.getFileName().isEmpty()) {
-            throw new IllegalArgumentException("Nazwa pliku nie może być pusta");
+            throw new IllegalArgumentException("File name cannot be empty");
         }
         if (file.getFileContent() == null || file.getFileContent().length == 0) {
-            throw new IllegalArgumentException("Zawartość pliku nie może być pusta: " + file.getFileName());
+            throw new IllegalArgumentException("File content cannot be empty: " + file.getFileName());
         }
         if (file.getFileName().toLowerCase().endsWith(".mpf")) {
-            // Przykład walidacji dla .MPF - można rozszerzyć o specyficzne wymagania
+            // Example validation for .MPF - can be extended for specific requirements
             if (file.getFileSize() > 10 * 1024 * 1024) { // Max 10MB
-                throw new IllegalArgumentException("Plik .MPF jest za duży: " + file.getFileName());
+                throw new IllegalArgumentException("MPF file is too large: " + file.getFileName());
             }
         }
     }

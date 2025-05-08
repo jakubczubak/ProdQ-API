@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,6 +53,9 @@ public class ProductionQueueItem {
 
     @Column(name = "order_position")
     private Integer order;
+
+    @Column(name = "last_modified")
+    private LocalDateTime lastModified;
 
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
