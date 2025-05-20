@@ -1,4 +1,0 @@
-2025-05-03 13:34:19.204610+02:00 jdbc[6]: exception
-org.h2.jdbc.JdbcSQLDataException: Wartość za długa dla kolumny "SELECTED_DAYS CHARACTER VARYING(255)": "'[""2025-05-05"",""2025-05-06"",""2025-05-07"",""2025-05-08"",""2025-05-09"",""2025-05-12"",... (261)"
-Value too long for column "SELECTED_DAYS CHARACTER VARYING(255)": "'[""2025-05-05"",""2025-05-06"",""2025-05-07"",""2025-05-08"",""2025-05-09"",""2025-05-12"",... (261)"; SQL statement:
-insert into _production_queue_item (additional_info,author,base_cam_time,cam_time,completed,deadline,file_directory,order_position,order_name,part_name,quantity,queue_type,selected_days,subtype,type,id) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,default) [22001-232]
