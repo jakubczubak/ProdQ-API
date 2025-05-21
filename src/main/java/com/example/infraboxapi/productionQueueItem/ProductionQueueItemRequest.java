@@ -36,4 +36,18 @@ public class ProductionQueueItemRequest {
     private Integer order;
     private List<MultipartFile> file;
     private String fileOrderMapping;
+
+    private String material;
+    private String materialValue;
+    private String materialProfile;
+    private Integer materialTypeId;
+    private Float materialPricePerKg;
+
+    // Dimension fields
+    private Float x;
+    private Float y;
+    private Float z;
+    private Float diameter;
+    private Float innerDiameter;
+    private Float length;
 }

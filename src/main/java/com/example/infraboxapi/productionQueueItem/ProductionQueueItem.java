@@ -1,6 +1,8 @@
 package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
+import com.example.infraboxapi.materialType.MaterialType;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -56,6 +58,25 @@ public class ProductionQueueItem {
 
     @Column(name = "last_modified")
     private LocalDateTime lastModified;
+
+    private String material;
+    private String materialValue;
+    private String materialProfile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "material_type_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private MaterialType materialType;
+
+    private Float materialPricePerKg;
+
+    // Dimension fields
+    private Float x;
+    private Float y;
+    private Float z;
+    private Float diameter;
+    private Float innerDiameter;
+    private Float length;
 
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference

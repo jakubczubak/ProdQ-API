@@ -136,6 +136,17 @@ public class ProductionQueueItemService {
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
+            existingItem.setMaterial(updatedItem.getMaterial());
+            existingItem.setMaterialValue(updatedItem.getMaterialValue());
+            existingItem.setMaterialProfile(updatedItem.getMaterialProfile());
+            existingItem.setMaterialType(updatedItem.getMaterialType());
+            existingItem.setMaterialPricePerKg(updatedItem.getMaterialPricePerKg());
+            existingItem.setX(updatedItem.getX());
+            existingItem.setY(updatedItem.getY());
+            existingItem.setZ(updatedItem.getZ());
+            existingItem.setDiameter(updatedItem.getDiameter());
+            existingItem.setInnerDiameter(updatedItem.getInnerDiameter());
+            existingItem.setLength(updatedItem.getLength());
 
             if (updatedItem.getOrder() != null) {
                 existingItem.setOrder(updatedItem.getOrder());
@@ -313,25 +324,15 @@ public class ProductionQueueItemService {
         return items;
     }
 
-    /**
-     * Synchronizes the queue and attachment files for the specified queueType with the machine.
-     * Updates attachment statuses based on the queue file and ensures attachment files are synchronized
-     * with the machine's directory structure.
-     *
-     * @param queueType Machine ID (as String)
-     * @throws IOException If a file operation fails
-     */
     @Transactional
     public void syncWithMachine(String queueType) throws IOException {
         logger.info("Starting synchronization with machine for queueType: {}", queueType);
 
-        // Skip for ncQueue and completed
         if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
             logger.debug("Skipping synchronization for queueType: {}", queueType);
             return;
         }
 
-        // Validate machine
         Optional<Machine> machineOpt;
         try {
             machineOpt = machineRepository.findById(Integer.parseInt(queueType));
@@ -347,10 +348,8 @@ public class ProductionQueueItemService {
 
         Machine machine = machineOpt.get();
 
-        // Step 1: Update attachment statuses from queue file
         fileWatcherService.checkQueueFile(queueType);
 
-        // Step 2: Synchronize attachment files for all programs
         List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType);
         for (ProductionQueueItem program : programs) {
             String orderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
@@ -366,7 +365,6 @@ public class ProductionQueueItemService {
             }
         }
 
-        // Step 3: Regenerate queue file to reflect any changes
         machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
 
         logger.info("Completed synchronization with machine for queueType: {}", queueType);

@@ -2,6 +2,8 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
 import com.example.infraboxapi.common.CommonService;
+import com.example.infraboxapi.materialType.MaterialType;
+import com.example.infraboxapi.materialType.MaterialTypeRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -20,15 +22,18 @@ public class ProductionQueueItemController {
     private final ProductionQueueItemService productionQueueItemService;
     private final ProductionFileInfoService productionFileInfoService;
     private final CommonService commonService;
+    private final MaterialTypeRepository materialTypeRepository;
 
     @Autowired
     public ProductionQueueItemController(
             ProductionQueueItemService productionQueueItemService,
             ProductionFileInfoService productionFileInfoService,
-            CommonService commonService) {
+            CommonService commonService,
+            MaterialTypeRepository materialTypeRepository) {
         this.productionQueueItemService = productionQueueItemService;
         this.productionFileInfoService = productionFileInfoService;
         this.commonService = commonService;
+        this.materialTypeRepository = materialTypeRepository;
     }
 
     @PostMapping(value = "/add", consumes = {"multipart/form-data"})
@@ -42,6 +47,12 @@ public class ProductionQueueItemController {
 
         List<MultipartFile> files = request.getFile();
         String fileOrderMapping = request.getFileOrderMapping();
+
+        MaterialType materialType = null;
+        if (request.getMaterialTypeId() != null) {
+            materialType = materialTypeRepository.findById(request.getMaterialTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("MaterialType with ID " + request.getMaterialTypeId() + " not found"));
+        }
 
         ProductionQueueItem item = ProductionQueueItem.builder()
                 .type(request.getType())
@@ -58,6 +69,17 @@ public class ProductionQueueItemController {
                 .completed(request.isCompleted())
                 .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue")
                 .order(request.getOrder())
+                .material(request.getMaterial())
+                .materialValue(request.getMaterialValue())
+                .materialProfile(request.getMaterialProfile())
+                .materialType(materialType)
+                .materialPricePerKg(request.getMaterialPricePerKg())
+                .x(request.getX())
+                .y(request.getY())
+                .z(request.getZ())
+                .diameter(request.getDiameter())
+                .innerDiameter(request.getInnerDiameter())
+                .length(request.getLength())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.save(item, files, fileOrderMapping);
@@ -93,6 +115,12 @@ public class ProductionQueueItemController {
             return ResponseEntity.status(errorResponse.getStatusCode()).body(null);
         }
 
+        MaterialType materialType = null;
+        if (request.getMaterialTypeId() != null) {
+            materialType = materialTypeRepository.findById(request.getMaterialTypeId())
+                    .orElseThrow(() -> new IllegalArgumentException("MaterialType with ID " + request.getMaterialTypeId() + " not found"));
+        }
+
         ProductionQueueItem updatedItem = ProductionQueueItem.builder()
                 .type(request.getType())
                 .subtype(request.getSubtype())
@@ -108,6 +136,17 @@ public class ProductionQueueItemController {
                 .queueType(request.getQueueType())
                 .completed(request.isCompleted())
                 .order(request.getOrder())
+                .material(request.getMaterial())
+                .materialValue(request.getMaterialValue())
+                .materialProfile(request.getMaterialProfile())
+                .materialType(materialType)
+                .materialPricePerKg(request.getMaterialPricePerKg())
+                .x(request.getX())
+                .y(request.getY())
+                .z(request.getZ())
+                .diameter(request.getDiameter())
+                .innerDiameter(request.getInnerDiameter())
+                .length(request.getLength())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile(), request.getFileOrderMapping());
