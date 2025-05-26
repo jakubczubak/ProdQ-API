@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,11 @@ public class MachineQueueFileGeneratorService {
      * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "/** Uwagi: additionalInfo "
      * Jeśli istnieje author, jest dodawane w formacie: "Autor: sanitized_author"
      * Długie additionalInfo są dzielone na linie po maksymalnie 80 znaków.
+     * Informacje o przygotówce są dodawane w jednej linii w formacie:
+     * - Płyta: "<materialTypeName> | Płyta | <x> x <y> x <z> mm"
+     * - Rura: "<materialTypeName> | Rura | ∅<diameter> x ∅<innerDiameter> x <length> mm"
+     * - Pręt: "<materialTypeName> | Pręt | ∅<diameter> x <length> mm"
+     * Jeśli przygotówka jest niezdefiniowana (brak danych lub wymiary = 0/null), linia przygotówki jest pomijana.
      * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
      * Programy są sortowane według pola 'order', a załączniki według pola 'order'.
      * Status załącznika to [OK] lub [NOK], oddzielony znakiem '|'.
@@ -115,7 +121,6 @@ public class MachineQueueFileGeneratorService {
 
                 if (!mpfFiles.isEmpty()) {
                     String orderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
-                    // Użyj partName bezpośrednio z bazy danych, ponieważ jest już sanitizowane i unikalne
                     String partName = program.getPartName() != null && !program.getPartName().isEmpty() ?
                             program.getPartName() : "NoPartName_" + program.getId();
                     String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ?
@@ -123,6 +128,9 @@ public class MachineQueueFileGeneratorService {
                     String author = program.getAuthor() != null && !program.getAuthor().isEmpty() ?
                             sanitizeFileName(program.getAuthor(), "") : "";
                     int quantity = program.getQuantity();
+
+                    // Pobierz dane o przygotówce w jednej linii
+                    String preparationInfo = buildPreparationInfoString(program);
 
                     // Debugowanie: wyświetl użyte partName i order
                     System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + partName + ", order: " + program.getOrder());
@@ -132,13 +140,17 @@ public class MachineQueueFileGeneratorService {
                         content.append("\n---\n\n");
                     }
 
-                    // Dodaj nagłówek programu, autora, ilość i additionalInfo w jednym bloku /** ... */
+                    // Dodaj nagłówek programu
                     content.append("/**\n");
                     content.append(String.format("Program: %s/%s\n", orderName, partName));
                     if (!author.isEmpty()) {
                         content.append(String.format("Autor: %s\n", author));
                     }
                     content.append(String.format("Ilość: %d szt\n", quantity));
+                    // Dodaj linię przygotówki tylko, jeśli nie jest pusta
+                    if (!preparationInfo.isEmpty()) {
+                        content.append(String.format("Przygotówka: %s\n", preparationInfo));
+                    }
                     if (!additionalInfo.isEmpty()) {
                         content.append(wrapCommentWithPrefix(additionalInfo, "Uwagi: "));
                     }
@@ -250,5 +262,101 @@ public class MachineQueueFileGeneratorService {
         }
 
         return wrapped.toString();
+    }
+
+    /**
+     * Buduje ciąg znaków z informacjami o przygotówce w jednej linii w formacie:
+     * - Płyta: "<materialTypeName> | Płyta | <x> x <y> x <z> mm"
+     * - Rura: "<materialTypeName> | Rura | ∅<diameter> x ∅<innerDiameter> x <length> mm"
+     * - Pręt: "<materialTypeName> | Pręt | ∅<diameter> x <length> mm"
+     * Jeśli przygotówka jest niezdefiniowana (brak danych lub wymiary = 0/null), zwraca pusty ciąg.
+     * Używa kropek zamiast przecinków w liczbach dziesiętnych.
+     *
+     * @param program element kolejki produkcyjnej
+     * @return sformatowany ciąg informacji o przygotówce lub pusty ciąg, jeśli niezdefiniowana
+     */
+    private String buildPreparationInfoString(ProductionQueueItem program) {
+        // Typ materiału
+        String materialTypeName = program.getMaterialType() != null && program.getMaterialType().getName() != null ?
+                sanitizeFileName(program.getMaterialType().getName(), "Brak") : "Brak";
+
+        // Profil materiału
+        String materialProfile = program.getMaterialProfile() != null && !program.getMaterialProfile().isEmpty() ?
+                translateMaterialProfile(program.getMaterialProfile()) : "Brak";
+
+        // Sprawdź, czy istnieją wystarczające dane
+        boolean hasValidMaterialData = !"Brak".equals(materialTypeName) && !"Brak".equals(materialProfile);
+
+        // Wymiary w zależności od profilu materiału
+        StringBuilder dimensions = new StringBuilder();
+        boolean hasValidDimensions = false;
+
+        if ("Płyta".equals(materialProfile)) {
+            // Dla Płyty: x, y, z
+            boolean hasX = program.getX() != null && program.getX() > 0;
+            boolean hasY = program.getY() != null && program.getY() > 0;
+            boolean hasZ = program.getZ() != null && program.getZ() > 0;
+            if (hasX || hasY || hasZ) {
+                dimensions.append(String.format(Locale.US, "%.2f", hasX ? program.getX() : 0.0));
+                dimensions.append(" x ");
+                dimensions.append(String.format(Locale.US, "%.2f", hasY ? program.getY() : 0.0));
+                dimensions.append(" x ");
+                dimensions.append(String.format(Locale.US, "%.2f", hasZ ? program.getZ() : 0.0));
+                dimensions.append(" mm");
+                hasValidDimensions = true;
+            }
+        } else if ("Rura".equals(materialProfile)) {
+            // Dla Rury: ∅diameter x ∅innerDiameter x length
+            boolean hasDiameter = program.getDiameter() != null && program.getDiameter() > 0;
+            boolean hasInnerDiameter = program.getInnerDiameter() != null && program.getInnerDiameter() > 0;
+            boolean hasLength = program.getLength() != null && program.getLength() > 0;
+            if (hasDiameter || hasInnerDiameter || hasLength) {
+                dimensions.append(String.format(Locale.US, "∅%.2f", hasDiameter ? program.getDiameter() : 0.0));
+                dimensions.append(" x ");
+                dimensions.append(String.format(Locale.US, "∅%.2f", hasInnerDiameter ? program.getInnerDiameter() : 0.0));
+                dimensions.append(" x ");
+                dimensions.append(String.format(Locale.US, "%.2f", hasLength ? program.getLength() : 0.0));
+                dimensions.append(" mm");
+                hasValidDimensions = true;
+            }
+        } else if ("Pręt".equals(materialProfile)) {
+            // Dla Pręta: ∅diameter x length
+            boolean hasDiameter = program.getDiameter() != null && program.getDiameter() > 0;
+            boolean hasLength = program.getLength() != null && program.getLength() > 0;
+            if (hasDiameter || hasLength) {
+                dimensions.append(String.format(Locale.US, "∅%.2f", hasDiameter ? program.getDiameter() : 0.0));
+                dimensions.append(" x ");
+                dimensions.append(String.format(Locale.US, "%.2f", hasLength ? program.getLength() : 0.0));
+                dimensions.append(" mm");
+                hasValidDimensions = true;
+            }
+        }
+
+        // Jeśli brak danych materiałowych lub wymiarów, zwróć pusty ciąg
+        if (!hasValidMaterialData || !hasValidDimensions) {
+            return "";
+        }
+
+        // Połącz w jedną linię z separatorem |
+        return String.format("%s | %s | %s", materialTypeName, materialProfile, dimensions.toString());
+    }
+
+    /**
+     * Tłumaczy wartości materialProfile na język polski.
+     *
+     * @param materialProfile wartość pola materialProfile (Plate, Tube, Rod)
+     * @return przetłumaczona nazwa lub oryginalna wartość, jeśli nieznana
+     */
+    private String translateMaterialProfile(String materialProfile) {
+        switch (materialProfile) {
+            case "Plate":
+                return "Płyta";
+            case "Tube":
+                return "Rura";
+            case "Rod":
+                return "Pręt";
+            default:
+                return materialProfile != null ? materialProfile : "Brak";
+        }
     }
 }
