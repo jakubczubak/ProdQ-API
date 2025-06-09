@@ -142,7 +142,8 @@ public class MachineQueueFileGeneratorService {
 
                     // Dodaj nagłówek programu
                     content.append("/**\n");
-                    content.append(String.format("Program: %s/%s\n", orderName, partName));
+                    content.append(String.format("Zamówienie: %s\n", orderName)); // Nowa linia: Zamówienie
+                    content.append(String.format("Nazwa elementu: %s\n", partName)); // Nowa linia: Nazwa elementu
                     if (!author.isEmpty()) {
                         content.append(String.format("Autor: %s\n", author));
                     }
