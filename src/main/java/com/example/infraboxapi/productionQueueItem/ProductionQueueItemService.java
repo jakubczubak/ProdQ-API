@@ -1,6 +1,7 @@
 package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
+import com.example.infraboxapi.FileProductionItem.ProductionFileInfoRepository;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
 import com.example.infraboxapi.user.User;
 import com.example.infraboxapi.user.UserRepository;
@@ -9,12 +10,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,16 +31,21 @@ public class ProductionQueueItemService {
 
     private final ProductionQueueItemRepository productionQueueItemRepository;
     private final ProductionFileInfoService productionFileInfoService;
+    private final ProductionFileInfoRepository productionFileInfoRepository;
     private final MachineRepository machineRepository;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
     private final FileWatcherService fileWatcherService;
     private final FileSystemService fileSystemService;
     private final UserRepository userRepository;
 
+    @Value("${file.upload-dir:Uploads}") // Domyślna wartość: "Uploads"
+    private String uploadDir;
+
     @Autowired
     public ProductionQueueItemService(
             ProductionQueueItemRepository productionQueueItemRepository,
             ProductionFileInfoService productionFileInfoService,
+            ProductionFileInfoRepository productionFileInfoRepository,
             MachineRepository machineRepository,
             MachineQueueFileGeneratorService machineQueueFileGeneratorService,
             FileWatcherService fileWatcherService,
@@ -42,6 +53,7 @@ public class ProductionQueueItemService {
             UserRepository userRepository) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
+        this.productionFileInfoRepository = productionFileInfoRepository;
         this.machineRepository = machineRepository;
         this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
         this.fileWatcherService = fileWatcherService;
@@ -83,16 +95,25 @@ public class ProductionQueueItemService {
                 logger.info("File: {}, order: {}", sanitizedFileName, fileOrder);
             }
 
+            // Zapisz pliki na dysku i utwórz rekordy ProductionFileInfo
+            String basePath = getBaseFilePath(savedItem);
+            Files.createDirectories(Paths.get(basePath));
+
             for (MultipartFile file : files) {
                 String originalFileName = file.getOriginalFilename();
                 String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
                 Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
 
+                // Zapisz plik na dysku
+                Path filePath = Paths.get(basePath, sanitizedFileName);
+                Files.write(filePath, file.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                logger.debug("Saved file to: {}", filePath);
+
                 ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                         .fileName(sanitizedFileName)
                         .fileType(file.getContentType())
                         .fileSize(file.getSize())
-                        .fileContent(file.getBytes())
+                        .filePath(filePath.toString())
                         .productionQueueItem(savedItem)
                         .completed(false)
                         .order(fileOrder)
@@ -167,23 +188,25 @@ public class ProductionQueueItemService {
             if (files != null && !files.isEmpty()) {
                 List<ProductionFileInfo> fileInfos = new ArrayList<>();
                 logger.info("Order of new attachments before saving for ID: {}", id);
-                for (MultipartFile file : files) {
-                    String originalFileName = file.getOriginalFilename();
-                    String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
-                    Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
-                    logger.info("File: {}, order: {}", sanitizedFileName, fileOrder);
-                }
+
+                String basePath = getBaseFilePath(existingItem);
+                Files.createDirectories(Paths.get(basePath));
 
                 for (MultipartFile file : files) {
                     String originalFileName = file.getOriginalFilename();
                     String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
                     Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
+
+                    // Zapisz plik na dysku
+                    Path filePath = Paths.get(basePath, sanitizedFileName);
+                    Files.write(filePath, file.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    logger.debug("Saved file to: {}", filePath);
 
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                             .fileName(sanitizedFileName)
                             .fileType(file.getContentType())
                             .fileSize(file.getSize())
-                            .fileContent(file.getBytes())
+                            .filePath(filePath.toString())
                             .productionQueueItem(existingItem)
                             .completed(false)
                             .order(fileOrder)
@@ -230,6 +253,28 @@ public class ProductionQueueItemService {
         } else {
             throw new RuntimeException("Queue item with ID: " + id + " not found");
         }
+    }
+
+    public byte[] getFileContent(Long fileId) throws IOException {
+        Optional<ProductionFileInfo> fileOpt = productionFileInfoService.findById(fileId);
+        if (fileOpt.isPresent()) {
+            ProductionFileInfo file = fileOpt.get();
+            Path filePath = Paths.get(file.getFilePath());
+            if (Files.exists(filePath)) {
+                return Files.readAllBytes(filePath);
+            } else {
+                throw new IOException("File not found: " + file.getFilePath());
+            }
+        } else {
+            throw new IOException("File info with ID: " + fileId + " not found");
+        }
+    }
+
+    private String getBaseFilePath(ProductionQueueItem item) {
+        // Nowa struktura: Uploads/id_projektu/orderName/partName
+        String sanitizedOrderName = fileSystemService.sanitizeName(item.getOrderName(), "NoOrderName_" + item.getId());
+        String sanitizedPartName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
+        return Paths.get(uploadDir, String.valueOf(item.getId()), sanitizedOrderName, sanitizedPartName).toString();
     }
 
     private String getUserFullName(String email) {
@@ -303,13 +348,58 @@ public class ProductionQueueItemService {
 
     @Transactional
     public void deleteById(Integer id) throws IOException {
-        Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
+        Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findByIdWithFiles(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
             String queueType = item.getQueueType();
+
+            // Usuń pliki z dysku i z dysku maszyny
+            for (ProductionFileInfo file : item.getFiles()) {
+                // Usuń plik z dysku (Uploads/id_projektu/orderName/partName)
+                if (file.getFilePath() != null) {
+                    try {
+                        Path filePath = Paths.get(file.getFilePath());
+                        if (Files.exists(filePath)) {
+                            Files.delete(filePath);
+                            logger.info("Deleted file from disk: {}", filePath);
+                        }
+                    } catch (IOException e) {
+                        logger.error("Failed to delete file from disk: {}. Error: {}", file.getFilePath(), e.getMessage());
+                    }
+                }
+
+                // Usuń plik z dysku maszyny, jeśli program jest przypisany do maszyny
+                if (queueType != null && !"ncQueue".equals(queueType) && !"completed".equals(queueType)) {
+                    Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
+                    if (machineOpt.isPresent()) {
+                        Machine machine = machineOpt.get();
+                        String programPath = machine.getProgramPath();
+                        String orderName = fileSystemService.sanitizeName(item.getOrderName(), "NoOrderName_" + item.getId());
+                        String partName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
+                        String fileName = fileSystemService.sanitizeName(file.getFileName(), "UNKNOWN");
+
+                        Path machineFilePath = Paths.get(programPath, orderName, partName, fileName);
+                        try {
+                            if (Files.exists(machineFilePath)) {
+                                Files.delete(machineFilePath);
+                                logger.info("Deleted file from machine disk: {}", machineFilePath);
+                            }
+                        } catch (IOException e) {
+                            logger.error("Failed to delete file from machine disk: {}. Error: {}", machineFilePath, e.getMessage());
+                        }
+                    }
+                }
+            }
+
+            // Usuń ProductionQueueItem (kaskadowo usuwa ProductionFileInfo w bazie danych)
             productionQueueItemRepository.deleteById(id);
+            logger.info("Deleted ProductionQueueItem with ID: {}", id);
+
+            // Zaktualizuj kolejkę
             fileWatcherService.checkQueueFile(queueType);
             machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
+        } else {
+            throw new RuntimeException("ProductionQueueItem with ID: " + id + " not found");
         }
     }
 
@@ -502,7 +592,7 @@ public class ProductionQueueItemService {
         }
     }
 
-    private void syncAttachmentsToMachinePath(ProductionQueueItem item) {
+    private void syncAttachmentsToMachinePath(ProductionQueueItem item) throws IOException {
         try {
             String queueType = item.getQueueType();
             if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {

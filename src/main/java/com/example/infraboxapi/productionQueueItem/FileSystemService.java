@@ -16,9 +16,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.xml.bind.DatatypeConverter;
 
-/**
- * Service responsible for file system operations, including directory creation, file writing, and deletion.
- */
 @Service
 public class FileSystemService {
 
@@ -30,17 +27,6 @@ public class FileSystemService {
         this.productionQueueItemRepository = productionQueueItemRepository;
     }
 
-    /**
-     * Synchronizes attachments with the machine's directory, overwriting existing files and removing unused ones.
-     * If a file is locked, it is saved under a unique name with a suffix.
-     * Uses the same directory for identical orderName and partName.
-     *
-     * @param programPath Path to the machine's program directory
-     * @param orderName   Order name
-     * @param partName    Part name
-     * @param files       List of attachments to synchronize
-     * @throws IOException If a file operation fails
-     */
     public void synchronizeFiles(String programPath, String orderName, String partName, List<ProductionFileInfo> files) throws IOException {
         Path basePath = createDirectoryStructure(programPath, orderName, partName);
 
@@ -76,23 +62,17 @@ public class FileSystemService {
                     String fileName = file.getFileName();
                     validateAttachment(file);
                     Path tempFilePath = tempDir.resolve(fileName);
+                    Path filePath = Paths.get(file.getFilePath());
 
-                    byte[] content = file.getFileContent();
-                    if (content == null || content.length == 0) {
-                        logger.error("File content for {} is empty or null", fileName);
-                        throw new IllegalArgumentException("Empty file content: " + fileName);
-                    }
-
-                    // Check if file content has changed
-                    Path filePath = basePath.resolve(fileName);
-                    if (Files.exists(filePath) && isFileAccessible(filePath) && contentMatches(filePath, content)) {
+                    // Sprawdź, czy plik istnieje i czy zawartość się zmieniła
+                    if (Files.exists(filePath) && isFileAccessible(filePath) && contentMatches(filePath, Paths.get(file.getFilePath()))) {
                         logger.debug("File {} content unchanged, skipping write", filePath);
                         continue;
                     }
 
                     try {
-                        logger.debug("Attempting to write temporary file: {}, size: {} bytes", tempFilePath, content.length);
-                        Files.write(tempFilePath, content);
+                        logger.debug("Attempting to write temporary file: {}, size: {} bytes", tempFilePath, file.getFileSize());
+                        Files.copy(Paths.get(file.getFilePath()), tempFilePath, StandardCopyOption.REPLACE_EXISTING);
                         logger.debug("Wrote temporary file: {}", tempFilePath);
                     } catch (IOException e) {
                         logger.error("Error writing temporary file {}: {}", tempFilePath, e.getMessage());
@@ -120,7 +100,7 @@ public class FileSystemService {
                     Path filePath = basePath.resolve(fileName);
 
                     if (!Files.exists(tempFilePath)) {
-                        continue; // File was not written (content unchanged)
+                        continue; // Plik nie został zapisany (zawartość bez zmian)
                     }
 
                     if (Files.exists(filePath)) {
@@ -163,35 +143,20 @@ public class FileSystemService {
         }
     }
 
-    /**
-     * Checks if the file content matches the provided byte array using MD5 hash.
-     *
-     * @param filePath Path to the existing file
-     * @param content  Byte array to compare
-     * @return true if content matches, false otherwise
-     */
-    private boolean contentMatches(Path filePath, byte[] content) {
+    private boolean contentMatches(Path filePath1, Path filePath2) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] fileContent = Files.readAllBytes(filePath);
-            String fileHash = DatatypeConverter.printHexBinary(md.digest(fileContent));
-            String contentHash = DatatypeConverter.printHexBinary(md.digest(content));
-            return fileHash.equals(contentHash);
+            byte[] fileContent1 = Files.readAllBytes(filePath1);
+            byte[] fileContent2 = Files.readAllBytes(filePath2);
+            String fileHash1 = DatatypeConverter.printHexBinary(md.digest(fileContent1));
+            String fileHash2 = DatatypeConverter.printHexBinary(md.digest(fileContent2));
+            return fileHash1.equals(fileHash2);
         } catch (Exception e) {
-            logger.warn("Error computing hash for file {}: {}", filePath, e.getMessage());
-            return false; // Assume different in case of error
+            logger.warn("Error computing hash for files {} and {}: {}", filePath1, filePath2, e.getMessage());
+            return false;
         }
     }
 
-    /**
-     * Creates the directory structure for the given order and part names, always using the original partName.
-     *
-     * @param programPath Path to the machine's program directory
-     * @param orderName   Order name
-     * @param partName    Part name
-     * @return Path to the part directory
-     * @throws IOException If a file operation fails
-     */
     private Path createDirectoryStructure(String programPath, String orderName, String partName) throws IOException {
         Path basePath = Paths.get(programPath, orderName, partName);
         try {
@@ -211,14 +176,6 @@ public class FileSystemService {
         }
     }
 
-    /**
-     * Generates a unique file path by adding a version number (_v2, _v3, etc.) in case of name conflicts.
-     *
-     * @param basePath Base directory
-     * @param fileName File name
-     * @return Unique file path
-     * @throws IOException If a unique name cannot be found
-     */
     private Path getUniqueFilePath(Path basePath, String fileName) throws IOException {
         Path filePath = basePath.resolve(fileName);
         if (!Files.exists(filePath)) {
@@ -240,12 +197,6 @@ public class FileSystemService {
         }
     }
 
-    /**
-     * Checks if a file is accessible (not locked) for deletion or overwriting.
-     *
-     * @param filePath Path to the file
-     * @return true if the file is accessible, false otherwise
-     */
     public boolean isFileAccessible(Path filePath) {
         if (!Files.exists(filePath)) {
             logger.debug("File {} does not exist", filePath);
@@ -265,12 +216,6 @@ public class FileSystemService {
         }
     }
 
-    /**
-     * Checks if a directory is accessible (not locked) for deletion.
-     *
-     * @param dirPath Path to the directory
-     * @return true if the directory is accessible, false otherwise
-     */
     public boolean isDirectoryAccessible(Path dirPath) {
         if (!Files.exists(dirPath)) {
             logger.debug("Directory {} does not exist", dirPath);
@@ -281,7 +226,6 @@ public class FileSystemService {
             return true;
         }
         try {
-            // Try creating a temporary file in the directory to check accessibility
             Path tempFile = dirPath.resolve("temp_" + System.currentTimeMillis() + ".tmp");
             Files.createFile(tempFile);
             Files.deleteIfExists(tempFile);
@@ -293,14 +237,6 @@ public class FileSystemService {
         }
     }
 
-    /**
-     * Sanitizes a file or directory name, removing invalid characters and optionally truncating for .MPF files.
-     *
-     * @param name        Name to sanitize
-     * @param defaultName Default name if null or empty
-     * @param isMpf       Whether the name is for an .MPF file
-     * @return Sanitized name
-     */
     public String sanitizeName(String name, String defaultName, boolean isMpf) {
         if (name == null || name.trim().isEmpty()) {
             return defaultName;
@@ -358,32 +294,18 @@ public class FileSystemService {
         return sanitized;
     }
 
-    /**
-     * Sanitizes a file or directory name, using a default value.
-     *
-     * @param name        Name to sanitize
-     * @param defaultName Default name
-     * @return Sanitized name
-     */
     public String sanitizeName(String name, String defaultName) {
         return sanitizeName(name, defaultName, false);
     }
 
-    /**
-     * Validates an attachment, checking its correctness.
-     *
-     * @param file Attachment to validate
-     * @throws IllegalArgumentException If the attachment is invalid
-     */
     private void validateAttachment(ProductionFileInfo file) {
         if (file.getFileName() == null || file.getFileName().isEmpty()) {
             throw new IllegalArgumentException("File name cannot be empty");
         }
-        if (file.getFileContent() == null || file.getFileContent().length == 0) {
-            throw new IllegalArgumentException("File content cannot be empty: " + file.getFileName());
+        if (file.getFilePath() == null || file.getFilePath().isEmpty()) {
+            throw new IllegalArgumentException("File path cannot be empty: " + file.getFileName());
         }
         if (file.getFileName().toLowerCase().endsWith(".mpf")) {
-            // Example validation for .MPF - can be extended for specific requirements
             if (file.getFileSize() > 10 * 1024 * 1024) { // Max 10MB
                 throw new IllegalArgumentException("MPF file is too large: " + file.getFileName());
             }

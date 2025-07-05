@@ -21,10 +21,11 @@ public class ProductionFileInfo {
 
     private String fileName;
     private String fileType;
-    private Long fileSize; // Dodane nowe pole
+    private Long fileSize; // Pole przechowujące rozmiar pliku
+    private String filePath; // Nowe pole przechowujące ścieżkę do pliku na dysku
 
     @Lob
-    private byte[] fileContent;
+    private byte[] fileContent;// Po udanej migracji pole do usuniecia
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "production_queue_item_id")
@@ -33,6 +34,7 @@ public class ProductionFileInfo {
 
     @Column(name = "completed", nullable = false)
     private boolean completed = false;
+
     @Column(name = "order_position")
-    private Integer order; // Nowe pole dla kolejności pliku
+    private Integer order; // Kolejność pliku
 }

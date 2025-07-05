@@ -1,5 +1,6 @@
 package com.example.infraboxapi.productionQueueItem;
 
+import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
 import com.example.infraboxapi.common.CommonService;
 import com.example.infraboxapi.materialType.MaterialType;
@@ -13,7 +14,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/production-queue-item")
@@ -155,18 +160,23 @@ public class ProductionQueueItemController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProductionQueueItem(@PathVariable Integer id) throws IOException {
-        productionQueueItemService.deleteById(id);
+        productionQueueItemService.deleteById(Math.toIntExact(Long.valueOf(id)));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/files/{fileId}")
-    public ResponseEntity<byte[]> getFileContent(@PathVariable Long fileId) {
-        return productionFileInfoService.findById(fileId)
-                .map(file -> ResponseEntity.ok()
-                        .header("Content-Disposition", "attachment; filename=" + file.getFileName())
-                        .contentType(MediaType.parseMediaType(file.getFileType()))
-                        .body(file.getFileContent()))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<byte[]> getFileContent(@PathVariable Long fileId) throws IOException {
+        byte[] fileContent = productionQueueItemService.getFileContent(fileId);
+        Optional<ProductionFileInfo> fileOpt = productionFileInfoService.findById(fileId);
+        if (fileOpt.isPresent()) {
+            ProductionFileInfo file = fileOpt.get();
+            return ResponseEntity.ok()
+                    .header("Content-Disposition", "attachment; filename=" + file.getFileName())
+                    .contentType(MediaType.parseMediaType(file.getFileType()))
+                    .body(fileContent);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PatchMapping("/{id}/toggle-complete")
