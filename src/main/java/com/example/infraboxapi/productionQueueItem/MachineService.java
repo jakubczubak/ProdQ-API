@@ -7,6 +7,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable; // Dodany import
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -41,7 +42,7 @@ public class MachineService {
     private final ProductionQueueItemService productionQueueItemService;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
     private final Cache<String, List<String>> locationsCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(10, TimeUnit.MINUTES) // Odświeżaj co 10 minut
+            .expireAfterWrite(10, TimeUnit.MINUTES)
             .build();
 
     public MachineService(
@@ -63,13 +64,11 @@ public class MachineService {
 
     @Transactional
     public Machine createMachine(MachineRequest request, MultipartFile imageFile) throws IOException {
-        // Sprawdź, czy machineName już istnieje
         if (machineRepository.existsByMachineName(request.getMachineName())) {
             logger.warn("Próba utworzenia maszyny o istniejącej nazwie: {}", request.getMachineName());
             throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
         }
 
-        // Waliduj ścieżki
         validatePath(request.getProgramPath(), "Program path");
         validatePath(request.getQueueFilePath(), "Queue file path");
 
@@ -85,17 +84,13 @@ public class MachineService {
                 .queueFilePath(normalizePath(request.getQueueFilePath()))
                 .build();
 
-        // Zapisz maszynę w bazie danych
         Machine savedMachine = machineRepository.save(machine);
         logger.info("Utworzono maszynę o ID: {} i nazwie: {}", savedMachine.getId(), savedMachine.getMachineName());
 
-        // Utwórz pusty plik kolejki
         String fileName = savedMachine.getMachineName() + ".txt";
         Path filePath = Paths.get(savedMachine.getQueueFilePath(), fileName);
         try {
-            // Utwórz katalogi nadrzędne, jeśli nie istnieją
             Files.createDirectories(filePath.getParent());
-            // Generuj treść pustego pliku kolejki
             StringBuilder content = new StringBuilder();
             content.append("# Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].\n");
             content.append("# Przyklad: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!\n");
@@ -105,7 +100,6 @@ public class MachineService {
                     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
             content.append("# Brak programow w kolejce dla tej maszyny.\n");
 
-            // Zapisz plik
             Files.writeString(filePath, content.toString());
             logger.info("Utworzono pusty plik kolejki: {}", filePath);
         } catch (IOException e) {
@@ -133,27 +127,22 @@ public class MachineService {
         }
 
         Machine existingMachine = existingMachineOpt.get();
-        String oldMachineName = existingMachine.getMachineName(); // Zachowaj starą nazwę do zmiany pliku kolejki
+        String oldMachineName = existingMachine.getMachineName();
 
-        // Sprawdź unikalność machineName, pomijając bieżącą maszynę
         if (!oldMachineName.equals(request.getMachineName()) &&
                 machineRepository.existsByMachineName(request.getMachineName())) {
             logger.warn("Próba zmiany nazwy maszyny na już istniejącą: {}", request.getMachineName());
             throw new IllegalArgumentException("Machine name '" + request.getMachineName() + "' already exists");
         }
 
-        // Waliduj ścieżki
         validatePath(request.getProgramPath(), "Program path");
         validatePath(request.getQueueFilePath(), "Queue file path");
 
-        // Zaktualizuj dane maszyny
         existingMachine.setMachineName(request.getMachineName());
         existingMachine.setProgramPath(normalizePath(request.getProgramPath()));
         existingMachine.setQueueFilePath(normalizePath(request.getQueueFilePath()));
 
-        // Jeśli zmieniono nazwę maszyny, zaktualizuj plik kolejki
         if (!oldMachineName.equals(request.getMachineName())) {
-            // Usuń stary plik kolejki
             String oldFileName = oldMachineName + ".txt";
             Path oldFilePath = Paths.get(existingMachine.getQueueFilePath(), oldFileName);
             try {
@@ -163,10 +152,8 @@ public class MachineService {
                 }
             } catch (IOException e) {
                 logger.error("Error deleting old queue file {}: {}", oldFilePath, e.getMessage(), e);
-                // Kontynuuj, nawet jeśli plik nie mógł zostać usunięty
             }
 
-            // Wygeneruj nowy plik kolejki z nową nazwą
             try {
                 machineQueueFileGeneratorService.generateQueueFileForMachine(String.valueOf(id));
                 logger.info("Generated new queue file for updated machine name: {}", request.getMachineName());
@@ -176,7 +163,6 @@ public class MachineService {
             }
         }
 
-        // Zaktualizuj obraz, jeśli przesłano nowy
         if (imageFile != null && !imageFile.isEmpty()) {
             FileImage newImage = fileImageService.updateFile(imageFile, existingMachine.getImage());
             existingMachine.setImage(newImage);
@@ -194,7 +180,6 @@ public class MachineService {
         }
 
         Machine machine = machineOpt.get();
-        // Usuń plik kolejki (machineName.txt)
         String fileName = machine.getMachineName() + ".txt";
         Path filePath = Paths.get(machine.getQueueFilePath(), fileName);
         try {
@@ -206,10 +191,8 @@ public class MachineService {
             }
         } catch (IOException e) {
             logger.error("Błąd podczas usuwania pliku kolejki: {}", filePath, e);
-            // Kontynuuj usuwanie maszyny, nawet jeśli plik nie mógł zostać usunięty
         }
 
-        // Usuń maszynę
         machineRepository.deleteById(id);
         logger.info("Maszyna o ID: {} została usunięta", id);
     }
@@ -334,14 +317,11 @@ public class MachineService {
         }
     }
 
-    // Normalizuj ścieżki do formatu Unix (z ukośnikami /, bez liter dysku)
     private String normalizePath(String path) {
         if (path == null) return "";
         try {
             Path normalizedPath = Paths.get(path).normalize();
-            // Usuń literę dysku na Windows (np. C:)
             String result = normalizedPath.toString().replaceFirst("^[A-Za-z]:", "");
-            // Zamień ukośniki wsteczne na ukośniki w formacie Unix
             return result.replace("\\", "/");
         } catch (Exception e) {
             logger.error("Failed to normalize path: {}", path, e);
@@ -349,7 +329,6 @@ public class MachineService {
         }
     }
 
-    // Relatywizuj ścieżki względem katalogu głównego
     private String relativizePath(String path, Path mountDir) {
         try {
             if (path == null || mountDir == null) {
@@ -366,35 +345,27 @@ public class MachineService {
         }
     }
 
-    // Waliduj ścieżki
     private void validatePath(String path, String fieldName) {
         if (path == null || path.trim().isEmpty()) {
             throw new IllegalArgumentException(fieldName + " cannot be blank");
         }
-        // Sprawdź niedozwolone znaki
         if (path.matches(".*[:*?\"<>|].*")) {
             throw new IllegalArgumentException(fieldName + " contains illegal characters: " + path);
         }
-        // Usuń początkowy ukośnik i prefiks cnc/
         String cleanedPath = path.replaceFirst("^/+", "").replaceFirst("^cnc/?", "");
-        // Określ katalog główny w zależności od środowiska
         String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
         Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
                 ? Paths.get("/cnc")
                 : Paths.get("./cnc");
-        // Rozwiąż ścieżkę względem katalogu głównego
         Path resolvedPath = cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
         logger.info("Validating path {}: cleanedPath={}, resolvedPath={}, exists={}, isDirectory={}",
                 path, cleanedPath, resolvedPath, Files.exists(resolvedPath), Files.isDirectory(resolvedPath));
-        // Sprawdź, czy ścieżka istnieje
         if (!Files.exists(resolvedPath)) {
             throw new IllegalArgumentException(fieldName + " does not exist: " + path);
         }
-        // Sprawdź, czy jest katalogiem
         if (!Files.isDirectory(resolvedPath)) {
             throw new IllegalArgumentException(fieldName + " is not a directory: " + path);
         }
-        // Sprawdź uprawnienia
         if (!Files.isReadable(resolvedPath) || !Files.isWritable(resolvedPath)) {
             throw new IllegalArgumentException(fieldName + " is not accessible (read/write permissions required): " + path);
         }
@@ -407,7 +378,8 @@ public class MachineService {
         }
 
         Machine machine = machineOpt.get();
-        List<ProductionQueueItem> programs = productionQueueItemService.findByQueueType(String.valueOf(machineId));
+        // --- TUTAJ JEST POPRAWKA ---
+        List<ProductionQueueItem> programs = productionQueueItemService.findByQueueType(String.valueOf(machineId), Pageable.unpaged()).getContent();
 
         if (programs.isEmpty() || programs.stream().noneMatch(program -> !program.getFiles().isEmpty())) {
             return ResponseEntity.noContent().build();
@@ -419,22 +391,29 @@ public class MachineService {
                 String orderName = program.getOrderName() != null && !program.getOrderName().isEmpty()
                         ? program.getOrderName()
                         : "NoOrderName_" + program.getId();
-                orderName = orderName.replaceAll("[^a-zA-Z0-9_\\-]", "_"); // Sanitize folder name
+                orderName = orderName.replaceAll("[^a-zA-Z0-9_\\-]", "_");
 
                 String partName = program.getPartName() != null && !program.getPartName().isEmpty()
                         ? program.getPartName()
                         : "NoPartName_" + program.getId();
-                partName = partName.replaceAll("[^a-zA-Z0-9_\\-]", "_"); // Sanitize part name
+                partName = partName.replaceAll("[^a-zA-Z0-9_\\-]", "_");
 
                 for (ProductionFileInfo file : program.getFiles()) {
                     String fileName = file.getFileName();
-                    // Nowy wzór: [machineName]/[orderName]/[partName]/[załączniki]
                     String entryPath = String.format("%s/%s/%s/%s", machine.getMachineName(), orderName, partName, fileName);
-                    entryPath = entryPath.replaceAll("[^a-zA-Z0-9_\\-/\\.]", "_"); // Sanitize path
+                    entryPath = entryPath.replaceAll("[^a-zA-Z0-9_\\-/\\.]", "_");
 
                     ZipEntry zipEntry = new ZipEntry(entryPath);
                     zos.putNextEntry(zipEntry);
-                    zos.write(file.getFileContent());
+
+                    // --- TUTAJ JEST DRUGA POPRAWKA ---
+                    // Odczytujemy plik z jego ścieżki, zamiast używać nieistniejącej metody getFileContent()
+                    Path filePath = Paths.get(file.getFilePath());
+                    if (Files.exists(filePath)) {
+                        byte[] fileBytes = Files.readAllBytes(filePath);
+                        zos.write(fileBytes);
+                    }
+
                     zos.closeEntry();
                 }
             }
@@ -443,7 +422,7 @@ public class MachineService {
 
         byte[] zipBytes = baos.toByteArray();
         String zipFileName = machine.getMachineName() + ".zip";
-        zipFileName = zipFileName.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_"); // Sanitize filename
+        zipFileName = zipFileName.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
 
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=\"" + zipFileName + "\"")

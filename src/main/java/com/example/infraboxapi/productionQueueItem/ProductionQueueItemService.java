@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -197,7 +199,6 @@ public class ProductionQueueItemService {
                     String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
                     Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
 
-                    // Zapisz plik na dysku
                     Path filePath = Paths.get(basePath, sanitizedFileName);
                     Files.write(filePath, file.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                     logger.debug("Saved file to: {}", filePath);
@@ -271,7 +272,6 @@ public class ProductionQueueItemService {
     }
 
     private String getBaseFilePath(ProductionQueueItem item) {
-        // Nowa struktura: Uploads/id_projektu/orderName/partName
         String sanitizedOrderName = fileSystemService.sanitizeName(item.getOrderName(), "NoOrderName_" + item.getId());
         String sanitizedPartName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
         return Paths.get(uploadDir, String.valueOf(item.getId()), sanitizedOrderName, sanitizedPartName).toString();
@@ -323,8 +323,10 @@ public class ProductionQueueItemService {
     }
 
     private boolean isPartNameDuplicate(String queueType, String partName) {
-        return productionQueueItemRepository.findByQueueType(queueType)
-                .stream()
+        // Ta metoda może wymagać optymalizacji, jeśli stanie się wąskim gardłem.
+        // Na razie sprawdzamy po wszystkich elementach danego typu.
+        return productionQueueItemRepository.findAll().stream()
+                .filter(item -> item.getQueueType().equals(queueType))
                 .anyMatch(item -> {
                     String sanitizedExistingPartName = fileSystemService.sanitizeName(item.getPartName(), "NoPartName_" + item.getId());
                     return sanitizedExistingPartName.equalsIgnoreCase(partName);
@@ -346,6 +348,17 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findAll();
     }
 
+    public Page<ProductionQueueItem> findByQueueType(String queueType, Pageable pageable) {
+        logger.info("Fetching queue for queueType: {} with pagination: {}", queueType, pageable);
+        if (queueType == null) {
+            logger.warn("queueType is null, returning empty page");
+            return Page.empty();
+        }
+        Page<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType, pageable);
+        logger.debug("Found {} items on page {} for queueType: {}", items.getNumberOfElements(), pageable.getPageNumber(), queueType);
+        return items;
+    }
+
     @Transactional
     public void deleteById(Integer id) throws IOException {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findByIdWithFiles(id);
@@ -353,9 +366,7 @@ public class ProductionQueueItemService {
             ProductionQueueItem item = itemOpt.get();
             String queueType = item.getQueueType();
 
-            // Usuń pliki z dysku i z dysku maszyny
             for (ProductionFileInfo file : item.getFiles()) {
-                // Usuń plik z dysku (Uploads/id_projektu/orderName/partName)
                 if (file.getFilePath() != null) {
                     try {
                         Path filePath = Paths.get(file.getFilePath());
@@ -368,7 +379,6 @@ public class ProductionQueueItemService {
                     }
                 }
 
-                // Usuń plik z dysku maszyny, jeśli program jest przypisany do maszyny
                 if (queueType != null && !"ncQueue".equals(queueType) && !"completed".equals(queueType)) {
                     Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
                     if (machineOpt.isPresent()) {
@@ -391,27 +401,14 @@ public class ProductionQueueItemService {
                 }
             }
 
-            // Usuń ProductionQueueItem (kaskadowo usuwa ProductionFileInfo w bazie danych)
             productionQueueItemRepository.deleteById(id);
             logger.info("Deleted ProductionQueueItem with ID: {}", id);
 
-            // Zaktualizuj kolejkę
             fileWatcherService.checkQueueFile(queueType);
             machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
         } else {
             throw new RuntimeException("ProductionQueueItem with ID: " + id + " not found");
         }
-    }
-
-    public List<ProductionQueueItem> findByQueueType(String queueType) {
-        logger.info("Fetching queue for queueType: {}", queueType);
-        if (queueType == null) {
-            logger.warn("queueType is null, returning empty list");
-            return Collections.emptyList();
-        }
-        List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
-        logger.debug("Found {} items for queueType: {}", items.size(), queueType);
-        return items;
     }
 
     @Transactional
@@ -437,10 +434,10 @@ public class ProductionQueueItemService {
         }
 
         Machine machine = machineOpt.get();
-
         fileWatcherService.checkQueueFile(queueType);
 
-        List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType);
+        // Fetching all items for a machine queue - should be OK if machine queues are not huge
+        List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent();
         for (ProductionQueueItem program : programs) {
             String orderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
             String partName = fileSystemService.sanitizeName(program.getPartName(), "NoPartName_" + program.getId());
@@ -456,7 +453,6 @@ public class ProductionQueueItemService {
         }
 
         machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
-
         logger.info("Completed synchronization with machine for queueType: {}", queueType);
     }
 
@@ -530,7 +526,7 @@ public class ProductionQueueItemService {
     public List<ProductionQueueItem> moveCompletedPrograms(Integer machineId) throws IOException {
         logger.info("Moving completed programs for machine ID: {}", machineId);
         String queueType = String.valueOf(machineId);
-        List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
+        List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent();
         List<ProductionQueueItem> completedItems = items.stream()
                 .filter(ProductionQueueItem::isCompleted)
                 .collect(Collectors.toList());

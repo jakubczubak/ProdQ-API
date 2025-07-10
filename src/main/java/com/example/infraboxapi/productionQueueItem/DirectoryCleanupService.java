@@ -4,6 +4,7 @@ import com.example.infraboxapi.notification.NotificationService;
 import com.example.infraboxapi.notification.NotificationDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable; // Dodany import
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -228,7 +229,8 @@ public class DirectoryCleanupService {
         // Collect active paths for each machine
         for (Machine machine : machines) {
             String queueType = String.valueOf(machine.getId());
-            List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType);
+            // --- TUTAJ JEST POPRAWKA ---
+            List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent();
             activePaths.addAll(items.stream()
                     .map(item -> {
                         String orderName = fileSystemService.sanitizeName(item.getOrderName(), "NoOrderName_" + item.getId());
@@ -290,7 +292,6 @@ public class DirectoryCleanupService {
                     return true;
                 } else {
                     logger.warn("Failed to delete directory {}, possibly already removed or inaccessible", dirPath);
-                    // Sprawdź, czy katalog nadal istnieje
                     if (Files.exists(dirPath)) {
                         logger.error("Directory {} still exists after deletion attempt", dirPath);
                         return false;
@@ -299,7 +300,6 @@ public class DirectoryCleanupService {
                 }
             } else {
                 logger.warn("Directory {} is locked and cannot be deleted", dirPath);
-                // Register the blocked directory in the database
                 BlockedDirectory blockedDir = BlockedDirectory.builder()
                         .path(dirPath.toString())
                         .queueType(queueType)
@@ -312,7 +312,6 @@ public class DirectoryCleanupService {
                 return false;
             }
         } else if (hasLockedFiles) {
-            // Register the blocked directory in the database
             BlockedDirectory blockedDir = BlockedDirectory.builder()
                     .path(dirPath.toString())
                     .queueType(queueType)

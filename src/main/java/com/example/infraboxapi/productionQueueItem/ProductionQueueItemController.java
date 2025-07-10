@@ -7,6 +7,8 @@ import com.example.infraboxapi.materialType.MaterialType;
 import com.example.infraboxapi.materialType.MaterialTypeRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -99,15 +101,17 @@ public class ProductionQueueItemController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductionQueueItem>> getAllProductionQueueItems(
-            @RequestParam(value = "queueType", required = false) String queueType) {
-        List<ProductionQueueItem> items;
+    public ResponseEntity<?> getAllProductionQueueItems(
+            @RequestParam(value = "queueType", required = false) String queueType, Pageable pageable) {
+
         if (queueType != null && !queueType.isEmpty()) {
-            items = productionQueueItemService.findByQueueType(queueType);
+            Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(queueType, pageable);
+            return ResponseEntity.ok(items);
         } else {
-            items = productionQueueItemService.findAll();
+            // This behavior might be deprecated if not used elsewhere
+            List<ProductionQueueItem> items = productionQueueItemService.findAll();
+            return ResponseEntity.ok(items);
         }
-        return ResponseEntity.ok(items);
     }
 
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
@@ -203,8 +207,8 @@ public class ProductionQueueItemController {
             return ResponseEntity.badRequest().body(null);
         }
         productionQueueItemService.syncWithMachine(queueType);
-        List<ProductionQueueItem> items = productionQueueItemService.findByQueueType(queueType);
-        return ResponseEntity.ok(items);
+        Page<ProductionQueueItem> itemsPage = productionQueueItemService.findByQueueType(queueType, Pageable.unpaged());
+        return ResponseEntity.ok(itemsPage.getContent());
     }
 
     @PatchMapping("/move-completed/{machineId}")

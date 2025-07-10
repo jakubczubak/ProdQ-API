@@ -1,5 +1,7 @@
 package com.example.infraboxapi.productionQueueItem;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,7 +13,7 @@ import java.util.Set;
 
 @Repository
 public interface ProductionQueueItemRepository extends JpaRepository<ProductionQueueItem, Integer> {
-    List<ProductionQueueItem> findByQueueType(String queueType);
+    Page<ProductionQueueItem> findByQueueType(String queueType, Pageable pageable);
 
     @Query("SELECT COALESCE(MAX(p.order), -1) FROM ProductionQueueItem p WHERE p.queueType = :queueType")
     Integer findMaxOrderByQueueType(String queueType);

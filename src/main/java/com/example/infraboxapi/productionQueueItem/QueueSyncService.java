@@ -6,6 +6,7 @@ import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable; // Dodany import
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,6 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -44,9 +44,7 @@ public class QueueSyncService {
     private final FileSystemService fileSystemService;
     private final NotificationService notificationService;
 
-    // Map storing last modification times of queue files
     private final Map<String, FileTime> lastModifiedTimes = new HashMap<>();
-    // Map storing last synchronization time for each queueType
     private final Map<String, LocalDateTime> lastSyncTimes = new HashMap<>();
 
     public QueueSyncService(
@@ -62,10 +60,6 @@ public class QueueSyncService {
         this.notificationService = notificationService;
     }
 
-    /**
-     * Periodically synchronizes queue files for all machines.
-     * Executed every 5 minutes.
-     */
     @Scheduled(fixedRate = 300000) // 5 minutes in milliseconds
     @Transactional
     public void syncAllQueues() {
@@ -87,21 +81,11 @@ public class QueueSyncService {
         logger.debug("Completed periodic synchronization of queues");
     }
 
-    /**
-     * Asynchronously synchronizes the queue file and attachments for a given machine.
-     * Updates attachment statuses if the file was modified, and generates a new queue file
-     * only if programs or attachments have changed.
-     *
-     * @param queueType Machine ID (as String)
-     * @param machine   Machine object
-     * @throws IOException If a file operation fails
-     */
     @Async("queueSyncExecutor")
     @Transactional
     public void syncQueueForMachine(String queueType, Machine machine) throws IOException {
         logger.debug("Synchronizing queue for queueType: {}, machine: {}", queueType, machine.getMachineName());
 
-        // Skip for ncQueue and completed
         if ("ncQueue".equals(queueType) || "completed".equals(queueType)) {
             logger.debug("Skipped synchronization for queueType: {}", queueType);
             return;
@@ -116,18 +100,17 @@ public class QueueSyncService {
         Path resolvedPath = cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
         Path filePath = resolvedPath.resolve(fileName);
 
-        // Step 1: Check file modification time
         boolean fileModified = isFileModified(filePath, queueType);
         if (fileModified) {
-            // Step 2: Update attachment statuses based on the existing file
             updateAttachmentStatuses(filePath, machine, queueType);
         } else {
             logger.debug("Queue file {} has not been modified since last synchronization", filePath);
         }
 
-        // Step 3: Fetch programs modified since last sync
         LocalDateTime lastSyncTime = lastSyncTimes.getOrDefault(queueType, LocalDateTime.of(1970, 1, 1, 0, 0));
-        List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType)
+
+        // --- TUTAJ JEST PIERWSZA POPRAWKA ---
+        List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent()
                 .stream()
                 .filter(p -> p.getLastModified() == null || p.getLastModified().isAfter(lastSyncTime))
                 .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -138,16 +121,14 @@ public class QueueSyncService {
             return;
         }
 
-        // Step 4: Fetch all programs for queue generation
-        List<ProductionQueueItem> allPrograms = productionQueueItemRepository.findByQueueType(queueType)
+        // --- TUTAJ JEST DRUGA POPRAWKA ---
+        List<ProductionQueueItem> allPrograms = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent()
                 .stream()
                 .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
 
-        // Step 5: Generate new queue file content
         String newContent = generateQueueContent(allPrograms, machine);
 
-        // Step 6: Read existing file content (if exists)
         String existingContent = "";
         if (Files.exists(filePath) && Files.isReadable(filePath)) {
             try {
@@ -157,14 +138,12 @@ public class QueueSyncService {
             }
         }
 
-        // Step 7: Compare content (ignoring timestamp)
         if (!contentEqualsIgnoreTimestamp(newContent, existingContent)) {
             logger.debug("Detected changes in queue content for machine {}. Updating file: {}", machine.getMachineName(), filePath);
             try {
                 Files.createDirectories(filePath.getParent());
                 Files.writeString(filePath, newContent);
                 logger.debug("Updated queue file: {}", filePath);
-                // Update modification time in memory
                 lastModifiedTimes.put(queueType, Files.getLastModifiedTime(filePath));
             } catch (IOException e) {
                 String errorMessage = String.format("Failed to write queue file %s for machine %s: %s",
@@ -174,10 +153,9 @@ public class QueueSyncService {
                 throw e;
             }
 
-            // Step 8: Synchronize attachments only for modified programs
             for (ProductionQueueItem program : programs) {
                 String orderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
-                String partName = program.getPartName(); // PartName is already sanitized
+                String partName = program.getPartName();
                 try {
                     fileSystemService.synchronizeFiles(machine.getProgramPath(), orderName, partName, program.getFiles());
                     logger.debug("Synchronized attachments for program ID: {}, orderName: {}, partName: {}",
@@ -193,17 +171,9 @@ public class QueueSyncService {
             logger.debug("No changes in queue content for machine {}. File {} remains unchanged.", machine.getMachineName(), filePath);
         }
 
-        // Update last sync time
         lastSyncTimes.put(queueType, LocalDateTime.now());
     }
 
-    /**
-     * Compares two queue file contents, ignoring the timestamp line.
-     *
-     * @param newContent      New content
-     * @param existingContent Existing content
-     * @return true if contents are equal (ignoring timestamp), false otherwise
-     */
     private boolean contentEqualsIgnoreTimestamp(String newContent, String existingContent) {
         if (newContent.equals(existingContent)) {
             return true;
@@ -218,7 +188,7 @@ public class QueueSyncService {
 
         for (int i = 0; i < newLines.length; i++) {
             if (newLines[i].startsWith("# Wygenerowano:") && existingLines[i].startsWith("# Wygenerowano:")) {
-                continue; // Ignore timestamp line
+                continue;
             }
             if (!newLines[i].equals(existingLines[i])) {
                 return false;
@@ -227,13 +197,6 @@ public class QueueSyncService {
         return true;
     }
 
-    /**
-     * Checks if the file has been modified since the last synchronization.
-     *
-     * @param filePath  Path to the file
-     * @param queueType Machine ID
-     * @return true if the file was modified or no modification time is recorded
-     */
     private boolean isFileModified(Path filePath, String queueType) {
         if (!Files.exists(filePath)) {
             logger.debug("File {} does not exist, treated as modified", filePath);
@@ -252,17 +215,10 @@ public class QueueSyncService {
             return false;
         } catch (IOException e) {
             logger.warn("Error checking modification time of file {}: {}", filePath, e.getMessage());
-            return true; // Assume modified in case of error
+            return true;
         }
     }
 
-    /**
-     * Updates attachment statuses in the database based on the existing queue file.
-     *
-     * @param filePath  Path to the queue file
-     * @param machine   Machine object
-     * @param queueType Machine ID (as String)
-     */
     @Transactional
     private void updateAttachmentStatuses(Path filePath, Machine machine, String queueType) {
         if (!Files.exists(filePath) || !Files.isReadable(filePath)) {
@@ -275,7 +231,6 @@ public class QueueSyncService {
             List<String> lines = Files.readAllLines(filePath);
             logger.debug("Read {} lines from file {}", lines.size(), filePath);
 
-            // Parser: position./orderName/partName/fileName id:ID|[OK|NOK]
             Pattern pattern = Pattern.compile(
                     "^(\\d+)\\./([^/]+)/([^/]+)/([^\\s]+?\\.[mM][pP][fF](?:\\.[mM][pP][fF])?)\\s*id:\\s*(\\d+)\\s*\\|\\s*\\[(OK|NOK)]",
                     Pattern.CASE_INSENSITIVE
@@ -318,7 +273,6 @@ public class QueueSyncService {
                                 productionFileInfoService.save(fileInfo);
                                 logger.info("Updated status of file {} for program {} to {}", fileName, programId, isCompleted ? "OK" : "NOK");
 
-                                // Check if all .MPF attachments are completed
                                 boolean allMpfCompleted = program.getFiles().stream()
                                         .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
                                         .allMatch(ProductionFileInfo::isCompleted);
@@ -358,13 +312,6 @@ public class QueueSyncService {
         }
     }
 
-    /**
-     * Generates the content of the queue file based on the list of programs, in Polish.
-     *
-     * @param programs List of programs
-     * @param machine  Machine object
-     * @return Generated file content
-     */
     private String generateQueueContent(List<ProductionQueueItem> programs, Machine machine) {
         StringBuilder content = new StringBuilder();
         content.append("# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n");
@@ -442,13 +389,6 @@ public class QueueSyncService {
         return content.toString();
     }
 
-    /**
-     * Sanitizes a name by removing Polish characters and invalid characters.
-     *
-     * @param name        Name to sanitize
-     * @param defaultName Default name if null or empty
-     * @return Sanitized name
-     */
     private String sanitizeFileName(String name, String defaultName) {
         if (name == null || name.trim().isEmpty()) {
             return defaultName;
@@ -467,13 +407,6 @@ public class QueueSyncService {
         return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
     }
 
-    /**
-     * Wraps a long comment into lines of up to 80 characters, adding a prefix.
-     *
-     * @param comment Comment to wrap
-     * @param prefix  Prefix for each line (e.g., "Uwagi: ")
-     * @return Formatted comment
-     */
     private String wrapCommentWithPrefix(String comment, String prefix) {
         final int MAX_LINE_LENGTH = 80;
         StringBuilder wrapped = new StringBuilder();
@@ -497,7 +430,6 @@ public class QueueSyncService {
         return wrapped.toString();
     }
 
-    // Getter for tests or other services
     public MachineRepository getMachineRepository() {
         return machineRepository;
     }
