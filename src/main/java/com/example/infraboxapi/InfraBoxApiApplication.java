@@ -3,15 +3,16 @@ package com.example.infraboxapi;
 import com.example.infraboxapi.productionQueueItem.DirectoryCleanupService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -32,9 +33,6 @@ public class InfraBoxApiApplication {
     private ApplicationContext applicationContext;
 
     @Autowired
-    private ServletWebServerApplicationContext webServerContext;
-
-    @Autowired
     private DirectoryCleanupService directoryCleanupService;
 
     // Flaga do śledzenia aktywności aplikacji
@@ -45,41 +43,53 @@ public class InfraBoxApiApplication {
     }
 
     @PostConstruct
-    public void checkMountOnStartup() {
-        String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local"; // Domyślnie local
+    public void onStartup() {
+        checkMountOnStartup();
+    }
+
+    /**
+     * Ta metoda jest wywoływana, gdy aplikacja jest w pełni uruchomiona i gotowa do przyjmowania żądań.
+     * Jest to niezawodny sposób na wykonanie logiki startowej.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        logger.info("Aplikacja jest w pełni uruchomiona. Wywołanie zadania czyszczenia dla wszystkich maszyn...");
+        try {
+            directoryCleanupService.cleanupAllMachines();
+            logger.info("Zadanie czyszczenia zakończone pomyślnie.");
+        } catch (Exception e) {
+            logger.error("Błąd podczas wykonywania zadania czyszczenia po starcie aplikacji: {}", e.getMessage(), e);
+        }
+    }
+
+    private void checkMountOnStartup() {
+        String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
         Path mountDir;
 
         if ("prod".equalsIgnoreCase(appEnv)) {
-            // Tryb produkcyjny: sprawdzanie zamontowanego zasobu /cnc
             mountDir = Paths.get("/cnc");
         } else if ("docker-local".equalsIgnoreCase(appEnv)) {
-            // Tryb docker-local: używamy /cnc w kontenerze
             mountDir = Paths.get("/cnc");
-            ensureDirectoryExists(mountDir); // Tworzenie katalogu, jeśli nie istnieje
+            ensureDirectoryExists(mountDir);
         } else {
-            // Tryb lokalny: używamy ./cnc w katalogu projektu
             mountDir = Paths.get("./cnc");
-            ensureDirectoryExists(mountDir); // Tworzenie katalogu, jeśli nie istnieje
+            ensureDirectoryExists(mountDir);
         }
-
         checkMountedResource(mountDir);
-
-        // Wykonaj czyszczenie katalogów po każdym starcie aplikacji
-        logger.info("Wykonywanie zadania czyszczenia katalogów po starcie aplikacji...");
-        triggerCleanupAfterStartup();
     }
 
-    // Metoda do restartowania aplikacji
+    /**
+     * Metoda do restartowania aplikacji.
+     */
     private void restartApplication() {
-        logger.info("Rozpoczynanie restartu aplikacji o 00:00...");
+        logger.info("Rozpoczynanie restartu aplikacji...");
 
-        // Sprawdź, czy aplikacja jest w trakcie obsługi żądań lub zadań
         int retryCount = 0;
         int maxRetries = 12; // 12 prób co 5 sekund = 1 minuta
         while (isProcessingRequests.get() && retryCount < maxRetries) {
             logger.warn("Aplikacja jest w trakcie przetwarzania żądań/zadań. Opóźnianie restartu... (Próba {}/{})", retryCount + 1, maxRetries);
             try {
-                Thread.sleep(5000); // Poczekaj 5 sekund
+                Thread.sleep(5000);
             } catch (InterruptedException e) {
                 logger.error("Przerwano opóźnienie restartu: {}", e.getMessage());
                 Thread.currentThread().interrupt();
@@ -92,56 +102,30 @@ public class InfraBoxApiApplication {
             return;
         }
 
-        try {
-            // Zamknij bieżący kontekst aplikacji
-            logger.info("Zamykanie kontekstu aplikacji...");
-            if (applicationContext instanceof ConfigurableApplicationContext) {
-                ((ConfigurableApplicationContext) applicationContext).close();
-            } else {
-                logger.warn("ApplicationContext nie jest typu ConfigurableApplicationContext – nie można wywołać close().");
-            }
+        // Uruchomienie zamknięcia kontekstu w nowym wątku, aby uniknąć blokowania
+        Thread shutdownThread = new Thread(() -> {
+            logger.info("Zamykanie kontekstu aplikacji Spring...");
+            System.exit(SpringApplication.exit(applicationContext, () -> 0));
+        });
+        shutdownThread.setDaemon(false);
+        shutdownThread.start();
+    }
 
-            // Zatrzymaj serwer HTTP
-            logger.info("Zatrzymywanie serwera HTTP...");
-            webServerContext.getWebServer().stop();
-
-            // Poczekaj chwilę, aby upewnić się, że wszystko zostało zamknięte
-            Thread.sleep(5000);
-
-            // Zakończ proces Java - Docker automatycznie zrestartuje kontener
-            logger.info("Zakańczanie procesu Java, aby zwolnić uchwyty...");
-            System.exit(0);
-        } catch (Exception e) {
-            logger.error("Błąd podczas restartowania aplikacji: {}", e.getMessage(), e);
-            // W przypadku błędu również wywołaj System.exit, aby upewnić się, że proces się zakończy
-            System.exit(1);
-        }
+    /**
+     * Logowanie informacji po zamknięciu kontekstu.
+     */
+    @EventListener(ContextClosedEvent.class)
+    public void onContextClosed() {
+        logger.info("Kontekst aplikacji został zamknięty. Serwer web powinien zostać zatrzymany automatycznie.");
     }
 
     // Planowanie restartu codziennie o 00:00
-    @Scheduled(cron = "0 0 0 * * ?") // Codziennie o 00:00
+    @Scheduled(cron = "0 0 0 * * ?")
     public void scheduleApplicationRestart() {
         logger.info("Zaplanowany restart aplikacji o 00:00...");
         restartApplication();
     }
 
-    // Wywołanie zadania czyszczenia po starcie aplikacji
-    private void triggerCleanupAfterStartup() {
-        try {
-            // Poczekaj chwilę, aby upewnić się, że aplikacja jest w pełni uruchomiona
-            Thread.sleep(10000); // 10 sekund opóźnienia
-            logger.info("Wywołanie zadania czyszczenia dla wszystkich maszyn...");
-            directoryCleanupService.cleanupAllMachines();
-            logger.info("Zadanie czyszczenia zakończone pomyślnie.");
-        } catch (InterruptedException e) {
-            logger.error("Przerwano opóźnienie przed czyszczeniem: {}", e.getMessage());
-            Thread.currentThread().interrupt();
-        } catch (Exception e) {
-            logger.error("Błąd podczas wykonywania zadania czyszczenia: {}", e.getMessage(), e);
-        }
-    }
-
-    // Metoda do oznaczania, że aplikacja przetwarza żądania/zadania
     public void setProcessingRequests(boolean processing) {
         isProcessingRequests.set(processing);
     }
@@ -161,15 +145,12 @@ public class InfraBoxApiApplication {
 
     private void checkMountedResource(Path mountDir) {
         if (Files.exists(mountDir) && Files.isDirectory(mountDir)) {
-            // Sprawdzenie odczytu
             if (Files.isReadable(mountDir)) {
                 logger.info("Zasób {} jest dostępny do odczytu.", mountDir);
                 listDirectoryContents(mountDir);
             } else {
                 logger.error("Zasób {} istnieje, ale brak uprawnień do odczytu.", mountDir);
             }
-
-            // Sprawdzenie zapisu
             if (Files.isWritable(mountDir)) {
                 logger.info("Zasób {} jest dostępny do zapisu.", mountDir);
                 Path testFile = mountDir.resolve("test.txt");
