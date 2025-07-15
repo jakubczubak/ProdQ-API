@@ -114,6 +114,24 @@ public class ProductionQueueItemController {
         }
     }
 
+    @GetMapping("/nc-queue")
+    public ResponseEntity<Page<ProductionQueueItem>> getNcQueueItems(Pageable pageable) {
+        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("ncQueue", pageable);
+        return ResponseEntity.ok(items);
+    }
+
+    @GetMapping("/completed")
+    public ResponseEntity<Page<ProductionQueueItem>> getCompletedItems(Pageable pageable) {
+        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("completed", pageable);
+        return ResponseEntity.ok(items);
+    }
+
+    @GetMapping("/machine/{machineId}")
+    public ResponseEntity<Page<ProductionQueueItem>> getMachineQueueItems(@PathVariable Integer machineId, Pageable pageable) {
+        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(String.valueOf(machineId), pageable);
+        return ResponseEntity.ok(items);
+    }
+
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<ProductionQueueItem> updateProductionQueueItem(
             @PathVariable Integer id,

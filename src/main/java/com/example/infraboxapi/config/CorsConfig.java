@@ -26,6 +26,7 @@ public class CorsConfig {
         config.addAllowedMethod("GET");
         config.addAllowedMethod("POST");
         config.addAllowedMethod("PATCH");
+        config.addAllowedMethod("OPTIONS");
         config.addAllowedMethod("PUT");
         config.addAllowedMethod("DELETE");
         // Ujawnij nagłówek Content-Disposition
