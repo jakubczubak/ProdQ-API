@@ -84,8 +84,6 @@ public class MachineQueueFileGeneratorService {
 
             Files.createDirectories(filePath.getParent());
 
-            // --- TUTAJ JEST POPRAWKA ---
-            // Używamy Pageable.unpaged() aby pobrać wszystkie programy i .getContent() aby uzyskać listę
             List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent()
                     .stream()
                     .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -171,13 +169,14 @@ public class MachineQueueFileGeneratorService {
                 }
             }
 
-            if (content.toString().trim().length() > content.indexOf("\n\n") + 2) {
+            // NOWA, POPRAWIONA WERSJA
+            boolean programsAdded = programs.stream().anyMatch(p -> p.getFiles() != null && !p.getFiles().isEmpty() && p.getFiles().stream().anyMatch(f -> f.getFileName().toLowerCase().endsWith(".mpf")));
+
+            if (programsAdded) {
                 Files.writeString(filePath, content.toString());
             } else {
-                if (Files.exists(filePath)) {
-                    Files.delete(filePath);
-                }
-                Files.createFile(filePath);
+                // Ta jedna linia zastępuje całą logikę usuwania i tworzenia.
+                // Utworzy nowy plik lub nadpisze istniejący, eliminując błędy.
                 Files.writeString(filePath,
                         "# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n" +
                                 "# Przykład: zmień '[NOK]' na '[OK]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
