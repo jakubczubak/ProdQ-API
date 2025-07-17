@@ -105,10 +105,12 @@ public class ProductionQueueItemController {
             @RequestParam(value = "queueType", required = false) String queueType, Pageable pageable) {
 
         if (queueType != null && !queueType.isEmpty()) {
-            Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(queueType, pageable);
+            // Zastosowanie nowej logiki również tutaj
+            Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
+            Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(queueType, effectivePageable);
             return ResponseEntity.ok(items);
         } else {
-            // This behavior might be deprecated if not used elsewhere
+            // Ta ścieżka zwraca listę, a nie stronę - pozostaje bez zmian
             List<ProductionQueueItem> items = productionQueueItemService.findAll();
             return ResponseEntity.ok(items);
         }
@@ -116,19 +118,27 @@ public class ProductionQueueItemController {
 
     @GetMapping("/nc-queue")
     public ResponseEntity<Page<ProductionQueueItem>> getNcQueueItems(Pageable pageable) {
-        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("ncQueue", pageable);
+        // ZMIANA: Jeśli front-end nie podał informacji o stronie (`page` lub `size`),
+        // użyj `Pageable.unpaged()`, aby pobrać wszystkie wyniki.
+        // W przeciwnym razie użyj paginacji przekazanej z front-endu.
+        Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
+        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("ncQueue", effectivePageable);
         return ResponseEntity.ok(items);
     }
 
     @GetMapping("/completed")
     public ResponseEntity<Page<ProductionQueueItem>> getCompletedItems(Pageable pageable) {
-        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("completed", pageable);
+        // ZMIANA: Zastosowanie tej samej logiki co powyżej.
+        Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
+        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("completed", effectivePageable);
         return ResponseEntity.ok(items);
     }
 
     @GetMapping("/machine/{machineId}")
     public ResponseEntity<Page<ProductionQueueItem>> getMachineQueueItems(@PathVariable Integer machineId, Pageable pageable) {
-        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(String.valueOf(machineId), pageable);
+        // ZMIANA: Zastosowanie tej samej logiki co powyżej.
+        Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
+        Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(String.valueOf(machineId), effectivePageable);
         return ResponseEntity.ok(items);
     }
 
