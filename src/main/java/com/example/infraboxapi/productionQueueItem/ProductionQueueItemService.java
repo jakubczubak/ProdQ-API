@@ -355,7 +355,13 @@ public class ProductionQueueItemService {
             return Page.empty();
         }
         Page<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType, pageable);
-        logger.debug("Found {} items on page {} for queueType: {}", items.getNumberOfElements(), pageable.getPageNumber(), queueType);
+
+        // ✨ POPRAWIONA LOGIKA LOGOWANIA ✨
+        if (pageable.isPaged()) {
+            logger.debug("Found {} items on page {} for queueType: {}", items.getNumberOfElements(), pageable.getPageNumber(), queueType);
+        } else {
+            logger.debug("Found {} items (unpaged) for queueType: {}", items.getTotalElements(), queueType);
+        }
         return items;
     }
 
