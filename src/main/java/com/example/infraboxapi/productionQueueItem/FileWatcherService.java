@@ -109,9 +109,12 @@ public class FileWatcherService {
 
             for (String line : lines) {
                 String trimmedLine = line.trim();
+                // --- POCZĄTEK POPRAWKI ---
                 if (trimmedLine.isEmpty() || trimmedLine.startsWith("#") || trimmedLine.equals("---") ||
                         trimmedLine.startsWith("/**") || trimmedLine.startsWith("Program:") || trimmedLine.equals("*/") ||
-                        trimmedLine.startsWith("Autor:") || trimmedLine.startsWith("Ilość:") || trimmedLine.startsWith("Uwagi:")) {
+                        trimmedLine.startsWith("Autor:") || trimmedLine.startsWith("Ilość:") || trimmedLine.startsWith("Uwagi:") ||
+                        trimmedLine.startsWith("Zamówienie:") || trimmedLine.startsWith("Nazwa elementu:") || trimmedLine.startsWith("Przygotówka:")) {
+                    // --- KONIEC POPRAWKI ---
                     logger.debug("Pominięto linię: {}", trimmedLine);
                     continue;
                 }

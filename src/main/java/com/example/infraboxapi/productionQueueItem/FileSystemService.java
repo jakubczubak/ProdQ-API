@@ -62,17 +62,18 @@ public class FileSystemService {
                     String fileName = file.getFileName();
                     validateAttachment(file);
                     Path tempFilePath = tempDir.resolve(fileName);
-                    Path filePath = Paths.get(file.getFilePath());
+                    Path sourceFilePath = Paths.get(file.getFilePath());
+                    Path destinationFilePath = basePath.resolve(fileName);
 
-                    // Sprawdź, czy plik istnieje i czy zawartość się zmieniła
-                    if (Files.exists(filePath) && isFileAccessible(filePath) && contentMatches(filePath, Paths.get(file.getFilePath()))) {
-                        logger.debug("File {} content unchanged, skipping write", filePath);
+                    // Sprawdź, czy plik w katalogu docelowym istnieje i czy jego zawartość jest taka sama jak w źródle
+                    if (Files.exists(destinationFilePath) && isFileAccessible(destinationFilePath) && contentMatches(destinationFilePath, sourceFilePath)) {
+                        logger.debug("File content in {} is unchanged, skipping write", destinationFilePath);
                         continue;
                     }
 
                     try {
                         logger.debug("Attempting to write temporary file: {}, size: {} bytes", tempFilePath, file.getFileSize());
-                        Files.copy(Paths.get(file.getFilePath()), tempFilePath, StandardCopyOption.REPLACE_EXISTING);
+                        Files.copy(sourceFilePath, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
                         logger.debug("Wrote temporary file: {}", tempFilePath);
                     } catch (IOException e) {
                         logger.error("Error writing temporary file {}: {}", tempFilePath, e.getMessage());

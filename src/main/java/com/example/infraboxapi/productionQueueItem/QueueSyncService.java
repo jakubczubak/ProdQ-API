@@ -240,10 +240,12 @@ public class QueueSyncService {
                 String trimmedLine = line.trim();
                 if (trimmedLine.isEmpty() || trimmedLine.startsWith("#") || trimmedLine.equals("---") ||
                         trimmedLine.startsWith("/**") || trimmedLine.startsWith("Program:") || trimmedLine.equals("*/") ||
-                        trimmedLine.startsWith("Autor:") || trimmedLine.startsWith("Ilość:") || trimmedLine.startsWith("Uwagi:")) {
+                        trimmedLine.startsWith("Autor:") || trimmedLine.startsWith("Ilość:") || trimmedLine.startsWith("Uwagi:") ||
+                        trimmedLine.startsWith("Zamówienie:") || trimmedLine.startsWith("Nazwa elementu:") || trimmedLine.startsWith("Przygotówka:")) {
                     logger.debug("Skipped line: {}", trimmedLine);
                     continue;
                 }
+
 
                 logger.debug("Parsing line: {}", trimmedLine);
                 Matcher matcher = pattern.matcher(trimmedLine);
