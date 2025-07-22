@@ -233,7 +233,17 @@ public class ProductionQueueItemService {
             }
             logger.info("After updating queue item ID: {}, order: {}, queueType: {}", id, existingItem.getOrder(), existingItem.getQueueType());
 
-            existingItem.setCompleted(checkAllMpfCompleted(existingItem));
+            // ZMIANA: Usunięto starą logikę i zastąpiono ją nową, która respektuje wartość z requestu
+            existingItem.setCompleted(updatedItem.isCompleted());
+            // Ustaw status poszczególnych plików MPF na podstawie nadrzędnego statusu programu
+            if (existingItem.getFiles() != null) {
+                for (ProductionFileInfo file : existingItem.getFiles()) {
+                    if (file.getFileName().toLowerCase().endsWith(".mpf")) {
+                        file.setCompleted(updatedItem.isCompleted());
+                    }
+                }
+            }
+
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
             syncAttachmentsToMachinePath(savedItem);
 
