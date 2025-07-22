@@ -36,15 +36,12 @@ public class FileContentMigration {
     public void migrateFileContentToDisk() {
         logger.info("Starting migration of fileContent to disk...");
 
-        // Pobierz wszystkie rekordy ProductionFileInfo z ProductionQueueItem
         List<ProductionFileInfo> fileInfos = productionFileInfoRepository.findAllWithQueueItem();
-        logger.info("Found {} records to migrate.", fileInfos.size());
+        logger.info("Found {} records to migrate to disk.", fileInfos.size());
 
         for (ProductionFileInfo fileInfo : fileInfos) {
             try {
-                // Sprawdź, czy fileContent istnieje i filePath nie jest jeszcze ustawiony
                 if (fileInfo.getFileContent() != null && fileInfo.getFilePath() == null) {
-                    // Pobierz ProductionQueueItem
                     ProductionQueueItem queueItem = fileInfo.getProductionQueueItem();
                     if (queueItem == null) {
                         logger.warn("No ProductionQueueItem for file ID: {}. Skipping.", fileInfo.getId());
@@ -62,35 +59,64 @@ public class FileContentMigration {
                         continue;
                     }
 
-                    // Utwórz ścieżkę do pliku: Uploads/id_projektu/orderName/partName
                     String sanitizedOrderName = sanitizeName(orderName);
                     String sanitizedPartName = sanitizeName(partName);
                     String sanitizedFileName = sanitizeName(fileName);
                     Path dirPath = Paths.get(uploadDir, String.valueOf(projectId), sanitizedOrderName, sanitizedPartName);
                     Path filePath = dirPath.resolve(sanitizedFileName);
 
-                    // Utwórz katalogi, jeśli nie istnieją
                     Files.createDirectories(dirPath);
-
-                    // Zapisz fileContent na dysku
                     Files.write(filePath, fileInfo.getFileContent(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                     logger.info("Saved file to: {}", filePath);
 
-                    // Zaktualizuj filePath w rekordzie
                     fileInfo.setFilePath(filePath.toString());
-                    fileInfo.setFileContent(null); // Usuń fileContent, aby zwolnić pamięć
+                    fileInfo.setFileContent(null);
                     productionFileInfoRepository.save(fileInfo);
                     logger.info("Updated file ID: {} with filePath: {}", fileInfo.getId(), filePath);
                 } else {
-                    logger.debug("File ID: {} already migrated or no fileContent.", fileInfo.getId());
+                    logger.debug("File ID: {} already migrated to disk or no fileContent.", fileInfo.getId());
                 }
             } catch (IOException e) {
-                logger.error("Failed to migrate file ID: {}. Error: {}", fileInfo.getId(), e.getMessage(), e);
-                // Kontynuuj migrację dla pozostałych plików
+                logger.error("Failed to migrate file ID: {} to disk. Error: {}", fileInfo.getId(), e.getMessage(), e);
             }
         }
 
-        logger.info("Migration completed successfully.");
+        logger.info("Migration to disk completed.");
+    }
+
+    /**
+     * Migrates file content from disk to the database for records where fileContent is null.
+     */
+    @Transactional
+    public void migrateFileContentFromDisk() {
+        logger.info("Starting migration of file content from disk to database...");
+
+        List<ProductionFileInfo> fileInfos = productionFileInfoRepository.findAll();
+        logger.info("Found {} total file records to check for migration from disk.", fileInfos.size());
+
+        for (ProductionFileInfo fileInfo : fileInfos) {
+            // Sprawdź, czy zawartość jest pusta, a ścieżka do pliku istnieje
+            if (fileInfo.getFileContent() == null && fileInfo.getFilePath() != null) {
+                try {
+                    Path path = Paths.get(fileInfo.getFilePath());
+                    if (Files.exists(path) && Files.isReadable(path)) {
+                        // Odczytaj zawartość pliku z dysku
+                        byte[] content = Files.readAllBytes(path);
+                        fileInfo.setFileContent(content);
+                        productionFileInfoRepository.save(fileInfo);
+                        logger.info("Successfully migrated file content from disk for file ID: {}", fileInfo.getId());
+                    } else {
+                        logger.warn("File path for file ID: {} does not exist or is not readable: {}", fileInfo.getId(), fileInfo.getFilePath());
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to read file from disk for file ID: {}. Error: {}", fileInfo.getId(), e.getMessage(), e);
+                }
+            } else {
+                logger.debug("Skipping file ID: {}. Already has content or no file path.", fileInfo.getId());
+            }
+        }
+
+        logger.info("Migration from disk to database completed.");
     }
 
     private String sanitizeName(String name) {

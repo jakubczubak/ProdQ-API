@@ -10,6 +10,5 @@ import java.util.List;
 
 @Repository
 public interface ToolRepository extends JpaRepository<Tool, Integer> {
-    @Query("SELECT t FROM Tool t WHERE t.quantity < t.minQuantity")
-    List<Tool> findByQuantityLessThanMinQuantity();
+
 }

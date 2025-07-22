@@ -19,13 +19,23 @@ public class MigrationController {
         this.migration = migration;
     }
 
-        @GetMapping("/migrate-files")
-    public ResponseEntity<String> runMigration() {
+    @GetMapping("/migrate-files-to-disk")
+    public ResponseEntity<String> runMigrationToDisk() {
         try {
             migration.migrateFileContentToDisk();
-            return ResponseEntity.ok("Migration completed successfully");
+            return ResponseEntity.ok("Migration to disk completed successfully");
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Migration failed: " + e.getMessage());
+            return ResponseEntity.status(500).body("Migration to disk failed: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/migrate-files-from-disk")
+    public ResponseEntity<String> runMigrationFromDisk() {
+        try {
+            migration.migrateFileContentFromDisk();
+            return ResponseEntity.ok("Migration from disk completed successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Migration from disk failed: " + e.getMessage());
         }
     }
 }
