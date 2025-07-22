@@ -113,26 +113,29 @@ public class MachineQueueFileGeneratorService {
                         List.of();
 
                 if (!mpfFiles.isEmpty()) {
-                    String orderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
-                    String partName = program.getPartName() != null && !program.getPartName().isEmpty() ?
-                            program.getPartName() : "NoPartName_" + program.getId();
-                    String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ?
-                            sanitizeFileName(program.getAdditionalInfo(), "") : "";
-                    String author = program.getAuthor() != null && !program.getAuthor().isEmpty() ?
-                            sanitizeFileName(program.getAuthor(), "") : "";
+                    // Wersje "surowe" dla nagłówka
+                    String rawOrderName = program.getOrderName() != null ? program.getOrderName() : "";
+                    String rawPartName = program.getPartName() != null ? program.getPartName() : "NoPartName_" + program.getId();
+                    String additionalInfo = program.getAdditionalInfo() != null ? program.getAdditionalInfo() : "";
+                    String author = program.getAuthor() != null ? program.getAuthor() : "";
+
+                    // Wersje "oczyszczone" dla ścieżek
+                    String sanitizedOrderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
+                    String sanitizedPartName = sanitizeFileName(program.getPartName(), "NoPartName_" + program.getId());
+
                     int quantity = program.getQuantity();
 
                     String preparationInfo = buildPreparationInfoString(program);
 
-                    System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + partName + ", order: " + program.getOrder());
+                    System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + rawPartName + ", order: " + program.getOrder());
 
                     if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
                         content.append("\n---\n\n");
                     }
 
                     content.append("/**\n");
-                    content.append(String.format("Zamówienie: %s\n", orderName));
-                    content.append(String.format("Nazwa elementu: %s\n", partName));
+                    content.append(String.format("Zamówienie: %s\n", rawOrderName));
+                    content.append(String.format("Nazwa elementu: %s\n", rawPartName));
                     if (!author.isEmpty()) {
                         content.append(String.format("Autor: %s\n", author));
                     }
@@ -146,7 +149,7 @@ public class MachineQueueFileGeneratorService {
                     content.append(" */\n");
                     content.append("\n");
 
-                    if (lastPartName != null && !partName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
+                    if (lastPartName != null && !rawPartName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
                         content.append("\n");
                     }
 
@@ -156,15 +159,15 @@ public class MachineQueueFileGeneratorService {
                         String mpfFileName = sanitizeFileName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
                         String entry = String.format("%d./%s/%s/%s id: %d | %s\n",
                                 position++,
-                                orderName,
-                                partName,
+                                sanitizedOrderName,
+                                sanitizedPartName,
                                 mpfFileName,
                                 program.getId(),
                                 status);
                         content.append(entry);
                     }
 
-                    lastPartName = partName;
+                    lastPartName = rawPartName;
                     lastProgramId = program.getId();
                 }
             }
@@ -234,7 +237,7 @@ public class MachineQueueFileGeneratorService {
 
     private String buildPreparationInfoString(ProductionQueueItem program) {
         String materialTypeName = program.getMaterialType() != null && program.getMaterialType().getName() != null ?
-                sanitizeFileName(program.getMaterialType().getName(), "Brak") : "Brak";
+                program.getMaterialType().getName() : "Brak";
         String materialProfile = program.getMaterialProfile() != null && !program.getMaterialProfile().isEmpty() ?
                 translateMaterialProfile(program.getMaterialProfile()) : "Brak";
         boolean hasValidMaterialData = !"Brak".equals(materialTypeName) && !"Brak".equals(materialProfile);

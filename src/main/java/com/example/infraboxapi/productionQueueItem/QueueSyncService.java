@@ -340,13 +340,16 @@ public class QueueSyncService {
                     List.of();
 
             if (!mpfFiles.isEmpty()) {
-                String orderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
-                String partName = program.getPartName() != null && !program.getPartName().isEmpty() ?
-                        program.getPartName() : "NoPartName_" + program.getId();
-                String additionalInfo = program.getAdditionalInfo() != null && !program.getAdditionalInfo().isEmpty() ?
-                        sanitizeFileName(program.getAdditionalInfo(), "") : "";
-                String author = program.getAuthor() != null && !program.getAuthor().isEmpty() ?
-                        sanitizeFileName(program.getAuthor(), "") : "";
+                // Wersje "surowe" dla nagłówka
+                String rawOrderName = program.getOrderName() != null ? program.getOrderName() : "";
+                String rawPartName = program.getPartName() != null ? program.getPartName() : "NoPartName_" + program.getId();
+                String additionalInfo = program.getAdditionalInfo() != null ? program.getAdditionalInfo() : "";
+                String author = program.getAuthor() != null ? program.getAuthor() : "";
+
+                // Wersje "oczyszczone" dla ścieżek
+                String sanitizedOrderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
+                String sanitizedPartName = sanitizeFileName(program.getPartName(), "NoPartName_" + program.getId());
+
                 int quantity = program.getQuantity();
 
                 if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
@@ -354,7 +357,8 @@ public class QueueSyncService {
                 }
 
                 content.append("/**\n");
-                content.append(String.format("Program: %s/%s\n", orderName, partName));
+                content.append(String.format("Zamówienie: %s\n", rawOrderName));
+                content.append(String.format("Nazwa elementu: %s\n", rawPartName));
                 if (!author.isEmpty()) {
                     content.append(String.format("Autor: %s\n", author));
                 }
@@ -365,7 +369,7 @@ public class QueueSyncService {
                 content.append(" */\n");
                 content.append("\n");
 
-                if (lastPartName != null && !partName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
+                if (lastPartName != null && !rawPartName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
                     content.append("\n");
                 }
 
@@ -375,15 +379,15 @@ public class QueueSyncService {
                     String mpfFileName = sanitizeFileName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
                     String entry = String.format("%d./%s/%s/%s id: %d | %s\n",
                             position++,
-                            orderName,
-                            partName,
+                            sanitizedOrderName,
+                            sanitizedPartName,
                             mpfFileName,
                             program.getId(),
                             status);
                     content.append(entry);
                 }
 
-                lastPartName = partName;
+                lastPartName = rawPartName;
                 lastProgramId = program.getId();
             }
         }
