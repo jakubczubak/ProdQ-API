@@ -177,10 +177,6 @@ public class ProductionQueueItemService {
                 logger.debug("updatedItem.getOrder() is null, retaining original order value: {}", existingItem.getOrder());
             }
 
-            String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-            String author = getUserFullName(currentUserEmail);
-            existingItem.setAuthor(author);
-
             logger.info("Order of existing attachments before update for ID: {}", id);
             for (ProductionFileInfo file : existingItem.getFiles()) {
                 logger.info("File: {}, order: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
@@ -233,9 +229,7 @@ public class ProductionQueueItemService {
             }
             logger.info("After updating queue item ID: {}, order: {}, queueType: {}", id, existingItem.getOrder(), existingItem.getQueueType());
 
-            // ZMIANA: Usunięto starą logikę i zastąpiono ją nową, która respektuje wartość z requestu
             existingItem.setCompleted(updatedItem.isCompleted());
-            // Ustaw status poszczególnych plików MPF na podstawie nadrzędnego statusu programu
             if (existingItem.getFiles() != null) {
                 for (ProductionFileInfo file : existingItem.getFiles()) {
                     if (file.getFileName().toLowerCase().endsWith(".mpf")) {
