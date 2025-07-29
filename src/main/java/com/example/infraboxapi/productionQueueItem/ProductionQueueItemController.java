@@ -8,7 +8,9 @@ import com.example.infraboxapi.materialType.MaterialTypeRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest; // ADD THIS
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort; // ADD THIS
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -16,9 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -105,12 +104,10 @@ public class ProductionQueueItemController {
             @RequestParam(value = "queueType", required = false) String queueType, Pageable pageable) {
 
         if (queueType != null && !queueType.isEmpty()) {
-            // Zastosowanie nowej logiki również tutaj
             Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
             Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(queueType, effectivePageable);
             return ResponseEntity.ok(items);
         } else {
-            // Ta ścieżka zwraca listę, a nie stronę - pozostaje bez zmian
             List<ProductionQueueItem> items = productionQueueItemService.findAll();
             return ResponseEntity.ok(items);
         }
@@ -118,9 +115,6 @@ public class ProductionQueueItemController {
 
     @GetMapping("/nc-queue")
     public ResponseEntity<Page<ProductionQueueItem>> getNcQueueItems(Pageable pageable) {
-        // ZMIANA: Jeśli front-end nie podał informacji o stronie (`page` lub `size`),
-        // użyj `Pageable.unpaged()`, aby pobrać wszystkie wyniki.
-        // W przeciwnym razie użyj paginacji przekazanej z front-endu.
         Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
         Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("ncQueue", effectivePageable);
         return ResponseEntity.ok(items);
@@ -128,7 +122,6 @@ public class ProductionQueueItemController {
 
     @GetMapping("/completed")
     public ResponseEntity<Page<ProductionQueueItem>> getCompletedItems(Pageable pageable) {
-        // ZMIANA: Zastosowanie tej samej logiki co powyżej.
         Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
         Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType("completed", effectivePageable);
         return ResponseEntity.ok(items);
@@ -136,7 +129,6 @@ public class ProductionQueueItemController {
 
     @GetMapping("/machine/{machineId}")
     public ResponseEntity<Page<ProductionQueueItem>> getMachineQueueItems(@PathVariable Integer machineId, Pageable pageable) {
-        // ZMIANA: Zastosowanie tej samej logiki co powyżej.
         Pageable effectivePageable = pageable.isPaged() ? pageable : Pageable.unpaged();
         Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(String.valueOf(machineId), effectivePageable);
         return ResponseEntity.ok(items);
@@ -192,7 +184,7 @@ public class ProductionQueueItemController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProductionQueueItem(@PathVariable Integer id) throws IOException {
-        productionQueueItemService.deleteById(Math.toIntExact(Long.valueOf(id)));
+        productionQueueItemService.deleteById(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -234,8 +226,14 @@ public class ProductionQueueItemController {
         if (queueType == null || queueType.isEmpty()) {
             return ResponseEntity.badRequest().body(null);
         }
+
         productionQueueItemService.syncWithMachine(queueType);
-        Page<ProductionQueueItem> itemsPage = productionQueueItemService.findByQueueType(queueType, Pageable.unpaged());
+
+        // --- CHANGED LOGIC ---
+        // Create a Pageable object that requests all items (page 0, large size) and sorts them by the "order" field.
+        Pageable sortedByOrder = PageRequest.of(0, Integer.MAX_VALUE, Sort.by("order"));
+        Page<ProductionQueueItem> itemsPage = productionQueueItemService.findByQueueType(queueType, sortedByOrder);
+
         return ResponseEntity.ok(itemsPage.getContent());
     }
 
