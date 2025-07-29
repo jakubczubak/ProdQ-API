@@ -38,38 +38,34 @@ public class MachineQueueFileGeneratorService {
     }
 
     /**
-     * Generuje plik tekstowy z listą programów dla danej maszyny w formacie:
+     * Generuje plik tekstowy z listą programów dla danej maszyny, zapisuje go na dysku
+     * i ZWRACA jego zawartość jako String.
+     * <p>
+     * Format pliku:
      * "pozycja./orderName/partName/załącznik id: ID | [status]"
      * Ilość jest dodawana w nagłówku programu w formacie: "Ilość: ilość szt"
      * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "/** Uwagi: additionalInfo "
      * Jeśli istnieje author, jest dodawane w formacie: "Autor: sanitized_author"
      * Długie additionalInfo są dzielone na linie po maksymalnie 80 znaków.
-     * Informacje o przygotówce są dodawane w jednej linii w formacie:
-     * - Płyta: "<materialTypeName> | Płyta | <x> x <y> x <z> mm"
-     * - Rura: "<materialTypeName> | Rura | ∅<diameter> x ∅<innerDiameter> x <length> mm"
-     * - Pręt: "<materialTypeName> | Pręt | ∅<diameter> x <length> mm"
-     * Jeśli przygotówka jest niezdefiniowana (brak danych lub wymiary = 0/null), linia przygotówki jest pomijana.
+     * Informacje o przygotówce są dodawane w jednej linii.
      * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
-     * Programy są sortowane według pola 'order', a załączniki według pola 'order'.
-     * Status załącznika to [OK] lub [NOK], oddzielony znakiem '|'.
-     * orderName, partName i mpfFileName nie są skracane.
-     * Plik zawiera instrukcje, datę generowania, nagłówki programów, separatory między programami i informację o pustej kolejce.
      *
      * @param queueType ID maszyny (jako String)
+     * @return Zawartość wygenerowanego pliku kolejki jako String.
      * @throws IOException jeśli operacja na pliku się nie powiedzie
      */
-    public void generateQueueFileForMachine(String queueType) throws IOException {
+    public String generateQueueFileForMachine(String queueType) throws IOException {
 
         logger.info("Generowanie pliku kolejki dla queueType: {}", queueType);
         if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
-            return;
+            return "";
         }
 
         try {
             Integer machineId = Integer.parseInt(queueType);
             Optional<Machine> machineOpt = machineRepository.findById(machineId);
             if (machineOpt.isEmpty()) {
-                return;
+                return "";
             }
 
             Machine machine = machineOpt.get();
@@ -113,18 +109,13 @@ public class MachineQueueFileGeneratorService {
                         List.of();
 
                 if (!mpfFiles.isEmpty()) {
-                    // Wersje "surowe" dla nagłówka
                     String rawOrderName = program.getOrderName() != null ? program.getOrderName() : "";
                     String rawPartName = program.getPartName() != null ? program.getPartName() : "NoPartName_" + program.getId();
                     String additionalInfo = program.getAdditionalInfo() != null ? program.getAdditionalInfo() : "";
                     String author = program.getAuthor() != null ? program.getAuthor() : "";
-
-                    // Wersje "oczyszczone" dla ścieżek
                     String sanitizedOrderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
                     String sanitizedPartName = sanitizeFileName(program.getPartName(), "NoPartName_" + program.getId());
-
                     int quantity = program.getQuantity();
-
                     String preparationInfo = buildPreparationInfoString(program);
 
                     System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + rawPartName + ", order: " + program.getOrder());
@@ -146,8 +137,7 @@ public class MachineQueueFileGeneratorService {
                     if (!additionalInfo.isEmpty()) {
                         content.append(wrapCommentWithPrefix(additionalInfo, "Uwagi: "));
                     }
-                    content.append(" */\n");
-                    content.append("\n");
+                    content.append(" */\n\n");
 
                     if (lastPartName != null && !rawPartName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
                         content.append("\n");
@@ -172,25 +162,27 @@ public class MachineQueueFileGeneratorService {
                 }
             }
 
-            // NOWA, POPRAWIONA WERSJA
             boolean programsAdded = programs.stream().anyMatch(p -> p.getFiles() != null && !p.getFiles().isEmpty() && p.getFiles().stream().anyMatch(f -> f.getFileName().toLowerCase().endsWith(".mpf")));
 
             if (programsAdded) {
                 Files.writeString(filePath, content.toString());
             } else {
-                // Ta jedna linia zastępuje całą logikę usuwania i tworzenia.
-                // Utworzy nowy plik lub nadpisze istniejący, eliminując błędy.
-                Files.writeString(filePath,
-                        "# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n" +
-                                "# Przykład: zmień '[NOK]' na '[OK]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
-                                "# Ścieżka /orderName/partName/załącznik wskazuje lokalizację programu.\n" +
-                                "# Błędy w formacie linii mogą zostać zignorowane przez system.\n" +
-                                String.format("# Wygenerowano: %s\n",
-                                        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
-                                "# Brak programów w kolejce dla tej maszyny.\n");
+                String emptyQueueContent = "# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n" +
+                        "# Przykład: zmień '[NOK]' na '[OK]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
+                        "# Ścieżka /orderName/partName/załącznik wskazuje lokalizację programu.\n" +
+                        "# Błędy w formacie linii mogą zostać zignorowane przez system.\n" +
+                        String.format("# Wygenerowano: %s\n",
+                                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
+                        "# Brak programów w kolejce dla tej maszyny.\n";
+                Files.writeString(filePath, emptyQueueContent);
+                content.setLength(0);
+                content.append(emptyQueueContent);
             }
+
+            return content.toString();
+
         } catch (NumberFormatException e) {
-            // Ignoruj, jeśli queueType nie jest liczbą
+            return "";
         }
     }
 

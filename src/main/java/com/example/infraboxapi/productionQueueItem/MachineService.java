@@ -191,10 +191,6 @@ public class MachineService {
         return computeDirectoryStructureHash(locations);
     }
 
-    /**
-     * This is the core method for scanning directories. It is resistant to AccessDeniedException.
-     * It retrieves directory locations from the cache or scans the filesystem if the cache is empty.
-     */
     private List<String> getDirectoryLocations() {
         List<String> cachedLocations = locationsCache.getIfPresent(CNC_ROOT_DIR_CACHE_KEY);
         if (cachedLocations != null) {
@@ -228,10 +224,6 @@ public class MachineService {
         }
     }
 
-    /**
-     * A FileVisitor that ignores directories it cannot access (AccessDeniedException)
-     * instead of terminating the entire walk.
-     */
     private class AccessGuardedFileVisitor extends SimpleFileVisitor<Path> {
         private final List<String> locations;
         private final Path mountDir;
@@ -243,7 +235,6 @@ public class MachineService {
 
         @Override
         public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-            // Limit directory depth
             if (mountDir.relativize(dir).getNameCount() >= DIRECTORY_SCAN_DEPTH) {
                 return FileVisitResult.SKIP_SUBTREE;
             }
@@ -259,7 +250,6 @@ public class MachineService {
         public FileVisitResult visitFileFailed(Path file, IOException exc) {
             if (exc instanceof AccessDeniedException) {
                 logger.warn("Access denied to directory, skipping: {}. Reason: {}", file, exc.getMessage());
-                // If access is denied to a directory, we skip its entire subtree.
                 return FileVisitResult.SKIP_SUBTREE;
             }
             logger.error("Error visiting file/directory: {}", file, exc);
@@ -274,7 +264,7 @@ public class MachineService {
         }
         try {
             MessageDigest digest = MessageDigest.getInstance("MD5");
-            String combined = String.join(";", locations); // Use a separator for robustness
+            String combined = String.join(";", locations);
             byte[] hashBytes = digest.digest(combined.getBytes());
             StringBuilder hexString = new StringBuilder();
             for (byte b : hashBytes) {
@@ -350,11 +340,7 @@ public class MachineService {
 
         List<ProductionQueueItem> programs = productionQueueItemService.findByQueueType(String.valueOf(machineId), Pageable.unpaged()).getContent();
 
-        if (programs.stream().allMatch(p -> p.getFiles().isEmpty())) {
-            return ResponseEntity.noContent().build();
-        }
-
-        byte[] zipBytes = createZipArchive(programs, machine.getMachineName());
+        byte[] zipBytes = createZipArchive(programs, machine);
         String zipFileName = machine.getMachineName().replaceAll("[^a-zA-Z0-9_\\-.]", "_") + ".zip";
 
         return ResponseEntity.ok()
@@ -363,16 +349,29 @@ public class MachineService {
                 .body(zipBytes);
     }
 
-    private byte[] createZipArchive(List<ProductionQueueItem> programs, String machineName) throws IOException {
+    private byte[] createZipArchive(List<ProductionQueueItem> programs, Machine machine) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+
+            // Wywołaj istniejącą, zmodyfikowaną metodę, aby zapisać plik ORAZ pobrać jego treść.
+            String queueContent = machineQueueFileGeneratorService.generateQueueFileForMachine(String.valueOf(machine.getId()));
+
+            // Sprawdź, czy treść została pomyślnie wygenerowana.
+            if (queueContent != null && !queueContent.isEmpty()) {
+                // Utwórz wpis ZIP i dodaj do niego treść kolejki.
+                ZipEntry queueFileEntry = new ZipEntry(machine.getMachineName() + ".txt");
+                zos.putNextEntry(queueFileEntry);
+                zos.write(queueContent.getBytes());
+                zos.closeEntry();
+            }
+
             for (ProductionQueueItem program : programs) {
                 String orderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
                 String partName = sanitizeFileName(program.getPartName(), "NoPartName_" + program.getId());
 
                 for (ProductionFileInfo file : program.getFiles()) {
                     String fileName = file.getFileName();
-                    String entryPath = String.format("%s/%s/%s/%s", machineName, orderName, partName, fileName);
+                    String entryPath = String.format("%s/%s/%s", orderName, partName, fileName);
 
                     zos.putNextEntry(new ZipEntry(entryPath));
 
