@@ -537,30 +537,50 @@ public class ProductionQueueItemService {
         logger.info("Moving completed programs for machine ID: {}", machineId);
         String queueType = String.valueOf(machineId);
         List<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent();
-        List<ProductionQueueItem> completedItems = items.stream()
+        List<ProductionQueueItem> itemsToMove = items.stream()
                 .filter(ProductionQueueItem::isCompleted)
                 .collect(Collectors.toList());
 
-        if (completedItems.isEmpty()) {
+        if (itemsToMove.isEmpty()) {
             logger.info("No completed programs to move for machine ID: {}", machineId);
             return Collections.emptyList();
         }
 
-        Integer maxCompletedOrder = productionQueueItemRepository.findMaxOrderByQueueType("completed");
-        int nextOrder = maxCompletedOrder != null ? maxCompletedOrder + 1 : 1;
+        // --- START: CORRECTED LOGIC ---
 
-        for (ProductionQueueItem item : completedItems) {
-            String oldQueueType = item.getQueueType();
-            item.setQueueType("completed");
-            item.setOrder(nextOrder++);
-            syncAttachmentsToMachinePath(item);
-            productionQueueItemRepository.save(item);
-            logger.info("Moved program ID: {} from queueType: {} to completed", item.getId(), oldQueueType);
+        // 1. Get all items currently in the "completed" queue.
+        List<ProductionQueueItem> existingCompletedQueue = productionQueueItemRepository
+                .findByQueueType("completed", Pageable.unpaged()).getContent();
+
+        // 2. Create a list for all items that will be updated.
+        List<ProductionQueueItem> itemsToSave = new ArrayList<>();
+
+        // 3. Shift the order of existing items to make space at the beginning.
+        int shiftAmount = itemsToMove.size();
+        for (ProductionQueueItem existingItem : existingCompletedQueue) {
+            existingItem.setOrder(existingItem.getOrder() + shiftAmount);
+            itemsToSave.add(existingItem);
         }
 
+        // 4. Set the new order for the items being moved, placing them at the top.
+        int newOrder = 0;
+        for (ProductionQueueItem item : itemsToMove) {
+            String oldQueueType = item.getQueueType();
+            item.setQueueType("completed");
+            item.setOrder(newOrder++);
+            itemsToSave.add(item);
+            logger.info("Moving program ID: {} from queueType: {} to completed with new order: {}", item.getId(), oldQueueType, item.getOrder());
+        }
+
+        // 5. Save all changes in one transaction.
+        productionQueueItemRepository.saveAll(itemsToSave);
+
+        // --- END: CORRECTED LOGIC ---
+
+
         Set<String> queueTypesToUpdate = new HashSet<>();
-        queueTypesToUpdate.add(queueType);
-        queueTypesToUpdate.add("completed");
+        queueTypesToUpdate.add(queueType); // The source machine queue
+        queueTypesToUpdate.add("completed"); // The destination queue
 
         for (String qt : queueTypesToUpdate) {
             logger.info("Synchronizing queue for queueType: {}", qt);
@@ -568,8 +588,9 @@ public class ProductionQueueItemService {
             machineQueueFileGeneratorService.generateQueueFileForMachine(qt);
         }
 
-        return completedItems;
+        return itemsToMove;
     }
+
 
     private boolean checkAllMpfCompleted(ProductionQueueItem item) {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
