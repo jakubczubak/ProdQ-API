@@ -3,14 +3,13 @@ package com.example.infraboxapi.productionQueueItem;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Pageable; // Upewnij się, że ten import istnieje
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -19,9 +18,6 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * Serwis odpowiedzialny za generowanie i aktualizację plików tekstowych z kolejką programów dla maszyn.
- */
 @Service
 public class MachineQueueFileGeneratorService {
 
@@ -29,31 +25,17 @@ public class MachineQueueFileGeneratorService {
 
     private final MachineRepository machineRepository;
     private final ProductionQueueItemRepository productionQueueItemRepository;
+    private final FileSystemService fileSystemService;
 
     public MachineQueueFileGeneratorService(
             MachineRepository machineRepository,
-            ProductionQueueItemRepository productionQueueItemRepository) {
+            ProductionQueueItemRepository productionQueueItemRepository,
+            FileSystemService fileSystemService) {
         this.machineRepository = machineRepository;
         this.productionQueueItemRepository = productionQueueItemRepository;
+        this.fileSystemService = fileSystemService;
     }
 
-    /**
-     * Generuje plik tekstowy z listą programów dla danej maszyny, zapisuje go na dysku
-     * i ZWRACA jego zawartość jako String.
-     * <p>
-     * Format pliku:
-     * "pozycja./orderName/partName/załącznik id: ID | [status]"
-     * Ilość jest dodawana w nagłówku programu w formacie: "Ilość: ilość szt"
-     * Jeśli istnieje additionalInfo, jest dodawane w osobnej linii przed programem w formacie: "/** Uwagi: additionalInfo "
-     * Jeśli istnieje author, jest dodawane w formacie: "Autor: sanitized_author"
-     * Długie additionalInfo są dzielone na linie po maksymalnie 80 znaków.
-     * Informacje o przygotówce są dodawane w jednej linii.
-     * Tylko załączniki z rozszerzeniem .MPF są uwzględniane.
-     *
-     * @param queueType ID maszyny (jako String)
-     * @return Zawartość wygenerowanego pliku kolejki jako String.
-     * @throws IOException jeśli operacja na pliku się nie powiedzie
-     */
     public String generateQueueFileForMachine(String queueType) throws IOException {
 
         logger.info("Generowanie pliku kolejki dla queueType: {}", queueType);
@@ -69,7 +51,7 @@ public class MachineQueueFileGeneratorService {
             }
 
             Machine machine = machineOpt.get();
-            String fileName = machine.getMachineName() + ".txt";
+            String fileName = fileSystemService.sanitizeName(machine.getMachineName(), "machine_queue") + ".txt";
             String cleanedPath = machine.getQueueFilePath().replaceFirst("^/+", "").replaceFirst("^cnc/?", "");
             String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
             Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
@@ -84,9 +66,6 @@ public class MachineQueueFileGeneratorService {
                     .stream()
                     .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
                     .collect(Collectors.toList());
-
-            System.out.println("Pobrane programy dla queueType " + queueType + ":");
-            programs.forEach(program -> System.out.println("ID: " + program.getId() + ", orderName: " + program.getOrderName() + ", partName: " + program.getPartName() + ", order: " + program.getOrder()));
 
             StringBuilder content = new StringBuilder();
             content.append("# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n");
@@ -113,12 +92,10 @@ public class MachineQueueFileGeneratorService {
                     String rawPartName = program.getPartName() != null ? program.getPartName() : "NoPartName_" + program.getId();
                     String additionalInfo = program.getAdditionalInfo() != null ? program.getAdditionalInfo() : "";
                     String author = program.getAuthor() != null ? program.getAuthor() : "";
-                    String sanitizedOrderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
-                    String sanitizedPartName = sanitizeFileName(program.getPartName(), "NoPartName_" + program.getId());
+                    String sanitizedOrderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
+                    String sanitizedPartName = fileSystemService.sanitizeName(program.getPartName(), "NoPartName_" + program.getId());
                     int quantity = program.getQuantity();
                     String preparationInfo = buildPreparationInfoString(program);
-
-                    System.out.println("Generowanie dla ID: " + program.getId() + ", partName: " + rawPartName + ", order: " + program.getOrder());
 
                     if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
                         content.append("\n---\n\n");
@@ -146,7 +123,7 @@ public class MachineQueueFileGeneratorService {
                     for (ProductionFileInfo mpfFile : mpfFiles) {
                         boolean isFileCompleted = mpfFile.isCompleted();
                         String status = isFileCompleted ? "[OK]" : "[NOK]";
-                        String mpfFileName = sanitizeFileName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
+                        String mpfFileName = fileSystemService.sanitizeName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
                         String entry = String.format("%d./%s/%s/%s id: %d | %s\n",
                                 position++,
                                 sanitizedOrderName,
@@ -184,24 +161,6 @@ public class MachineQueueFileGeneratorService {
         } catch (NumberFormatException e) {
             return "";
         }
-    }
-
-    private String sanitizeFileName(String name, String defaultName) {
-        if (name == null || name.trim().isEmpty()) {
-            return defaultName;
-        }
-        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
-        normalized = normalized.replaceAll("[ąĄ]", "a")
-                .replaceAll("[ćĆ]", "c")
-                .replaceAll("[ęĘ]", "e")
-                .replaceAll("[łŁ]", "l")
-                .replaceAll("[ńŃ]", "n")
-                .replaceAll("[óÓ]", "o")
-                .replaceAll("[śŚ]", "s")
-                .replaceAll("[źŹ]", "z")
-                .replaceAll("[żŻ]", "z");
-        return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
     }
 
     private String wrapCommentWithPrefix(String comment, String prefix) {

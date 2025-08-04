@@ -8,10 +8,9 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.*;
 import java.security.MessageDigest;
-import java.text.Normalizer;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.xml.bind.DatatypeConverter;
@@ -22,9 +21,32 @@ public class FileSystemService {
     private static final Logger logger = LoggerFactory.getLogger(FileSystemService.class);
 
     private final ProductionQueueItemRepository productionQueueItemRepository;
+    private final SanitizerFactory sanitizerFactory;
 
-    public FileSystemService(ProductionQueueItemRepository productionQueueItemRepository) {
+    public FileSystemService(ProductionQueueItemRepository productionQueueItemRepository, SanitizerFactory sanitizerFactory) {
         this.productionQueueItemRepository = productionQueueItemRepository;
+        this.sanitizerFactory = sanitizerFactory;
+    }
+
+    public String sanitizeName(String name, String defaultName) {
+        if (name == null || name.trim().isEmpty()) {
+            return defaultName;
+        }
+
+        // Pobierz strategię z fabryki (na razie na sztywno dla 'inframet')
+        FileNameSanitizerStrategy strategy = sanitizerFactory.getStrategy("inframet");
+
+        // Zdefiniuj opcje (w przyszłości mogą pochodzić z bazy danych)
+        Map<String, Object> options = Map.of("maxLength", 24);
+
+        // Użyj strategii do oczyszczenia nazwy
+        return strategy.sanitize(name, options);
+    }
+
+    public String sanitizeName(String name, String defaultName, boolean isMpf) {
+        // Ta metoda jest teraz uproszczona i wywołuje główną metodę.
+        // Parametr 'isMpf' nie jest już potrzebny tutaj, bo decyduje o tym strategia.
+        return sanitizeName(name, defaultName);
     }
 
     public void synchronizeFiles(String programPath, String orderName, String partName, List<ProductionFileInfo> files) throws IOException {
@@ -65,7 +87,6 @@ public class FileSystemService {
                     Path sourceFilePath = Paths.get(file.getFilePath());
                     Path destinationFilePath = basePath.resolve(fileName);
 
-                    // Sprawdź, czy plik w katalogu docelowym istnieje i czy jego zawartość jest taka sama jak w źródle
                     if (Files.exists(destinationFilePath) && isFileAccessible(destinationFilePath) && contentMatches(destinationFilePath, sourceFilePath)) {
                         logger.debug("File content in {} is unchanged, skipping write", destinationFilePath);
                         continue;
@@ -87,7 +108,7 @@ public class FileSystemService {
                     Path filePath = basePath.resolve(diskFile);
                     if (isFileAccessible(filePath)) {
                         Files.deleteIfExists(filePath);
-                        logger.debug("Deleted unused file: {}, time: {}", filePath, Instant.now());
+                        logger.debug("Deleted unused file: {}", filePath);
                     } else {
                         logger.warn("Cannot delete file {}, it is locked", filePath);
                     }
@@ -101,7 +122,7 @@ public class FileSystemService {
                     Path filePath = basePath.resolve(fileName);
 
                     if (!Files.exists(tempFilePath)) {
-                        continue; // Plik nie został zapisany (zawartość bez zmian)
+                        continue;
                     }
 
                     if (Files.exists(filePath)) {
@@ -116,7 +137,7 @@ public class FileSystemService {
                     try {
                         logger.debug("Attempting to move file from {} to {}", tempFilePath, filePath);
                         Files.move(tempFilePath, filePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                        logger.debug("Wrote file: {}, size: {} bytes, time: {}", filePath, file.getFileSize(), Instant.now());
+                        logger.debug("Wrote file: {}, size: {} bytes", filePath, file.getFileSize());
                     } catch (IOException e) {
                         logger.error("Error moving file from {} to {}: {}", tempFilePath, filePath, e.getMessage());
                         throw new IOException("Failed to move file: " + tempFilePath + " -> " + filePath, e);
@@ -236,67 +257,6 @@ public class FileSystemService {
             logger.warn("Directory {} is inaccessible (likely locked): {}", dirPath, e.getMessage(), e);
             return false;
         }
-    }
-
-    public String sanitizeName(String name, String defaultName, boolean isMpf) {
-        if (name == null || name.trim().isEmpty()) {
-            return defaultName;
-        }
-
-        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
-                .replaceAll("[ąĄ]", "a")
-                .replaceAll("[ćĆ]", "c")
-                .replaceAll("[ęĘ]", "e")
-                .replaceAll("[łŁ]", "l")
-                .replaceAll("[ńŃ]", "n")
-                .replaceAll("[óÓ]", "o")
-                .replaceAll("[śŚ]", "s")
-                .replaceAll("[źŹ]", "z")
-                .replaceAll("[żŻ]", "z");
-
-        String sanitized = normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
-
-        if (isMpf) {
-            String ext = ".MPF";
-            String nameWithoutExt = sanitized.replaceAll("(\\.MPF)+$", "");
-            String suffix = "";
-            String baseName = nameWithoutExt;
-            String macPattern = "_[Mm][Aa][Cc]\\d+";
-            String subPattern = "_[A-Za-z]";
-            String versionPattern = "_[Vv]\\d+";
-
-            if (nameWithoutExt.matches(".*" + macPattern + subPattern + versionPattern + "$")) {
-                int macIndex = nameWithoutExt.toLowerCase().lastIndexOf("_mac");
-                suffix = nameWithoutExt.substring(macIndex);
-                baseName = nameWithoutExt.substring(0, macIndex);
-            } else if (nameWithoutExt.matches(".*" + macPattern + subPattern + "$")) {
-                int macIndex = nameWithoutExt.toLowerCase().lastIndexOf("_mac");
-                suffix = nameWithoutExt.substring(macIndex);
-                baseName = nameWithoutExt.substring(0, macIndex);
-            } else if (nameWithoutExt.matches(".*" + macPattern + "$")) {
-                int macIndex = nameWithoutExt.toLowerCase().lastIndexOf("_mac");
-                suffix = nameWithoutExt.substring(macIndex);
-                baseName = nameWithoutExt.substring(0, macIndex);
-            }
-
-            int maxBaseLength = 24 - suffix.length() - ext.length();
-            if (maxBaseLength < 0) {
-                maxBaseLength = 0;
-            }
-
-            if (baseName.length() > maxBaseLength) {
-                baseName = baseName.substring(0, maxBaseLength);
-            }
-
-            return baseName + suffix + ext;
-        }
-
-        return sanitized;
-    }
-
-    public String sanitizeName(String name, String defaultName) {
-        return sanitizeName(name, defaultName, false);
     }
 
     private void validateAttachment(ProductionFileInfo file) {

@@ -42,6 +42,7 @@ public class MachineService {
     private final FileImageService fileImageService;
     private final ProductionQueueItemService productionQueueItemService;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
+    private final FileSystemService fileSystemService;
     private final Cache<String, List<String>> locationsCache = CacheBuilder.newBuilder()
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .build();
@@ -50,11 +51,13 @@ public class MachineService {
             MachineRepository machineRepository,
             FileImageService fileImageService,
             ProductionQueueItemService productionQueueItemService,
-            MachineQueueFileGeneratorService machineQueueFileGeneratorService) {
+            MachineQueueFileGeneratorService machineQueueFileGeneratorService,
+            FileSystemService fileSystemService) {
         this.machineRepository = Objects.requireNonNull(machineRepository, "MachineRepository cannot be null");
         this.fileImageService = Objects.requireNonNull(fileImageService, "FileImageService cannot be null");
         this.productionQueueItemService = Objects.requireNonNull(productionQueueItemService, "ProductionQueueItemService cannot be null");
         this.machineQueueFileGeneratorService = Objects.requireNonNull(machineQueueFileGeneratorService, "MachineQueueFileGeneratorService cannot be null");
+        this.fileSystemService = Objects.requireNonNull(fileSystemService, "FileSystemService cannot be null");
         logger.info("MachineService initialized successfully");
     }
 
@@ -257,7 +260,6 @@ public class MachineService {
         }
     }
 
-
     private String computeDirectoryStructureHash(List<String> locations) {
         if (locations == null || locations.isEmpty()) {
             return "empty";
@@ -341,7 +343,7 @@ public class MachineService {
         List<ProductionQueueItem> programs = productionQueueItemService.findByQueueType(String.valueOf(machineId), Pageable.unpaged()).getContent();
 
         byte[] zipBytes = createZipArchive(programs, machine);
-        String zipFileName = machine.getMachineName().replaceAll("[^a-zA-Z0-9_\\-.]", "_") + ".zip";
+        String zipFileName = fileSystemService.sanitizeName(machine.getMachineName(), "archive") + ".zip";
 
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=\"" + zipFileName + "\"")
@@ -353,21 +355,18 @@ public class MachineService {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zos = new ZipOutputStream(baos)) {
 
-            // Wywołaj istniejącą, zmodyfikowaną metodę, aby zapisać plik ORAZ pobrać jego treść.
             String queueContent = machineQueueFileGeneratorService.generateQueueFileForMachine(String.valueOf(machine.getId()));
 
-            // Sprawdź, czy treść została pomyślnie wygenerowana.
             if (queueContent != null && !queueContent.isEmpty()) {
-                // Utwórz wpis ZIP i dodaj do niego treść kolejki.
-                ZipEntry queueFileEntry = new ZipEntry(machine.getMachineName() + ".txt");
+                ZipEntry queueFileEntry = new ZipEntry(fileSystemService.sanitizeName(machine.getMachineName(), "queue") + ".txt");
                 zos.putNextEntry(queueFileEntry);
                 zos.write(queueContent.getBytes());
                 zos.closeEntry();
             }
 
             for (ProductionQueueItem program : programs) {
-                String orderName = sanitizeFileName(program.getOrderName(), "NoOrderName_" + program.getId());
-                String partName = sanitizeFileName(program.getPartName(), "NoPartName_" + program.getId());
+                String orderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
+                String partName = fileSystemService.sanitizeName(program.getPartName(), "NoPartName_" + program.getId());
 
                 for (ProductionFileInfo file : program.getFiles()) {
                     String fileName = file.getFileName();
@@ -385,12 +384,5 @@ public class MachineService {
             }
         }
         return baos.toByteArray();
-    }
-
-    private String sanitizeFileName(String name, String defaultName) {
-        if (name == null || name.trim().isEmpty()) {
-            return defaultName;
-        }
-        return name.replaceAll("[^a-zA-Z0-9_\\-]", "_");
     }
 }

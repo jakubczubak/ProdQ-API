@@ -1,7 +1,6 @@
 package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
-import com.example.infraboxapi.FileProductionItem.ProductionFileInfoRepository;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
 import com.example.infraboxapi.user.User;
 import com.example.infraboxapi.user.UserRepository;
@@ -33,33 +32,30 @@ public class ProductionQueueItemService {
 
     private final ProductionQueueItemRepository productionQueueItemRepository;
     private final ProductionFileInfoService productionFileInfoService;
-    private final ProductionFileInfoRepository productionFileInfoRepository;
     private final MachineRepository machineRepository;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
     private final FileWatcherService fileWatcherService;
     private final FileSystemService fileSystemService;
     private final UserRepository userRepository;
 
-    @Value("${file.upload-dir:Uploads}") // Domyślna wartość: "Uploads"
+    @Value("${file.upload-dir:Uploads}")
     private String uploadDir;
 
     @Autowired
     public ProductionQueueItemService(
             ProductionQueueItemRepository productionQueueItemRepository,
             ProductionFileInfoService productionFileInfoService,
-            ProductionFileInfoRepository productionFileInfoRepository,
             MachineRepository machineRepository,
             MachineQueueFileGeneratorService machineQueueFileGeneratorService,
             FileWatcherService fileWatcherService,
-            ProductionQueueItemRepository productionQueueItemRepositoryForFileSystem,
+            FileSystemService fileSystemService,
             UserRepository userRepository) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
-        this.productionFileInfoRepository = productionFileInfoRepository;
         this.machineRepository = machineRepository;
         this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
         this.fileWatcherService = fileWatcherService;
-        this.fileSystemService = new FileSystemService(productionQueueItemRepositoryForFileSystem);
+        this.fileSystemService = fileSystemService;
         this.userRepository = userRepository;
     }
 
@@ -92,21 +88,19 @@ public class ProductionQueueItemService {
             logger.info("Attachment order before saving in save method for partName: {}", sanitizedPartName);
             for (MultipartFile file : files) {
                 String originalFileName = file.getOriginalFilename();
-                String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
+                String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN");
                 Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
                 logger.info("File: {}, order: {}", sanitizedFileName, fileOrder);
             }
 
-            // Zapisz pliki na dysku i utwórz rekordy ProductionFileInfo
             String basePath = getBaseFilePath(savedItem);
             Files.createDirectories(Paths.get(basePath));
 
             for (MultipartFile file : files) {
                 String originalFileName = file.getOriginalFilename();
-                String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
+                String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN");
                 Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
 
-                // Zapisz plik na dysku
                 Path filePath = Paths.get(basePath, sanitizedFileName);
                 Files.write(filePath, file.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                 logger.debug("Saved file to: {}", filePath);
@@ -122,7 +116,7 @@ public class ProductionQueueItemService {
                         .build();
                 fileInfos.add(fileInfo);
             }
-            savedItem.setFiles(fileInfos);
+            savedItem.getFiles().addAll(fileInfos);
             productionFileInfoService.saveAll(fileInfos);
         }
 
@@ -139,13 +133,10 @@ public class ProductionQueueItemService {
     @Transactional
     public ProductionQueueItem update(Integer id, ProductionQueueItem updatedItem, List<MultipartFile> files, String fileOrderMapping) throws IOException {
         validateQueueType(updatedItem.getQueueType());
-        Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findById(id);
+        Optional<ProductionQueueItem> existingItemOpt = productionQueueItemRepository.findByIdWithFiles(id);
         if (existingItemOpt.isPresent()) {
             ProductionQueueItem existingItem = existingItemOpt.get();
             String oldQueueType = existingItem.getQueueType();
-
-            logger.info("Updating queue item ID: {}, current order: {}, queueType: {}", id, existingItem.getOrder(), existingItem.getQueueType());
-            logger.info("New order value from updatedItem: {}", updatedItem.getOrder());
 
             existingItem.setType(updatedItem.getType());
             existingItem.setSubtype(updatedItem.getSubtype());
@@ -173,31 +164,26 @@ public class ProductionQueueItemService {
 
             if (updatedItem.getOrder() != null) {
                 existingItem.setOrder(updatedItem.getOrder());
-            } else {
-                logger.debug("updatedItem.getOrder() is null, retaining original order value: {}", existingItem.getOrder());
             }
 
-            logger.info("Order of existing attachments before update for ID: {}", id);
-            for (ProductionFileInfo file : existingItem.getFiles()) {
-                logger.info("File: {}, order: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
-            }
-
-            Map<String, Integer> orderMap = parseFileOrderMapping(fileOrderMapping);
             if (files != null && !files.isEmpty()) {
-                List<ProductionFileInfo> fileInfos = new ArrayList<>();
-                logger.info("Order of new attachments before saving for ID: {}", id);
-
+                Map<String, Integer> orderMapForNewFiles = parseFileOrderMapping(fileOrderMapping);
                 String basePath = getBaseFilePath(existingItem);
                 Files.createDirectories(Paths.get(basePath));
 
+                Integer maxOrder = existingItem.getFiles().stream()
+                        .map(ProductionFileInfo::getOrder)
+                        .filter(Objects::nonNull)
+                        .max(Integer::compare)
+                        .orElse(-1);
+
                 for (MultipartFile file : files) {
+                    maxOrder++;
                     String originalFileName = file.getOriginalFilename();
-                    String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN", originalFileName != null && originalFileName.toLowerCase().endsWith(".mpf"));
-                    Integer fileOrder = orderMap.getOrDefault(sanitizedFileName, fileInfos.size());
+                    String sanitizedFileName = fileSystemService.sanitizeName(originalFileName, "UNKNOWN");
 
                     Path filePath = Paths.get(basePath, sanitizedFileName);
                     Files.write(filePath, file.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-                    logger.debug("Saved file to: {}", filePath);
 
                     ProductionFileInfo fileInfo = ProductionFileInfo.builder()
                             .fileName(sanitizedFileName)
@@ -206,36 +192,32 @@ public class ProductionQueueItemService {
                             .filePath(filePath.toString())
                             .productionQueueItem(existingItem)
                             .completed(false)
-                            .order(fileOrder)
+                            .order(maxOrder)
                             .build();
-                    fileInfos.add(fileInfo);
+                    existingItem.getFiles().add(fileInfo);
                 }
-                existingItem.getFiles().addAll(fileInfos);
-                productionFileInfoService.saveAll(fileInfos);
             }
 
+            Map<String, Integer> orderMap = parseFileOrderMapping(fileOrderMapping);
             if (orderMap != null && !orderMap.isEmpty()) {
-                for (ProductionFileInfo file : existingItem.getFiles()) {
-                    Integer newOrder = orderMap.get(file.getFileName());
-                    if (newOrder != null) {
-                        file.setOrder(newOrder);
-                    }
+                List<ProductionFileInfo> filesToSort = new ArrayList<>(existingItem.getFiles());
+                filesToSort.sort(Comparator.comparing(file -> orderMap.getOrDefault(file.getFileName(), Integer.MAX_VALUE)));
+
+                existingItem.getFiles().clear();
+
+                for (int i = 0; i < filesToSort.size(); i++) {
+                    ProductionFileInfo file = filesToSort.get(i);
+                    file.setOrder(i);
+                    existingItem.getFiles().add(file);
                 }
             }
-
-            logger.info("Order of attachments after update for ID: {}", id);
-            for (ProductionFileInfo file : existingItem.getFiles()) {
-                logger.info("File: {}, order: {}, ID: {}", file.getFileName(), file.getOrder(), file.getId());
-            }
-            logger.info("After updating queue item ID: {}, order: {}, queueType: {}", id, existingItem.getOrder(), existingItem.getQueueType());
 
             existingItem.setCompleted(updatedItem.isCompleted());
             if (existingItem.getFiles() != null) {
-                for (ProductionFileInfo file : existingItem.getFiles()) {
-                    if (file.getFileName().toLowerCase().endsWith(".mpf")) {
-                        file.setCompleted(updatedItem.isCompleted());
-                    }
-                }
+                boolean allMpfCompleted = existingItem.getFiles().stream()
+                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
+                        .allMatch(ProductionFileInfo::isCompleted);
+                existingItem.setCompleted(allMpfCompleted);
             }
 
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
@@ -244,12 +226,10 @@ public class ProductionQueueItemService {
             Set<String> queueTypesToUpdate = new HashSet<>();
             queueTypesToUpdate.add(savedItem.getQueueType());
             if (!oldQueueType.equals(savedItem.getQueueType())) {
-                logger.info("Added old queueType for update: {}", oldQueueType);
                 queueTypesToUpdate.add(oldQueueType);
             }
 
             for (String queueType : queueTypesToUpdate) {
-                logger.info("Synchronizing queue for queueType: {}", queueType);
                 fileWatcherService.checkQueueFile(queueType);
                 machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
             }
@@ -327,8 +307,6 @@ public class ProductionQueueItemService {
     }
 
     private boolean isPartNameDuplicate(String queueType, String partName) {
-        // Ta metoda może wymagać optymalizacji, jeśli stanie się wąskim gardłem.
-        // Na razie sprawdzamy po wszystkich elementach danego typu.
         return productionQueueItemRepository.findAll().stream()
                 .filter(item -> item.getQueueType().equals(queueType))
                 .anyMatch(item -> {
@@ -360,7 +338,6 @@ public class ProductionQueueItemService {
         }
         Page<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType, pageable);
 
-        // ✨ POPRAWIONA LOGIKA LOGOWANIA ✨
         if (pageable.isPaged()) {
             logger.debug("Found {} items on page {} for queueType: {}", items.getNumberOfElements(), pageable.getPageNumber(), queueType);
         } else {
@@ -446,7 +423,6 @@ public class ProductionQueueItemService {
         Machine machine = machineOpt.get();
         fileWatcherService.checkQueueFile(queueType);
 
-        // Fetching all items for a machine queue - should be OK if machine queues are not huge
         List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent();
         for (ProductionQueueItem program : programs) {
             String orderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
@@ -546,23 +522,17 @@ public class ProductionQueueItemService {
             return Collections.emptyList();
         }
 
-        // --- START: CORRECTED LOGIC ---
-
-        // 1. Get all items currently in the "completed" queue.
         List<ProductionQueueItem> existingCompletedQueue = productionQueueItemRepository
                 .findByQueueType("completed", Pageable.unpaged()).getContent();
 
-        // 2. Create a list for all items that will be updated.
         List<ProductionQueueItem> itemsToSave = new ArrayList<>();
 
-        // 3. Shift the order of existing items to make space at the beginning.
         int shiftAmount = itemsToMove.size();
         for (ProductionQueueItem existingItem : existingCompletedQueue) {
             existingItem.setOrder(existingItem.getOrder() + shiftAmount);
             itemsToSave.add(existingItem);
         }
 
-        // 4. Set the new order for the items being moved, placing them at the top.
         int newOrder = 0;
         for (ProductionQueueItem item : itemsToMove) {
             String oldQueueType = item.getQueueType();
@@ -572,15 +542,11 @@ public class ProductionQueueItemService {
             logger.info("Moving program ID: {} from queueType: {} to completed with new order: {}", item.getId(), oldQueueType, item.getOrder());
         }
 
-        // 5. Save all changes in one transaction.
         productionQueueItemRepository.saveAll(itemsToSave);
 
-        // --- END: CORRECTED LOGIC ---
-
-
         Set<String> queueTypesToUpdate = new HashSet<>();
-        queueTypesToUpdate.add(queueType); // The source machine queue
-        queueTypesToUpdate.add("completed"); // The destination queue
+        queueTypesToUpdate.add(queueType);
+        queueTypesToUpdate.add("completed");
 
         for (String qt : queueTypesToUpdate) {
             logger.info("Synchronizing queue for queueType: {}", qt);
@@ -590,7 +556,6 @@ public class ProductionQueueItemService {
 
         return itemsToMove;
     }
-
 
     private boolean checkAllMpfCompleted(ProductionQueueItem item) {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
