@@ -78,12 +78,17 @@ public class QueueSyncService {
 
         Path filePath = resolveQueueFilePath(machine);
 
+        // ZMIANA: Sprawdzamy statusy tylko jeśli plik istnieje i został zmodyfikowany
         if (isFileModified(filePath, queueType)) {
-            updateAttachmentStatuses(filePath);
+            if (Files.exists(filePath)) { // Dodatkowy warunek sprawdzający istnienie pliku
+                updateAttachmentStatuses(filePath);
+            }
         }
 
         String newContent = machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
 
+        // ZMIANA: Upewniamy się, że katalog docelowy istnieje, zanim zapiszemy plik
+        Files.createDirectories(filePath.getParent());
         Files.writeString(filePath, newContent);
         lastModifiedTimes.put(queueType, Files.getLastModifiedTime(filePath));
     }

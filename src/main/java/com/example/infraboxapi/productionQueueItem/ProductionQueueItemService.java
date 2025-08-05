@@ -37,6 +37,7 @@ public class ProductionQueueItemService {
     private final FileWatcherService fileWatcherService;
     private final FileSystemService fileSystemService;
     private final UserRepository userRepository;
+    private final ToolListGeneratorService toolListGeneratorService; // <-- DODANA ZALEŻNOŚĆ
 
     @Value("${file.upload-dir:Uploads}")
     private String uploadDir;
@@ -49,7 +50,8 @@ public class ProductionQueueItemService {
             MachineQueueFileGeneratorService machineQueueFileGeneratorService,
             FileWatcherService fileWatcherService,
             FileSystemService fileSystemService,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ToolListGeneratorService toolListGeneratorService) { // <-- DODANA ZALEŻNOŚĆ
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.machineRepository = machineRepository;
@@ -57,6 +59,7 @@ public class ProductionQueueItemService {
         this.fileWatcherService = fileWatcherService;
         this.fileSystemService = fileSystemService;
         this.userRepository = userRepository;
+        this.toolListGeneratorService = toolListGeneratorService; // <-- DODANA ZALEŻNOŚĆ
     }
 
     @Transactional
@@ -117,12 +120,9 @@ public class ProductionQueueItemService {
                 fileInfos.add(fileInfo);
             }
 
-            // --- POCZĄTEK POPRAWKI ---
-            // Inicjalizacja listy plików, jeśli jest `null`, aby zapobiec NullPointerException
             if (savedItem.getFiles() == null) {
                 savedItem.setFiles(new ArrayList<>());
             }
-            // --- KONIEC POPRAWKI ---
 
             savedItem.getFiles().addAll(fileInfos);
             productionFileInfoService.saveAll(fileInfos);
@@ -134,6 +134,14 @@ public class ProductionQueueItemService {
         syncAttachmentsToMachinePath(savedItem);
         fileWatcherService.checkQueueFile(savedItem.getQueueType());
         machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
+
+        // --- POCZĄTEK POPRAWKI ---
+        toolListGeneratorService.generateAndStoreToolList(savedItem)
+                .ifPresent(toolListInfo -> {
+                    savedItem.getFiles().add(toolListInfo);
+                    productionFileInfoService.save(toolListInfo);
+                });
+        // --- KONIEC POPRAWKI ---
 
         return savedItem;
     }
@@ -241,6 +249,14 @@ public class ProductionQueueItemService {
                 fileWatcherService.checkQueueFile(queueType);
                 machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
             }
+
+            // --- POCZĄTEK POPRAWKI ---
+            toolListGeneratorService.generateAndStoreToolList(savedItem)
+                    .ifPresent(toolListInfo -> {
+                        savedItem.getFiles().add(toolListInfo);
+                        productionFileInfoService.save(toolListInfo);
+                    });
+            // --- KONIEC POPRAWKI ---
 
             return savedItem;
         } else {
