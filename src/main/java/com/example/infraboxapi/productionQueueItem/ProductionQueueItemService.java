@@ -116,6 +116,14 @@ public class ProductionQueueItemService {
                         .build();
                 fileInfos.add(fileInfo);
             }
+
+            // --- POCZĄTEK POPRAWKI ---
+            // Inicjalizacja listy plików, jeśli jest `null`, aby zapobiec NullPointerException
+            if (savedItem.getFiles() == null) {
+                savedItem.setFiles(new ArrayList<>());
+            }
+            // --- KONIEC POPRAWKI ---
+
             savedItem.getFiles().addAll(fileInfos);
             productionFileInfoService.saveAll(fileInfos);
         }
