@@ -11,15 +11,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.Normalizer;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Serwis odpowiedzialny za sprawdzanie plików kolejki i aktualizację statusów załączników oraz programów w odpowiedzi na operacje użytkownika.
- */
 @Service
 public class FileWatcherService {
 
@@ -38,16 +34,10 @@ public class FileWatcherService {
         this.productionFileInfoService = productionFileInfoService;
     }
 
-    /**
-     * Sprawdza plik kolejki dla maszyny o podanym queueType i aktualizuje statusy załączników oraz programów.
-     *
-     * @param queueType ID maszyny (jako String)
-     */
     @Transactional
     public void checkQueueFile(String queueType) {
         logger.info("Sprawdzanie pliku kolejki dla queueType: {}", queueType);
         try {
-            // Pomiń dla ncQueue i completed
             if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
                 logger.debug("Pominięto sprawdzanie dla queueType: {}", queueType);
                 return;
@@ -63,144 +53,87 @@ public class FileWatcherService {
             Machine machine = machineOpt.get();
             Path queueFile = Paths.get(machine.getQueueFilePath(), machine.getMachineName() + ".txt").toAbsolutePath().normalize();
 
-            if (!Files.exists(queueFile)) {
-                logger.debug("Plik kolejki {} nie istnieje", queueFile);
-                return;
-            }
-            if (!Files.isReadable(queueFile)) {
-                logger.error("Brak uprawnień do odczytu pliku kolejki: {}", queueFile);
+            if (!Files.exists(queueFile) || !Files.isReadable(queueFile)) {
+                logger.warn("Plik kolejki {} nie istnieje lub jest nieodczytywalny", queueFile);
                 return;
             }
 
-            logger.info("Przetwarzanie pliku kolejki: {}", queueFile);
-            handleFileChange(queueFile, machine);
+            handleFileChange(queueFile);
 
         } catch (NumberFormatException e) {
-            logger.warn("Nieprawidłowy format queueType: {}", queueType);
+            logger.warn("Nieprawidłowy format queueType: {}", queueType, e);
         } catch (Exception e) {
             logger.error("Błąd podczas sprawdzania pliku kolejki dla queueType {}: {}", queueType, e.getMessage(), e);
         }
     }
 
-    /**
-     * Obsługuje zmianę pliku kolejki, aktualizując statusy załączników i programów.
-     *
-     * @param filePath ścieżka do pliku kolejki
-     * @param machine  maszyna powiązana z plikiem
-     */
     @Transactional
-    protected void handleFileChange(Path filePath, Machine machine) {
+    protected void handleFileChange(Path filePath) throws IOException {
         logger.info("Przetwarzanie pliku: {}", filePath);
-        try {
-            List<String> lines;
-            try {
-                lines = Files.readAllLines(filePath);
-                logger.debug("Odczytano {} linii z pliku {}", lines.size(), filePath);
-            } catch (IOException e) {
-                logger.error("Nie udało się odczytać pliku {}: {}", filePath, e.getMessage(), e);
-                return;
+        List<String> lines = Files.readAllLines(filePath);
+
+        Pattern idPattern = Pattern.compile("^\\s*ID Programu\\s*:\\s*(\\d+)");
+        Pattern filePattern = Pattern.compile("^\\d+\\.\\s+(.+?)\\s*\\|\\s*\\[(OK|NOK)]");
+
+        Integer currentProgramId = null;
+
+        for (String line : lines) {
+            if (line.trim().isEmpty()) continue;
+
+            Matcher idMatcher = idPattern.matcher(line);
+            if (idMatcher.find()) {
+                currentProgramId = Integer.parseInt(idMatcher.group(1));
+                logger.debug("Znaleziono ID programu w nagłówku: {}", currentProgramId);
+                continue;
             }
 
-            // Parser: pozycja./orderName/partName/fileName id:ID|[OK|NOK]
-            Pattern pattern = Pattern.compile(
-                    "^(\\d+)\\./([^/]+)/([^/]+)/([^\\s]+?\\.[mM][pP][fF](?:\\.[mM][pP][fF])?)\\s*id:\\s*(\\d+)\\s*\\|\\s*\\[(OK|NOK)]",
-                    Pattern.CASE_INSENSITIVE
-            );
-
-            for (String line : lines) {
-                String trimmedLine = line.trim();
-                // --- POCZĄTEK POPRAWKI ---
-                if (trimmedLine.isEmpty() || trimmedLine.startsWith("#") || trimmedLine.equals("---") ||
-                        trimmedLine.startsWith("/**") || trimmedLine.startsWith("Program:") || trimmedLine.equals("*/") ||
-                        trimmedLine.startsWith("Autor:") || trimmedLine.startsWith("Ilość:") || trimmedLine.startsWith("Uwagi:") ||
-                        trimmedLine.startsWith("Zamówienie:") || trimmedLine.startsWith("Nazwa elementu:") || trimmedLine.startsWith("Przygotówka:")) {
-                    // --- KONIEC POPRAWKI ---
-                    logger.debug("Pominięto linię: {}", trimmedLine);
-                    continue;
-                }
-
-                logger.debug("Parsowanie linii: {}", trimmedLine);
-                Matcher matcher = pattern.matcher(trimmedLine);
-                if (matcher.matches()) {
-                    String fileName = matcher.group(4);
-                    String partName = matcher.group(3);
-                    Integer programId = Integer.parseInt(matcher.group(5));
-                    boolean isCompleted = "OK".equalsIgnoreCase(matcher.group(6));
-
-                    logger.debug("Rozpoznano: fileName={}, partName={}, programId={}, status={}",
-                            fileName, partName, programId, isCompleted ? "OK" : "NOK");
-
-                    Optional<ProductionQueueItem> programOpt = productionQueueItemRepository.findByIdWithFiles(programId);
-                    if (programOpt.isPresent()) {
-                        ProductionQueueItem program = programOpt.get();
-                        // Wyszukaj plik z uwzględnieniem partName dla większej precyzji
-                        Optional<ProductionFileInfo> fileInfoOpt = program.getFiles().stream()
-                                .filter(f -> f.getFileName().equalsIgnoreCase(fileName) &&
-                                        program.getPartName().equalsIgnoreCase(partName))
-                                .findFirst();
-
-                        if (fileInfoOpt.isPresent()) {
-                            ProductionFileInfo fileInfo = fileInfoOpt.get();
-                            logger.debug("Baza: fileName={}, completed={}, Plik: status={}",
-                                    fileInfo.getFileName(), fileInfo.isCompleted(), isCompleted ? "OK" : "NOK");
-                            if (fileInfo.isCompleted() != isCompleted) {
-                                fileInfo.setCompleted(isCompleted);
-                                productionFileInfoService.save(fileInfo);
-                                logger.info("Zaktualizowano status pliku {} dla programu {} na {}", fileName, programId, isCompleted ? "OK" : "NOK");
-
-                                // Sprawdź, czy wszystkie załączniki .MPF są ukończone
-                                boolean allMpfCompleted = program.getFiles().stream()
-                                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
-                                        .allMatch(ProductionFileInfo::isCompleted);
-
-                                program.setCompleted(allMpfCompleted);
-                                productionQueueItemRepository.save(program);
-                                logger.info("Zaktualizowano status programu {} na completed={}", programId, allMpfCompleted);
-                            } else {
-                                logger.debug("Status pliku {} dla programu {} nie wymaga aktualizacji (baza: {}, plik: {})",
-                                        fileName, programId, fileInfo.isCompleted(), isCompleted);
-                            }
-                        } else {
-                            logger.warn("Nie znaleziono pliku {} dla programu {} z partName {} w bazie danych",
-                                    fileName, programId, partName);
-                        }
-                    } else {
-                        logger.warn("Nie znaleziono programu o ID {} w bazie danych", programId);
-                    }
-                } else {
-                    logger.warn("Niepoprawny format linii w pliku {}: '{}'", filePath, trimmedLine);
-                    logger.debug("Szczegóły niedopasowania: linia='{}', regex='{}'", trimmedLine, pattern.pattern());
-                }
+            if (line.trim().equals("---")) {
+                currentProgramId = null;
+                continue;
             }
-        } catch (Exception e) {
-            logger.error("Nieoczekiwany błąd podczas przetwarzania pliku {}: {}", filePath, e.getMessage(), e);
+
+            if (currentProgramId == null) {
+                continue;
+            }
+
+            Matcher fileMatcher = filePattern.matcher(line);
+            if (fileMatcher.matches()) {
+                String fileName = fileMatcher.group(1).trim();
+                boolean isCompleted = "OK".equalsIgnoreCase(fileMatcher.group(2));
+                updateFileStatus(currentProgramId, fileName, isCompleted);
+            }
         }
     }
 
-    /**
-     * Sanitizuje nazwę, usuwając polskie znaki i niedozwolone znaki.
-     *
-     * @param name nazwa do sanitizacji
-     * @return sanitizowana nazwa
-     */
-    private String sanitizeFileName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return "";
+    private void updateFileStatus(int programId, String fileName, boolean isCompleted) {
+        Optional<ProductionQueueItem> programOpt = productionQueueItemRepository.findByIdWithFiles(programId);
+        if (programOpt.isEmpty()) {
+            logger.warn("Nie znaleziono programu o ID {} w bazie danych", programId);
+            return;
         }
-        // Normalizuj znaki i usuń diakrytyki
-        String normalized = Normalizer.normalize(name.trim(), Normalizer.Form.NFD)
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
-        // Zastąp specyficzne polskie znaki
-        normalized = normalized.replaceAll("[ąĄ]", "a")
-                .replaceAll("[ćĆ]", "c")
-                .replaceAll("[ęĘ]", "e")
-                .replaceAll("[łŁ]", "l")
-                .replaceAll("[ńŃ]", "n")
-                .replaceAll("[óÓ]", "o")
-                .replaceAll("[śŚ]", "s")
-                .replaceAll("[źŹ]", "z")
-                .replaceAll("[żŻ]", "z");
-        // Usuń niedozwolone znaki
-        return normalized.replaceAll("[^a-zA-Z0-9_\\-\\.\\s]", "_");
+
+        ProductionQueueItem program = programOpt.get();
+        Optional<ProductionFileInfo> fileInfoOpt = program.getFiles().stream()
+                .filter(f -> f.getFileName().equalsIgnoreCase(fileName))
+                .findFirst();
+
+        if (fileInfoOpt.isPresent()) {
+            ProductionFileInfo fileInfo = fileInfoOpt.get();
+            if (fileInfo.isCompleted() != isCompleted) {
+                fileInfo.setCompleted(isCompleted);
+                productionFileInfoService.save(fileInfo);
+                logger.info("Zaktualizowano status pliku {} dla programu {} na {}", fileName, programId, isCompleted ? "OK" : "NOK");
+
+                boolean allMpfCompleted = program.getFiles().stream()
+                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
+                        .allMatch(ProductionFileInfo::isCompleted);
+
+                program.setCompleted(allMpfCompleted);
+                productionQueueItemRepository.save(program);
+                logger.info("Zaktualizowano status programu {} na completed={}", programId, allMpfCompleted);
+            }
+        } else {
+            logger.warn("Nie znaleziono pliku {} dla programu {} w bazie danych", fileName, programId);
+        }
     }
 }

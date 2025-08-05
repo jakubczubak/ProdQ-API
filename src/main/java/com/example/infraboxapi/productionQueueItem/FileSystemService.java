@@ -33,22 +33,18 @@ public class FileSystemService {
             return defaultName;
         }
 
-        // Pobierz strategię z fabryki (na razie na sztywno dla 'inframet')
         FileNameSanitizerStrategy strategy = sanitizerFactory.getStrategy("inframet");
 
-        // Zdefiniuj opcje (w przyszłości mogą pochodzić z bazy danych)
         Map<String, Object> options = Map.of("maxLength", 24);
 
-        // Użyj strategii do oczyszczenia nazwy
         return strategy.sanitize(name, options);
     }
 
     public String sanitizeName(String name, String defaultName, boolean isMpf) {
-        // Ta metoda jest teraz uproszczona i wywołuje główną metodę.
-        // Parametr 'isMpf' nie jest już potrzebny tutaj, bo decyduje o tym strategia.
         return sanitizeName(name, defaultName);
     }
 
+    // ... reszta pliku bez zmian
     public void synchronizeFiles(String programPath, String orderName, String partName, List<ProductionFileInfo> files) throws IOException {
         Path basePath = createDirectoryStructure(programPath, orderName, partName);
 
@@ -64,11 +60,6 @@ public class FileSystemService {
                 .map(path -> path.getFileName().toString())
                 .collect(Collectors.toSet())
                 : Collections.emptySet();
-        Set<String> currentAppFiles = files == null
-                ? Collections.emptySet()
-                : files.stream()
-                .map(ProductionFileInfo::getFileName)
-                .collect(Collectors.toSet());
 
         Path tempDir = Paths.get(basePath.toString(), ".temp_" + System.currentTimeMillis());
         try {
@@ -164,7 +155,6 @@ public class FileSystemService {
             }
         }
     }
-
     private boolean contentMatches(Path filePath1, Path filePath2) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");

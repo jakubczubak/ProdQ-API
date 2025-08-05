@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -37,8 +38,6 @@ public class MachineQueueFileGeneratorService {
     }
 
     public String generateQueueFileForMachine(String queueType) throws IOException {
-
-        logger.info("Generowanie pliku kolejki dla queueType: {}", queueType);
         if (queueType == null || "ncQueue".equals(queueType) || "completed".equals(queueType)) {
             return "";
         }
@@ -51,205 +50,183 @@ public class MachineQueueFileGeneratorService {
             }
 
             Machine machine = machineOpt.get();
-            String fileName = fileSystemService.sanitizeName(machine.getMachineName(), "machine_queue") + ".txt";
-            String cleanedPath = machine.getQueueFilePath().replaceFirst("^/+", "").replaceFirst("^cnc/?", "");
-            String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
-            Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
-                    ? Paths.get("/cnc")
-                    : Paths.get("./cnc");
-            Path resolvedPath = cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
-            Path filePath = resolvedPath.resolve(fileName);
+            Path filePath = resolvePath(machine);
 
             Files.createDirectories(filePath.getParent());
 
-            List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent()
-                    .stream()
-                    .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
-                    .collect(Collectors.toList());
+            List<ProductionQueueItem> programs = getSortedPrograms(queueType);
+            String content = buildFileContent(programs);
 
-            StringBuilder content = new StringBuilder();
-            content.append("# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n");
-            content.append("# Przykład: zmień '[NOK]' na '[OK]'. Nie zmieniaj ID, nazw ani innych danych!\n");
-            content.append("# Ścieżka /orderName/partName/załącznik wskazuje lokalizację programu.\n");
-            content.append("# Błędy w formacie linii mogą zostać zignorowane przez system.\n");
-            content.append(String.format("# Wygenerowano: %s\n\n",
-                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
-
-            int position = 1;
-            String lastPartName = null;
-            Integer lastProgramId = null;
-
-            for (ProductionQueueItem program : programs) {
-                List<ProductionFileInfo> mpfFiles = program.getFiles() != null ?
-                        program.getFiles().stream()
-                                .filter(file -> file.getFileName().toLowerCase().endsWith(".mpf"))
-                                .sorted(Comparator.comparing(ProductionFileInfo::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
-                                .collect(Collectors.toList()) :
-                        List.of();
-
-                if (!mpfFiles.isEmpty()) {
-                    String rawOrderName = program.getOrderName() != null ? program.getOrderName() : "";
-                    String rawPartName = program.getPartName() != null ? program.getPartName() : "NoPartName_" + program.getId();
-                    String additionalInfo = program.getAdditionalInfo() != null ? program.getAdditionalInfo() : "";
-                    String author = program.getAuthor() != null ? program.getAuthor() : "";
-                    String sanitizedOrderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
-                    String sanitizedPartName = fileSystemService.sanitizeName(program.getPartName(), "NoPartName_" + program.getId());
-                    int quantity = program.getQuantity();
-                    String preparationInfo = buildPreparationInfoString(program);
-
-                    if (lastProgramId != null && !lastProgramId.equals(program.getId())) {
-                        content.append("\n---\n\n");
-                    }
-
-                    content.append("/**\n");
-                    content.append(String.format("Zamówienie: %s\n", rawOrderName));
-                    content.append(String.format("Nazwa elementu: %s\n", rawPartName));
-                    if (!author.isEmpty()) {
-                        content.append(String.format("Autor: %s\n", author));
-                    }
-                    content.append(String.format("Ilość: %d szt\n", quantity));
-                    if (!preparationInfo.isEmpty()) {
-                        content.append(String.format("Przygotówka: %s\n", preparationInfo));
-                    }
-                    if (!additionalInfo.isEmpty()) {
-                        content.append(wrapCommentWithPrefix(additionalInfo, "Uwagi: "));
-                    }
-                    content.append(" */\n\n");
-
-                    if (lastPartName != null && !rawPartName.equals(lastPartName) && lastProgramId != null && lastProgramId.equals(program.getId())) {
-                        content.append("\n");
-                    }
-
-                    for (ProductionFileInfo mpfFile : mpfFiles) {
-                        boolean isFileCompleted = mpfFile.isCompleted();
-                        String status = isFileCompleted ? "[OK]" : "[NOK]";
-                        String mpfFileName = fileSystemService.sanitizeName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
-                        String entry = String.format("%d./%s/%s/%s id: %d | %s\n",
-                                position++,
-                                sanitizedOrderName,
-                                sanitizedPartName,
-                                mpfFileName,
-                                program.getId(),
-                                status);
-                        content.append(entry);
-                    }
-
-                    lastPartName = rawPartName;
-                    lastProgramId = program.getId();
-                }
-            }
-
-            boolean programsAdded = programs.stream().anyMatch(p -> p.getFiles() != null && !p.getFiles().isEmpty() && p.getFiles().stream().anyMatch(f -> f.getFileName().toLowerCase().endsWith(".mpf")));
-
-            if (programsAdded) {
-                Files.writeString(filePath, content.toString());
-            } else {
-                String emptyQueueContent = "# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n" +
-                        "# Przykład: zmień '[NOK]' na '[OK]'. Nie zmieniaj ID, nazw ani innych danych!\n" +
-                        "# Ścieżka /orderName/partName/załącznik wskazuje lokalizację programu.\n" +
-                        "# Błędy w formacie linii mogą zostać zignorowane przez system.\n" +
-                        String.format("# Wygenerowano: %s\n",
-                                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))) +
-                        "# Brak programów w kolejce dla tej maszyny.\n";
-                Files.writeString(filePath, emptyQueueContent);
-                content.setLength(0);
-                content.append(emptyQueueContent);
-            }
-
-            return content.toString();
+            Files.writeString(filePath, content);
+            return content;
 
         } catch (NumberFormatException e) {
+            logger.warn("Invalid queueType: {}", queueType, e);
             return "";
+        } catch (IOException e) {
+            logger.error("Error generating queue file for queueType {}: {}", queueType, e.getMessage(), e);
+            throw e;
         }
     }
 
-    private String wrapCommentWithPrefix(String comment, String prefix) {
-        final int MAX_LINE_LENGTH = 80;
-        StringBuilder wrapped = new StringBuilder();
-        String[] words = comment.split("\\s+");
-        StringBuilder currentLine = new StringBuilder(prefix);
-        boolean firstLine = true;
+    private Path resolvePath(Machine machine) {
+        String fileName = fileSystemService.sanitizeName(machine.getMachineName(), "machine_queue") + ".txt";
+        String cleanedPath = machine.getQueueFilePath().replaceFirst("^/+", "").replaceFirst("^cnc/?", "");
+        String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
+        Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
+                ? Paths.get("/cnc")
+                : Paths.get("./cnc");
 
-        for (String word : words) {
-            if (currentLine.length() + word.length() + 1 > MAX_LINE_LENGTH) {
-                wrapped.append(currentLine.toString().trim()).append("\n");
-                currentLine = new StringBuilder(firstLine ? prefix : "");
-                firstLine = false;
+        Path basePath = cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
+        return basePath.resolve(fileName);
+    }
+
+    private List<ProductionQueueItem> getSortedPrograms(String queueType) {
+        return productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent()
+                .stream()
+                .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+    }
+
+    private String buildFileContent(List<ProductionQueueItem> programs) {
+        StringBuilder content = new StringBuilder();
+
+        content.append("# Edytuj tylko statusy w nawiasach: [OK] lub [NOK].\n");
+        content.append(String.format("# Wygenerowano: %s\n\n",
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+
+        if (programs.isEmpty()) {
+            content.append("# Brak programów w kolejce dla tej maszyny.\n");
+            return content.toString();
+        }
+
+        int position = 1;
+        for (ProductionQueueItem program : programs) {
+            List<ProductionFileInfo> mpfFiles = filterAndSortMpfFiles(program);
+            if (mpfFiles.isEmpty()) {
+                continue;
             }
-            currentLine.append(word).append(" ");
+
+            content.append("---\n\n");
+            appendHeader(content, program);
+            content.append("\n--- PROGRAMY ---\n\n");
+            position = appendProgramFiles(content, mpfFiles, position);
+        }
+        content.append("\n---");
+        return content.toString();
+    }
+
+    private List<ProductionFileInfo> filterAndSortMpfFiles(ProductionQueueItem program) {
+        if (program.getFiles() == null) {
+            return List.of();
+        }
+        return program.getFiles().stream()
+                .filter(file -> file.getFileName().toLowerCase().endsWith(".mpf"))
+                .sorted(Comparator.comparing(ProductionFileInfo::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+    }
+
+    private void appendHeader(StringBuilder content, ProductionQueueItem program) {
+        content.append("/**\n");
+        content.append("============================================================\n");
+
+        appendHeaderLine(content, "ID Programu", String.valueOf(program.getId()));
+        appendHeaderLine(content, "Zamówienie", program.getOrderName());
+        appendHeaderLine(content, "Nazwa elementu", program.getPartName());
+        appendHeaderLine(content, "Ilość", program.getQuantity() + " szt");
+        String sanitizedOrderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
+        String sanitizedPartName = fileSystemService.sanitizeName(program.getPartName(), "NoPartName_" + program.getId());
+        appendHeaderLine(content, "Lokalizacja", String.format("%s/%s/", sanitizedOrderName, sanitizedPartName));
+
+        content.append("------------------------------------------------------------\n");
+
+        appendHeaderLine(content, "Termin", program.getDeadline());
+        appendHeaderLine(content, "Czas", program.getCamTime());
+        appendHeaderLine(content, "Autor", program.getAuthor());
+
+        String prepInfo = buildPreparationInfoString(program);
+        if (prepInfo != null && !prepInfo.isEmpty()){
+            content.append("------------------------------------------------------------\n");
+            String[] prepParts = prepInfo.split("\\|");
+            if (prepParts.length == 3) {
+                appendHeaderLine(content, "Przygotówka", prepParts[0].trim() + " | " + prepParts[1].trim());
+                appendHeaderLine(content, "Wymiary", prepParts[2].trim());
+            }
         }
 
-        if (currentLine.length() > (firstLine ? prefix.length() : 0)) {
-            wrapped.append(currentLine.toString().trim()).append("\n");
+        String additionalInfo = program.getAdditionalInfo();
+        if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
+            content.append("------------------------------------------------------------\n");
+            content.append(String.format(" Uwagi: %s\n", additionalInfo));
         }
 
-        return wrapped.toString();
+        content.append("============================================================\n");
+        content.append(" */");
+    }
+
+    private void appendHeaderLine(StringBuilder content, String key, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        String paddedKey = String.format("%-17s", key);
+        content.append(String.format(" %s: %s\n", paddedKey, value));
+    }
+
+    private int appendProgramFiles(StringBuilder content, List<ProductionFileInfo> mpfFiles, int startPosition) {
+        int position = startPosition;
+        final int fileNameWidth = 24;
+
+        for (ProductionFileInfo mpfFile : mpfFiles) {
+            String sanitizedMpfName = fileSystemService.sanitizeName(mpfFile.getFileName(), "NoFileName_" + mpfFile.getId());
+            String status = mpfFile.isCompleted() ? "[OK]" : "[NOK]";
+
+            String paddedFileName = String.format("%-" + fileNameWidth + "s", sanitizedMpfName);
+
+            content.append(String.format("%d. %s | %s\n", position, paddedFileName, status));
+            position++;
+        }
+        return position;
     }
 
     private String buildPreparationInfoString(ProductionQueueItem program) {
-        String materialTypeName = program.getMaterialType() != null && program.getMaterialType().getName() != null ?
-                program.getMaterialType().getName() : "Brak";
-        String materialProfile = program.getMaterialProfile() != null && !program.getMaterialProfile().isEmpty() ?
-                translateMaterialProfile(program.getMaterialProfile()) : "Brak";
-        boolean hasValidMaterialData = !"Brak".equals(materialTypeName) && !"Brak".equals(materialProfile);
+        if (program.getMaterialType() == null || program.getMaterialType().getName() == null || program.getMaterialProfile() == null) {
+            return "";
+        }
+        String materialTypeName = program.getMaterialType().getName();
+        String materialProfile = translateMaterialProfile(program.getMaterialProfile());
 
         StringBuilder dimensions = new StringBuilder();
-        boolean hasValidDimensions = false;
 
         if ("Płyta".equals(materialProfile)) {
-            boolean hasX = program.getX() != null && program.getX() > 0;
-            boolean hasY = program.getY() != null && program.getY() > 0;
-            boolean hasZ = program.getZ() != null && program.getZ() > 0;
-            if (hasX || hasY || hasZ) {
-                dimensions.append(String.format(Locale.US, "%.2f", hasX ? program.getX() : 0.0));
-                dimensions.append(" x ");
-                dimensions.append(String.format(Locale.US, "%.2f", hasY ? program.getY() : 0.0));
-                dimensions.append(" x ");
-                dimensions.append(String.format(Locale.US, "%.2f", hasZ ? program.getZ() : 0.0));
-                dimensions.append(" mm");
-                hasValidDimensions = true;
+            if (program.getX() != null && program.getY() != null && program.getZ() != null) {
+                dimensions.append(String.format(Locale.US, "%.2f x %.2f x %.2f mm",
+                        program.getX().doubleValue(), program.getY().doubleValue(), program.getZ().doubleValue()));
             }
         } else if ("Rura".equals(materialProfile)) {
-            boolean hasDiameter = program.getDiameter() != null && program.getDiameter() > 0;
-            boolean hasInnerDiameter = program.getInnerDiameter() != null && program.getInnerDiameter() > 0;
-            boolean hasLength = program.getLength() != null && program.getLength() > 0;
-            if (hasDiameter || hasInnerDiameter || hasLength) {
-                dimensions.append(String.format(Locale.US, "∅%.2f", hasDiameter ? program.getDiameter() : 0.0));
-                dimensions.append(" x ");
-                dimensions.append(String.format(Locale.US, "∅%.2f", hasInnerDiameter ? program.getInnerDiameter() : 0.0));
-                dimensions.append(" x ");
-                dimensions.append(String.format(Locale.US, "%.2f", hasLength ? program.getLength() : 0.0));
-                dimensions.append(" mm");
-                hasValidDimensions = true;
+            if (program.getDiameter() != null && program.getInnerDiameter() != null && program.getLength() != null) {
+                dimensions.append(String.format(Locale.US, "∅%.2f x ∅%.2f x %.2f mm",
+                        program.getDiameter().doubleValue(), program.getInnerDiameter().doubleValue(), program.getLength().doubleValue()));
             }
         } else if ("Pręt".equals(materialProfile)) {
-            boolean hasDiameter = program.getDiameter() != null && program.getDiameter() > 0;
-            boolean hasLength = program.getLength() != null && program.getLength() > 0;
-            if (hasDiameter || hasLength) {
-                dimensions.append(String.format(Locale.US, "∅%.2f", hasDiameter ? program.getDiameter() : 0.0));
-                dimensions.append(" x ");
-                dimensions.append(String.format(Locale.US, "%.2f", hasLength ? program.getLength() : 0.0));
-                dimensions.append(" mm");
-                hasValidDimensions = true;
+            if (program.getDiameter() != null && program.getLength() != null) {
+                dimensions.append(String.format(Locale.US, "∅%.2f x %.2f mm",
+                        program.getDiameter().doubleValue(), program.getLength().doubleValue()));
             }
         }
 
-        if (!hasValidMaterialData || !hasValidDimensions) {
+        if (dimensions.length() == 0) {
             return "";
         }
         return String.format("%s | %s | %s", materialTypeName, materialProfile, dimensions.toString());
     }
 
     private String translateMaterialProfile(String materialProfile) {
+        if (materialProfile == null) return "";
         switch (materialProfile) {
-            case "Plate":
-                return "Płyta";
-            case "Tube":
-                return "Rura";
-            case "Rod":
-                return "Pręt";
-            default:
-                return materialProfile != null ? materialProfile : "Brak";
+            case "Plate": return "Płyta";
+            case "Tube": return "Rura";
+            case "Rod": return "Pręt";
+            default: return materialProfile;
         }
     }
 }

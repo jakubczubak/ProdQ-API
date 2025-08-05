@@ -20,8 +20,6 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -88,24 +86,13 @@ public class MachineService {
     }
 
     private void createInitialQueueFile(Machine machine) throws IOException {
-        String fileName = machine.getMachineName() + ".txt";
-        Path filePath = Paths.get(machine.getQueueFilePath(), fileName);
         try {
-            Files.createDirectories(filePath.getParent());
-            String content = """
-                    # Edytuj tylko statusy w nawiasach: [UKONCZONE] lub [NIEUKONCZONE].
-                    # Przyklad: zmień '[NIEUKONCZONE]' na '[UKONCZONE]'. Nie zmieniaj ID, nazw ani innych danych!
-                    # Sciezka /[orderName]/[partName]/załącznik wskazuje lokalizację programu na dysku maszyny.
-                    # Bledy w formacie linii moga zostac zignorowane przez system.
-                    # Wygenerowano: %s
-                    # Brak programow w kolejce dla tej maszyny.
-                    """.formatted(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-
-            Files.writeString(filePath, content);
-            logger.info("Created an empty queue file: {}", filePath);
+            logger.info("Creating initial queue file for machine: {}", machine.getMachineName());
+            machineQueueFileGeneratorService.generateQueueFileForMachine(String.valueOf(machine.getId()));
+            logger.info("Successfully created initial queue file for machine ID: {}", machine.getId());
         } catch (IOException e) {
-            logger.error("Error creating queue file: {}", filePath, e);
-            throw new IOException("Failed to create queue file for machine: " + filePath, e);
+            logger.error("Error creating initial queue file for machine {}: {}", machine.getId(), e.getMessage(), e);
+            throw new IOException("Failed to create initial queue file for machine: " + machine.getMachineName(), e);
         }
     }
 
@@ -358,7 +345,7 @@ public class MachineService {
             String queueContent = machineQueueFileGeneratorService.generateQueueFileForMachine(String.valueOf(machine.getId()));
 
             if (queueContent != null && !queueContent.isEmpty()) {
-                ZipEntry queueFileEntry = new ZipEntry(fileSystemService.sanitizeName(machine.getMachineName(), "queue") + ".txt");
+                ZipEntry queueFileEntry = new ZipEntry(fileSystemService.sanitizeName(machine.getMachineName(), "queue") + ".zip");
                 zos.putNextEntry(queueFileEntry);
                 zos.write(queueContent.getBytes());
                 zos.closeEntry();
