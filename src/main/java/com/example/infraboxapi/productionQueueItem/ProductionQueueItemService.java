@@ -37,7 +37,7 @@ public class ProductionQueueItemService {
     private final FileWatcherService fileWatcherService;
     private final FileSystemService fileSystemService;
     private final UserRepository userRepository;
-    private final ToolListGeneratorService toolListGeneratorService; // <-- DODANA ZALEŻNOŚĆ
+    private final ToolListGeneratorService toolListGeneratorService;
 
     @Value("${file.upload-dir:Uploads}")
     private String uploadDir;
@@ -51,7 +51,7 @@ public class ProductionQueueItemService {
             FileWatcherService fileWatcherService,
             FileSystemService fileSystemService,
             UserRepository userRepository,
-            ToolListGeneratorService toolListGeneratorService) { // <-- DODANA ZALEŻNOŚĆ
+            ToolListGeneratorService toolListGeneratorService) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.machineRepository = machineRepository;
@@ -59,7 +59,7 @@ public class ProductionQueueItemService {
         this.fileWatcherService = fileWatcherService;
         this.fileSystemService = fileSystemService;
         this.userRepository = userRepository;
-        this.toolListGeneratorService = toolListGeneratorService; // <-- DODANA ZALEŻNOŚĆ
+        this.toolListGeneratorService = toolListGeneratorService;
     }
 
     @Transactional
@@ -135,13 +135,11 @@ public class ProductionQueueItemService {
         fileWatcherService.checkQueueFile(savedItem.getQueueType());
         machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
 
-        // --- POCZĄTEK POPRAWKI ---
         toolListGeneratorService.generateAndStoreToolList(savedItem)
                 .ifPresent(toolListInfo -> {
                     savedItem.getFiles().add(toolListInfo);
                     productionFileInfoService.save(toolListInfo);
                 });
-        // --- KONIEC POPRAWKI ---
 
         return savedItem;
     }
@@ -250,13 +248,11 @@ public class ProductionQueueItemService {
                 machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
             }
 
-            // --- POCZĄTEK POPRAWKI ---
             toolListGeneratorService.generateAndStoreToolList(savedItem)
                     .ifPresent(toolListInfo -> {
                         savedItem.getFiles().add(toolListInfo);
                         productionFileInfoService.save(toolListInfo);
                     });
-            // --- KONIEC POPRAWKI ---
 
             return savedItem;
         } else {
@@ -378,6 +374,7 @@ public class ProductionQueueItemService {
             String queueType = item.getQueueType();
 
             for (ProductionFileInfo file : item.getFiles()) {
+                // Usuwanie pliku z katalogu Uploads
                 if (file.getFilePath() != null) {
                     try {
                         Path filePath = Paths.get(file.getFilePath());
@@ -390,6 +387,7 @@ public class ProductionQueueItemService {
                     }
                 }
 
+                // Usuwanie pliku z katalogu maszyny
                 if (queueType != null && !"ncQueue".equals(queueType) && !"completed".equals(queueType)) {
                     Optional<Machine> machineOpt = machineRepository.findById(Integer.parseInt(queueType));
                     if (machineOpt.isPresent()) {
@@ -411,6 +409,32 @@ public class ProductionQueueItemService {
                     }
                 }
             }
+
+            // ==========================================================
+            // === POCZĄTEK NOWEGO KODU - SPRZĄTANIE PUSTYCH FOLDERÓW ===
+            // ==========================================================
+            if (item.getFiles() != null && !item.getFiles().isEmpty()) {
+                try {
+                    // Pobieramy ścieżkę do jednego z plików, aby zlokalizować foldery nadrzędne
+                    Path aFilePath = Paths.get(item.getFiles().get(0).getFilePath());
+                    Path partNameDir = aFilePath.getParent();
+                    Path orderNameDir = partNameDir.getParent();
+                    Path itemIdDir = orderNameDir.getParent();
+
+                    // Usuwamy foldery, jeśli istnieją. deleteIfExists nie rzuci błędu, jeśli plik/folder nie istnieje.
+                    Files.deleteIfExists(partNameDir);
+                    Files.deleteIfExists(orderNameDir);
+                    Files.deleteIfExists(itemIdDir);
+
+                    logger.info("Successfully cleaned up empty directories for item ID: {}", id);
+                } catch (IOException e) {
+                    // Logujemy błąd, ale nie przerywamy operacji, aby wpis z bazy danych nadal został usunięty.
+                    logger.error("Could not clean up empty directories for item ID: {}. It might require manual cleanup. Error: {}", id, e.getMessage());
+                }
+            }
+            // ========================================================
+            // === KONIEC NOWEGO KODU - SPRZĄTANIE PUSTYCH FOLDERÓW ===
+            // ========================================================
 
             productionQueueItemRepository.deleteById(id);
             logger.info("Deleted ProductionQueueItem with ID: {}", id);
