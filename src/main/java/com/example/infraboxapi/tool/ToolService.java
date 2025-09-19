@@ -2,13 +2,16 @@ package com.example.infraboxapi.tool;
 
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
+import com.example.infraboxapi.orderItem.OrderItem; // Dodany import
+import com.example.infraboxapi.orderItem.OrderItemRepository; // Dodany import
 import com.example.infraboxapi.toolGroup.ToolGroup;
 import com.example.infraboxapi.toolGroup.ToolGroupRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects; // Dodajemy import dla Objects
+import java.util.List; // Dodany import
+import java.util.Objects;
 
 @Service
 @AllArgsConstructor
@@ -17,6 +20,7 @@ public class ToolService {
     private final ToolRepository toolRepository;
     private final ToolGroupRepository toolGroupRepository;
     private final NotificationService notificationService;
+    private final OrderItemRepository orderItemRepository; // Dodane pole
 
     @Transactional
     public void createTool(ToolDTO toolDTO) {
@@ -46,8 +50,24 @@ public class ToolService {
 
     @Transactional
     public void deleteTool(Integer id) {
-        String toolName = toolRepository.findById(id).orElseThrow(() -> new RuntimeException("Tool not found")).getName();
+        // Sprawdź, czy narzędzie istnieje, zanim zaczniesz działać
+        Tool toolToDelete = toolRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Tool not found with id: " + id));
+
+        // 1. Znajdź wszystkie pozycje zamówień (OrderItem) powiązane z tym narzędziem
+        List<OrderItem> relatedOrderItems = orderItemRepository.findByToolId(id);
+
+        // 2. W każdej powiązanej pozycji zamówienia ustaw pole 'tool' na null, aby zerwać powiązanie
+        for (OrderItem item : relatedOrderItems) {
+            item.setTool(null);
+        }
+        orderItemRepository.saveAll(relatedOrderItems); // Zapisz zmiany
+
+        // 3. Teraz, gdy powiązania są usunięte, możesz bezpiecznie usunąć narzędzie
+        String toolName = toolToDelete.getName();
         toolRepository.deleteById(id);
+
+        // 4. Wyślij powiadomienie
         notificationService.createAndSendNotification("The tool '" + toolName + "' has been successfully deleted.", NotificationDescription.ToolDeleted);
     }
 
@@ -60,12 +80,10 @@ public class ToolService {
                 .append(tool.getName())
                 .append(" has been updated. Changes:");
 
-        // Sprawdzenie zmiany ilości
         if (tool.getQuantity() != toolDTO.getQuantity()) {
             checkAndNotifyQuantityChange(tool, toolDTO);
         }
 
-        // Pozostałe zmiany
         if (tool.getMinQuantity() != toolDTO.getMinQuantity()) {
             notificationMessage.append("\nMin Quantity: from ")
                     .append(tool.getMinQuantity())
@@ -90,14 +108,13 @@ public class ToolService {
                     .append(" to ")
                     .append(toolDTO.getOal());
         }
-        if (!Objects.equals(tool.getAdditionalInfo(), toolDTO.getAdditionalInfo())) { // Poprawka na Objects.equals()
+        if (!Objects.equals(tool.getAdditionalInfo(), toolDTO.getAdditionalInfo())) {
             notificationMessage.append("\nAdditional info: from ")
                     .append(tool.getAdditionalInfo())
                     .append(" to ")
                     .append(toolDTO.getAdditionalInfo());
         }
 
-        // Aktualizacja narzędzia
         tool.setDc(toolDTO.getDc());
         tool.setCfl(toolDTO.getCfl());
         tool.setOal(toolDTO.getOal());
@@ -113,7 +130,6 @@ public class ToolService {
 
         toolRepository.save(tool);
 
-        // Wysyłanie powiadomienia o zaktualizowanym narzędziu
         notificationService.createAndSendNotification(notificationMessage.toString(), NotificationDescription.ToolUpdated);
     }
 
@@ -121,15 +137,12 @@ public class ToolService {
         float oldQuantity = tool.getQuantity();
         float newQuantity = toolDTO.getQuantity();
 
-        // Sprawdzenie, czy liczby są całkowite
         boolean isOldQuantityInteger = (oldQuantity % 1 == 0);
         boolean isNewQuantityInteger = (newQuantity % 1 == 0);
 
-        // Konwersja do ciągu znaków
         String oldQuantityStr = isOldQuantityInteger ? String.valueOf((int) oldQuantity) : String.valueOf(oldQuantity);
         String newQuantityStr = isNewQuantityInteger ? String.valueOf((int) newQuantity) : String.valueOf(newQuantity);
 
-        // Sprawdzenie zmiany ilości
         if (oldQuantity != newQuantity) {
             String message;
             if (newQuantity > oldQuantity) {
@@ -138,7 +151,6 @@ public class ToolService {
                 message = "Tool '" + tool.getName() + "' quantity decreased from " + oldQuantityStr + " to " + newQuantityStr + ".";
             }
 
-            // Wysyłanie powiadomienia
             notificationService.createAndSendQuantityNotification(
                     message,
                     NotificationDescription.ToolQuantityUpdated);
