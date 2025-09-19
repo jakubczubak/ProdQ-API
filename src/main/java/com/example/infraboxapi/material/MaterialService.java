@@ -5,6 +5,8 @@ import com.example.infraboxapi.materialGroup.MaterialGroupRepository;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
+import com.example.infraboxapi.orderItem.OrderItem; // Dodany import
+import com.example.infraboxapi.orderItem.OrderItemRepository; // Dodany import
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.List; // Dodany import
 import java.util.Objects;
 
 @Service
@@ -21,6 +24,7 @@ public class MaterialService {
     private final MaterialGroupRepository materialGroupRepository;
     private final MaterialRepository materialRepository;
     private final NotificationService notificationService;
+    private final OrderItemRepository orderItemRepository; // Dodane pole
 
     @Transactional
     public void createMaterial(MaterialDTO materialDTO) {
@@ -67,10 +71,27 @@ public class MaterialService {
 
     @Transactional
     public void deleteMaterial(Integer id) {
-        String materialName = materialRepository.findById(id).orElseThrow(() -> new RuntimeException("Material not found")).getName();
+        // Sprawdź, czy materiał istnieje, zanim zaczniesz działać
+        Material materialToDelete = materialRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Material not found with id: " + id));
+
+        // 1. Znajdź wszystkie pozycje zamówień (OrderItem) powiązane z tym materiałem
+        List<OrderItem> relatedOrderItems = orderItemRepository.findByMaterialId(id);
+
+        // 2. W każdej powiązanej pozycji zamówienia ustaw pole 'material' na null, aby zerwać powiązanie
+        for (OrderItem item : relatedOrderItems) {
+            item.setMaterial(null);
+        }
+        orderItemRepository.saveAll(relatedOrderItems); // Zapisz zmiany w pozycjach zamówień
+
+        // 3. Teraz, gdy powiązania są usunięte, możesz bezpiecznie usunąć materiał
+        String materialName = materialToDelete.getName();
         materialRepository.deleteById(id);
+
+        // 4. Wyślij powiadomienie
         notificationService.createAndSendNotification("The material '" + materialName + "' has been successfully deleted.", NotificationDescription.MaterialDeleted);
     }
+
     @Transactional
     public void updateMaterial(MaterialDTO materialDTO) {
         Material material = materialRepository.findById(materialDTO.getId())
@@ -181,5 +202,4 @@ public class MaterialService {
 
         notificationService.createAndSendNotification(notificationMessage.toString(), NotificationDescription.MaterialUpdated);
     }
-
 }
