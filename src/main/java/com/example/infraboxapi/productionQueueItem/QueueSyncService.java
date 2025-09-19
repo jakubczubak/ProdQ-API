@@ -6,6 +6,7 @@ import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Pageable; // Dodany import
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +34,7 @@ public class QueueSyncService {
     private final ProductionFileInfoService productionFileInfoService;
     private final NotificationService notificationService;
     private final MachineQueueFileGeneratorService machineQueueFileGeneratorService;
+    private final FileSystemService fileSystemService; // Nowa zależność
 
     private final Map<String, FileTime> lastModifiedTimes = new HashMap<>();
 
@@ -42,12 +43,14 @@ public class QueueSyncService {
             ProductionQueueItemRepository productionQueueItemRepository,
             ProductionFileInfoService productionFileInfoService,
             NotificationService notificationService,
-            MachineQueueFileGeneratorService machineQueueFileGeneratorService) {
+            MachineQueueFileGeneratorService machineQueueFileGeneratorService,
+            FileSystemService fileSystemService) { // Nowy parametr w konstruktorze
         this.machineRepository = machineRepository;
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.notificationService = notificationService;
         this.machineQueueFileGeneratorService = machineQueueFileGeneratorService;
+        this.fileSystemService = fileSystemService; // Przypisanie nowej zależności
     }
 
     @Scheduled(fixedRate = 300000) // 5 minutes
@@ -58,7 +61,34 @@ public class QueueSyncService {
 
         for (Machine machine : machines) {
             try {
+                // ==========================================================
+                // === POCZĄTEK NOWEJ LOGIKI - AUTOMATYCZNA SYNCHRONIZACJA PLIKÓW .MPF ===
+                // ==========================================================
+
+                logger.debug("Starting automatic file sync for machine: {}", machine.getMachineName());
+
+                // 1. Pobierz wszystkie aktywne programy dla tej maszyny
+                List<ProductionQueueItem> programs = productionQueueItemRepository
+                        .findByQueueType(String.valueOf(machine.getId()), Pageable.unpaged()).getContent();
+
+                // 2. Dla każdego programu uruchom synchronizację jego plików
+                for (ProductionQueueItem program : programs) {
+                    String orderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
+                    String partName = fileSystemService.sanitizeName(program.getPartName(), "NoPartName_" + program.getId());
+
+                    // Ta metoda porówna, usunie, nadpisze lub doda pliki
+                    fileSystemService.synchronizeFiles(machine.getProgramPath(), orderName, partName, program.getFiles());
+                }
+
+                logger.debug("Finished automatic file sync for machine: {}", machine.getMachineName());
+
+                // ========================================================
+                // === KONIEC NOWEJ LOGIKI - AUTOMATYCZNA SYNCHRONIZACJA PLIKÓW .MPF ===
+                // ========================================================
+
+                // Istniejąca logika synchronizacji pliku kolejki .txt
                 syncQueueForMachine(String.valueOf(machine.getId()), machine);
+
             } catch (IOException e) {
                 String errorMessage = String.format("Queue synchronization failed for machine %s (ID: %s): %s",
                         machine.getMachineName(), machine.getId(), e.getMessage());
@@ -78,16 +108,14 @@ public class QueueSyncService {
 
         Path filePath = resolveQueueFilePath(machine);
 
-        // ZMIANA: Sprawdzamy statusy tylko jeśli plik istnieje i został zmodyfikowany
         if (isFileModified(filePath, queueType)) {
-            if (Files.exists(filePath)) { // Dodatkowy warunek sprawdzający istnienie pliku
+            if (Files.exists(filePath)) {
                 updateAttachmentStatuses(filePath);
             }
         }
 
         String newContent = machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
 
-        // ZMIANA: Upewniamy się, że katalog docelowy istnieje, zanim zapiszemy plik
         Files.createDirectories(filePath.getParent());
         Files.writeString(filePath, newContent);
         lastModifiedTimes.put(queueType, Files.getLastModifiedTime(filePath));
