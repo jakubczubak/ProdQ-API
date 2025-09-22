@@ -21,6 +21,7 @@ import java.util.List;
 @AllArgsConstructor
 @Entity
 @Table(name = "_production_queue_item")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ProductionQueueItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -77,6 +78,19 @@ public class ProductionQueueItem {
     private Float diameter;
     private Float innerDiameter;
     private Float length;
+
+    // DODANE POLA ZALEŻNOŚCI
+    @Column(name = "depends_on_id")
+    private Integer dependsOnId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "depends_on_id", insertable = false, updatable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "successor"})
+    private ProductionQueueItem predecessor;
+
+    @OneToOne(mappedBy = "predecessor", fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "predecessor"})
+    private ProductionQueueItem successor;
 
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference

@@ -75,6 +75,7 @@ public class ProductionQueueItemController {
                 .completed(request.isCompleted())
                 .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue")
                 .order(request.getOrder())
+                .dependsOnId(request.getDependsOnId()) // DODANO
                 .material(request.getMaterial())
                 .materialValue(request.getMaterialValue())
                 .materialProfile(request.getMaterialProfile())
@@ -165,6 +166,7 @@ public class ProductionQueueItemController {
                 .queueType(request.getQueueType())
                 .completed(request.isCompleted())
                 .order(request.getOrder())
+                .dependsOnId(request.getDependsOnId()) // DODANO
                 .material(request.getMaterial())
                 .materialValue(request.getMaterialValue())
                 .materialProfile(request.getMaterialProfile())

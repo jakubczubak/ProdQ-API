@@ -36,6 +36,7 @@ public class ProductionQueueItemRequest {
     private Integer order;
     private List<MultipartFile> file;
     private String fileOrderMapping;
+    private Integer dependsOnId; // DODANO
 
     private String material;
     private String materialValue;

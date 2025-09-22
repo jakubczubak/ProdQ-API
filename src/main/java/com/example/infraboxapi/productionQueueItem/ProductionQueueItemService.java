@@ -175,6 +175,7 @@ public class ProductionQueueItemService {
             existingItem.setDiameter(updatedItem.getDiameter());
             existingItem.setInnerDiameter(updatedItem.getInnerDiameter());
             existingItem.setLength(updatedItem.getLength());
+            existingItem.setDependsOnId(updatedItem.getDependsOnId()); // DODANO
 
             if (updatedItem.getOrder() != null) {
                 existingItem.setOrder(updatedItem.getOrder());
