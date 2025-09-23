@@ -351,13 +351,15 @@ public class ProductionQueueItemService {
         return productionQueueItemRepository.findAll();
     }
 
+    // --- POCZĄTEK ZMIANY ---
+    // Zmieniamy metodę tak, by używała nowego zapytania z DISTINCT
     public Page<ProductionQueueItem> findByQueueType(String queueType, Pageable pageable) {
         logger.info("Fetching queue for queueType: {} with pagination: {}", queueType, pageable);
         if (queueType == null) {
             logger.warn("queueType is null, returning empty page");
             return Page.empty();
         }
-        Page<ProductionQueueItem> items = productionQueueItemRepository.findByQueueType(queueType, pageable);
+        Page<ProductionQueueItem> items = productionQueueItemRepository.findByQueueTypeWithFiles(queueType, pageable);
 
         if (pageable.isPaged()) {
             logger.debug("Found {} items on page {} for queueType: {}", items.getNumberOfElements(), pageable.getPageNumber(), queueType);
@@ -366,6 +368,7 @@ public class ProductionQueueItemService {
         }
         return items;
     }
+    // --- KONIEC ZMIANY ---
 
     @Transactional
     public void deleteById(Integer id) throws IOException {
@@ -411,31 +414,22 @@ public class ProductionQueueItemService {
                 }
             }
 
-            // ==========================================================
-            // === POCZĄTEK NOWEGO KODU - SPRZĄTANIE PUSTYCH FOLDERÓW ===
-            // ==========================================================
             if (item.getFiles() != null && !item.getFiles().isEmpty()) {
                 try {
-                    // Pobieramy ścieżkę do jednego z plików, aby zlokalizować foldery nadrzędne
                     Path aFilePath = Paths.get(item.getFiles().get(0).getFilePath());
                     Path partNameDir = aFilePath.getParent();
                     Path orderNameDir = partNameDir.getParent();
                     Path itemIdDir = orderNameDir.getParent();
 
-                    // Usuwamy foldery, jeśli istnieją. deleteIfExists nie rzuci błędu, jeśli plik/folder nie istnieje.
                     Files.deleteIfExists(partNameDir);
                     Files.deleteIfExists(orderNameDir);
                     Files.deleteIfExists(itemIdDir);
 
                     logger.info("Successfully cleaned up empty directories for item ID: {}", id);
                 } catch (IOException e) {
-                    // Logujemy błąd, ale nie przerywamy operacji, aby wpis z bazy danych nadal został usunięty.
                     logger.error("Could not clean up empty directories for item ID: {}. It might require manual cleanup. Error: {}", id, e.getMessage());
                 }
             }
-            // ========================================================
-            // === KONIEC NOWEGO KODU - SPRZĄTANIE PUSTYCH FOLDERÓW ===
-            // ========================================================
 
             productionQueueItemRepository.deleteById(id);
             logger.info("Deleted ProductionQueueItem with ID: {}", id);

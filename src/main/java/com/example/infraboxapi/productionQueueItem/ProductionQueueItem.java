@@ -85,12 +85,13 @@ public class ProductionQueueItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "depends_on_id", insertable = false, updatable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "successor"})
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "successors"})
     private ProductionQueueItem predecessor;
 
-    @OneToOne(mappedBy = "predecessor", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "predecessor", fetch = FetchType.LAZY)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "predecessor"})
-    private ProductionQueueItem successor;
+    private List<ProductionQueueItem> successors = new ArrayList<>();
+
 
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference

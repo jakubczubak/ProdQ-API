@@ -8,9 +8,9 @@ import com.example.infraboxapi.materialType.MaterialTypeRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest; // ADD THIS
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort; // ADD THIS
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -75,7 +75,7 @@ public class ProductionQueueItemController {
                 .completed(request.isCompleted())
                 .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue")
                 .order(request.getOrder())
-                .dependsOnId(request.getDependsOnId()) // DODANO
+                .dependsOnId(request.getDependsOnId())
                 .material(request.getMaterial())
                 .materialValue(request.getMaterialValue())
                 .materialProfile(request.getMaterialProfile())
@@ -100,6 +100,8 @@ public class ProductionQueueItemController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    // --- POCZĄTEK ZMIANY ---
+    // Modyfikujemy ten endpoint, aby używał nowej metody z serwisu.
     @GetMapping
     public ResponseEntity<?> getAllProductionQueueItems(
             @RequestParam(value = "queueType", required = false) String queueType, Pageable pageable) {
@@ -134,6 +136,7 @@ public class ProductionQueueItemController {
         Page<ProductionQueueItem> items = productionQueueItemService.findByQueueType(String.valueOf(machineId), effectivePageable);
         return ResponseEntity.ok(items);
     }
+    // --- KONIEC ZMIANY ---
 
     @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     public ResponseEntity<ProductionQueueItem> updateProductionQueueItem(
@@ -166,7 +169,7 @@ public class ProductionQueueItemController {
                 .queueType(request.getQueueType())
                 .completed(request.isCompleted())
                 .order(request.getOrder())
-                .dependsOnId(request.getDependsOnId()) // DODANO
+                .dependsOnId(request.getDependsOnId())
                 .material(request.getMaterial())
                 .materialValue(request.getMaterialValue())
                 .materialProfile(request.getMaterialProfile())
@@ -231,8 +234,6 @@ public class ProductionQueueItemController {
 
         productionQueueItemService.syncWithMachine(queueType);
 
-        // --- CHANGED LOGIC ---
-        // Create a Pageable object that requests all items (page 0, large size) and sorts them by the "order" field.
         Pageable sortedByOrder = PageRequest.of(0, Integer.MAX_VALUE, Sort.by("order"));
         Page<ProductionQueueItem> itemsPage = productionQueueItemService.findByQueueType(queueType, sortedByOrder);
 
