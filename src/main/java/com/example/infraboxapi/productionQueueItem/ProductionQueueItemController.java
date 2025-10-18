@@ -87,6 +87,7 @@ public class ProductionQueueItemController {
                 .diameter(request.getDiameter())
                 .innerDiameter(request.getInnerDiameter())
                 .length(request.getLength())
+                .materialId(request.getMaterialId())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.save(item, files, fileOrderMapping);
@@ -181,6 +182,7 @@ public class ProductionQueueItemController {
                 .diameter(request.getDiameter())
                 .innerDiameter(request.getInnerDiameter())
                 .length(request.getLength())
+                .materialId(request.getMaterialId())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile(), request.getFileOrderMapping());

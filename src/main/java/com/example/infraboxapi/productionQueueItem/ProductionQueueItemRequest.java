@@ -51,4 +51,6 @@ public class ProductionQueueItemRequest {
     private Float diameter;
     private Float innerDiameter;
     private Float length;
+
+    private Integer materialId;
 }

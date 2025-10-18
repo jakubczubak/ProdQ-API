@@ -96,4 +96,7 @@ public class ProductionQueueItem {
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<ProductionFileInfo> files = new ArrayList<>();
+
+    @Column(name = "material_id")
+    private Integer materialId;
 }
