@@ -62,6 +62,8 @@ public class ProductionQueueItemService {
         this.toolListGeneratorService = toolListGeneratorService;
     }
 
+
+
     @Transactional
     public ProductionQueueItem save(ProductionQueueItem item, List<MultipartFile> files, String fileOrderMapping) throws IOException {
         validateQueueType(item.getQueueType());
@@ -164,18 +166,7 @@ public class ProductionQueueItemService {
             existingItem.setAdditionalInfo(updatedItem.getAdditionalInfo());
             existingItem.setFileDirectory(updatedItem.getFileDirectory());
             existingItem.setQueueType(updatedItem.getQueueType());
-            existingItem.setMaterial(updatedItem.getMaterial());
-            existingItem.setMaterialValue(updatedItem.getMaterialValue());
-            existingItem.setMaterialProfile(updatedItem.getMaterialProfile());
-            existingItem.setMaterialType(updatedItem.getMaterialType());
-            existingItem.setMaterialPricePerKg(updatedItem.getMaterialPricePerKg());
-            existingItem.setX(updatedItem.getX());
-            existingItem.setY(updatedItem.getY());
-            existingItem.setZ(updatedItem.getZ());
-            existingItem.setDiameter(updatedItem.getDiameter());
-            existingItem.setInnerDiameter(updatedItem.getInnerDiameter());
-            existingItem.setLength(updatedItem.getLength());
-            existingItem.setDependsOnId(updatedItem.getDependsOnId()); // DODANO
+            existingItem.setDependsOnId(updatedItem.getDependsOnId());
 
             if (updatedItem.getOrder() != null) {
                 existingItem.setOrder(updatedItem.getOrder());
@@ -260,7 +251,6 @@ public class ProductionQueueItemService {
             throw new RuntimeException("Queue item with ID: " + id + " not found");
         }
     }
-
     public byte[] getFileContent(Long fileId) throws IOException {
         Optional<ProductionFileInfo> fileOpt = productionFileInfoService.findById(fileId);
         if (fileOpt.isPresent()) {

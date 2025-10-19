@@ -144,15 +144,7 @@ public class MachineQueueFileGeneratorService {
         appendHeaderLine(content, "Czas", program.getCamTime());
         appendHeaderLine(content, "Autor", program.getAuthor());
 
-        String prepInfo = buildPreparationInfoString(program);
-        if (prepInfo != null && !prepInfo.isEmpty()){
-            content.append("------------------------------------------------------------\n");
-            String[] prepParts = prepInfo.split("\\|");
-            if (prepParts.length == 3) {
-                appendHeaderLine(content, "Przygotówka", prepParts[0].trim() + " | " + prepParts[1].trim());
-                appendHeaderLine(content, "Wymiary", prepParts[2].trim());
-            }
-        }
+
 
         String additionalInfo = program.getAdditionalInfo();
         if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
@@ -188,45 +180,7 @@ public class MachineQueueFileGeneratorService {
         return position;
     }
 
-    private String buildPreparationInfoString(ProductionQueueItem program) {
-        if (program.getMaterialType() == null || program.getMaterialType().getName() == null || program.getMaterialProfile() == null) {
-            return "";
-        }
-        String materialTypeName = program.getMaterialType().getName();
-        String materialProfile = translateMaterialProfile(program.getMaterialProfile());
 
-        StringBuilder dimensions = new StringBuilder();
 
-        if ("Płyta".equals(materialProfile)) {
-            if (program.getX() != null && program.getY() != null && program.getZ() != null) {
-                dimensions.append(String.format(Locale.US, "%.2f x %.2f x %.2f mm",
-                        program.getX().doubleValue(), program.getY().doubleValue(), program.getZ().doubleValue()));
-            }
-        } else if ("Rura".equals(materialProfile)) {
-            if (program.getDiameter() != null && program.getInnerDiameter() != null && program.getLength() != null) {
-                dimensions.append(String.format(Locale.US, "∅%.2f x ∅%.2f x %.2f mm",
-                        program.getDiameter().doubleValue(), program.getInnerDiameter().doubleValue(), program.getLength().doubleValue()));
-            }
-        } else if ("Pręt".equals(materialProfile)) {
-            if (program.getDiameter() != null && program.getLength() != null) {
-                dimensions.append(String.format(Locale.US, "∅%.2f x %.2f mm",
-                        program.getDiameter().doubleValue(), program.getLength().doubleValue()));
-            }
-        }
 
-        if (dimensions.length() == 0) {
-            return "";
-        }
-        return String.format("%s | %s | %s", materialTypeName, materialProfile, dimensions.toString());
-    }
-
-    private String translateMaterialProfile(String materialProfile) {
-        if (materialProfile == null) return "";
-        switch (materialProfile) {
-            case "Plate": return "Płyta";
-            case "Tube": return "Rura";
-            case "Rod": return "Pręt";
-            default: return materialProfile;
-        }
-    }
 }

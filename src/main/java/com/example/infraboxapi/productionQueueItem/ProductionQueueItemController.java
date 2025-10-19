@@ -54,12 +54,6 @@ public class ProductionQueueItemController {
         List<MultipartFile> files = request.getFile();
         String fileOrderMapping = request.getFileOrderMapping();
 
-        MaterialType materialType = null;
-        if (request.getMaterialTypeId() != null) {
-            materialType = materialTypeRepository.findById(request.getMaterialTypeId())
-                    .orElseThrow(() -> new IllegalArgumentException("MaterialType with ID " + request.getMaterialTypeId() + " not found"));
-        }
-
         ProductionQueueItem item = ProductionQueueItem.builder()
                 .type(request.getType())
                 .subtype(request.getSubtype())
@@ -76,21 +70,41 @@ public class ProductionQueueItemController {
                 .queueType(request.getQueueType() != null ? request.getQueueType() : "ncQueue")
                 .order(request.getOrder())
                 .dependsOnId(request.getDependsOnId())
-                .material(request.getMaterial())
-                .materialValue(request.getMaterialValue())
-                .materialProfile(request.getMaterialProfile())
-                .materialType(materialType)
-                .materialPricePerKg(request.getMaterialPricePerKg())
-                .x(request.getX())
-                .y(request.getY())
-                .z(request.getZ())
-                .diameter(request.getDiameter())
-                .innerDiameter(request.getInnerDiameter())
-                .length(request.getLength())
-                .materialId(request.getMaterialId())
                 .build();
 
         ProductionQueueItem savedItem = productionQueueItemService.save(item, files, fileOrderMapping);
+        return ResponseEntity.ok(savedItem);
+    }
+
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    public ResponseEntity<ProductionQueueItem> updateProductionQueueItem(
+            @PathVariable Integer id,
+            @Valid @ModelAttribute ProductionQueueItemRequest request,
+            BindingResult bindingResult) throws IOException {
+        if (bindingResult.hasErrors()) {
+            ResponseEntity<String> errorResponse = commonService.handleBindingResult(bindingResult);
+            return ResponseEntity.status(errorResponse.getStatusCode()).body(null);
+        }
+
+        ProductionQueueItem updatedItem = ProductionQueueItem.builder()
+                .type(request.getType())
+                .subtype(request.getSubtype())
+                .orderName(request.getOrderName())
+                .partName(request.getPartName())
+                .quantity(request.getQuantity())
+                .baseCamTime(request.getBaseCamTime())
+                .camTime(request.getCamTime())
+                .deadline(request.getDeadline())
+                .selectedDays(request.getSelectedDays())
+                .additionalInfo(request.getAdditionalInfo())
+                .fileDirectory(request.getFileDirectory())
+                .queueType(request.getQueueType())
+                .completed(request.isCompleted())
+                .order(request.getOrder())
+                .dependsOnId(request.getDependsOnId())
+                .build();
+
+        ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile(), request.getFileOrderMapping());
         return ResponseEntity.ok(savedItem);
     }
 
@@ -139,55 +153,7 @@ public class ProductionQueueItemController {
     }
     // --- KONIEC ZMIANY ---
 
-    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
-    public ResponseEntity<ProductionQueueItem> updateProductionQueueItem(
-            @PathVariable Integer id,
-            @Valid @ModelAttribute ProductionQueueItemRequest request,
-            BindingResult bindingResult) throws IOException {
-        if (bindingResult.hasErrors()) {
-            ResponseEntity<String> errorResponse = commonService.handleBindingResult(bindingResult);
-            return ResponseEntity.status(errorResponse.getStatusCode()).body(null);
-        }
 
-        MaterialType materialType = null;
-        if (request.getMaterialTypeId() != null) {
-            materialType = materialTypeRepository.findById(request.getMaterialTypeId())
-                    .orElseThrow(() -> new IllegalArgumentException("MaterialType with ID " + request.getMaterialTypeId() + " not found"));
-        }
-
-        ProductionQueueItem updatedItem = ProductionQueueItem.builder()
-                .type(request.getType())
-                .subtype(request.getSubtype())
-                .orderName(request.getOrderName())
-                .partName(request.getPartName())
-                .quantity(request.getQuantity())
-                .baseCamTime(request.getBaseCamTime())
-                .camTime(request.getCamTime())
-                .deadline(request.getDeadline())
-                .selectedDays(request.getSelectedDays())
-                .additionalInfo(request.getAdditionalInfo())
-                .fileDirectory(request.getFileDirectory())
-                .queueType(request.getQueueType())
-                .completed(request.isCompleted())
-                .order(request.getOrder())
-                .dependsOnId(request.getDependsOnId())
-                .material(request.getMaterial())
-                .materialValue(request.getMaterialValue())
-                .materialProfile(request.getMaterialProfile())
-                .materialType(materialType)
-                .materialPricePerKg(request.getMaterialPricePerKg())
-                .x(request.getX())
-                .y(request.getY())
-                .z(request.getZ())
-                .diameter(request.getDiameter())
-                .innerDiameter(request.getInnerDiameter())
-                .length(request.getLength())
-                .materialId(request.getMaterialId())
-                .build();
-
-        ProductionQueueItem savedItem = productionQueueItemService.update(id, updatedItem, request.getFile(), request.getFileOrderMapping());
-        return ResponseEntity.ok(savedItem);
-    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProductionQueueItem(@PathVariable Integer id) throws IOException {
