@@ -56,9 +56,17 @@ public class SecurityConfiguration {
                         // MATERIAL
                         .requestMatchers("/api/material/get/*").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/material/get").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/material/by-group/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/materials/by-group/*").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/material/create").hasAuthority("ADMIN")
                         .requestMatchers("/api/material/update").hasAuthority("ADMIN")
                         .requestMatchers("/api/material/delete/*").hasAuthority("ADMIN")
+
+                        // MATERIAL RESERVATIONS
+                        .requestMatchers(HttpMethod.GET, "/api/material-reservations/by-program/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.POST, "/api/material-reservations", "/api/material-reservations/validate-availability").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/material-reservations/*").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/material-reservations/*").hasAuthority("ADMIN")
 
                         // TOOL GROUP
                         .requestMatchers("/api/tool_group/get/*").hasAnyAuthority("ADMIN", "USER")

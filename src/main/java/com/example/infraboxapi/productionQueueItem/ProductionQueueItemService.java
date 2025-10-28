@@ -2,6 +2,12 @@ package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfoService;
+import com.example.infraboxapi.material.Material;
+import com.example.infraboxapi.material.MaterialRepository;
+import com.example.infraboxapi.materialReservation.MaterialReservation;
+import com.example.infraboxapi.materialReservation.MaterialReservationRepository;
+import com.example.infraboxapi.materialReservation.ReservationStatus;
+import com.example.infraboxapi.materialReservation.exception.InsufficientMaterialException;
 import com.example.infraboxapi.user.User;
 import com.example.infraboxapi.user.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,6 +44,8 @@ public class ProductionQueueItemService {
     private final FileSystemService fileSystemService;
     private final UserRepository userRepository;
     private final ToolListGeneratorService toolListGeneratorService;
+    private final MaterialReservationRepository materialReservationRepository;
+    private final MaterialRepository materialRepository;
 
     @Value("${file.upload-dir:Uploads}")
     private String uploadDir;
@@ -51,7 +59,9 @@ public class ProductionQueueItemService {
             FileWatcherService fileWatcherService,
             FileSystemService fileSystemService,
             UserRepository userRepository,
-            ToolListGeneratorService toolListGeneratorService) {
+            ToolListGeneratorService toolListGeneratorService,
+            MaterialReservationRepository materialReservationRepository,
+            MaterialRepository materialRepository) {
         this.productionQueueItemRepository = productionQueueItemRepository;
         this.productionFileInfoService = productionFileInfoService;
         this.machineRepository = machineRepository;
@@ -60,6 +70,8 @@ public class ProductionQueueItemService {
         this.fileSystemService = fileSystemService;
         this.userRepository = userRepository;
         this.toolListGeneratorService = toolListGeneratorService;
+        this.materialReservationRepository = materialReservationRepository;
+        this.materialRepository = materialRepository;
     }
 
 
@@ -480,7 +492,68 @@ public class ProductionQueueItemService {
         Optional<ProductionQueueItem> itemOpt = productionQueueItemRepository.findById(id);
         if (itemOpt.isPresent()) {
             ProductionQueueItem item = itemOpt.get();
-            boolean newCompletedStatus = !item.isCompleted();
+            boolean wasCompleted = item.isCompleted();
+            boolean newCompletedStatus = !wasCompleted;
+
+            // CASE 1: Program marked as completed (false → true)
+            if (newCompletedStatus && !wasCompleted) {
+                MaterialReservation reservation = materialReservationRepository
+                    .findByProductionQueueItemId(id).orElse(null);
+
+                if (reservation != null && !reservation.getIsCustom() &&
+                    reservation.getStatus() != ReservationStatus.CONSUMED) {
+
+                    Material material = reservation.getMaterial();
+
+                    // Validate sufficient quantity
+                    Double requiredQuantity = reservation.getQuantityOrLength();
+                    Double availableQuantity;
+
+                    if ("Plate".equals(material.getType())) {
+                        availableQuantity = (double) material.getQuantity();
+                    } else {
+                        // Rod/Tube: available length
+                        availableQuantity = (double) (material.getLength() * material.getQuantity());
+                    }
+
+                    if (availableQuantity < requiredQuantity) {
+                        throw new InsufficientMaterialException(
+                            String.format("Insufficient material in stock. Required: %.2f, Available: %.2f",
+                                requiredQuantity, availableQuantity)
+                        );
+                    }
+
+                    // Consume material
+                    if ("Plate".equals(material.getType())) {
+                        material.setQuantity(material.getQuantity() - requiredQuantity.floatValue());
+                    } else {
+                        // Rod/Tube: recalculate quantity coefficient
+                        Double newAvailableLength = availableQuantity - requiredQuantity;
+                        Double newQuantity = newAvailableLength / material.getLength();
+                        material.setQuantity(newQuantity.floatValue());
+                    }
+
+                    reservation.setStatus(ReservationStatus.CONSUMED);
+                    reservation.setConsumedAt(java.time.LocalDateTime.now());
+
+                    materialRepository.save(material);
+                    materialReservationRepository.save(reservation);
+                }
+            }
+            // CASE 2: Program unmarked as completed (true → false)
+            else if (!newCompletedStatus && wasCompleted) {
+                MaterialReservation reservation = materialReservationRepository
+                    .findByProductionQueueItemId(id).orElse(null);
+
+                if (reservation != null) {
+                    // Change status back to RESERVED
+                    // NOTE: Material quantity is NOT restored!
+                    reservation.setStatus(ReservationStatus.RESERVED);
+                    // consumedAt timestamp remains for audit
+                    materialReservationRepository.save(reservation);
+                }
+            }
+
             item.setCompleted(newCompletedStatus);
 
             if (item.getFiles() != null) {
