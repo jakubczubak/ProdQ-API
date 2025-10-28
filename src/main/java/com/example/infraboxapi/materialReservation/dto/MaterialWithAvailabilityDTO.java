@@ -16,6 +16,7 @@ public class MaterialWithAvailabilityDTO {
     private Integer id;
     private Integer materialGroupId;
     private String materialGroupName;
+    private String materialGroupType;
     private MaterialTypeDTO materialType;
     private String profile;
     private Double x;

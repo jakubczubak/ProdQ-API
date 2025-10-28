@@ -3,6 +3,8 @@ package com.example.infraboxapi.materialReservation;
 import com.example.infraboxapi.material.Material;
 import com.example.infraboxapi.materialType.MaterialType;
 import com.example.infraboxapi.productionQueueItem.ProductionQueueItem;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,10 +24,12 @@ public class MaterialReservation {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "production_queue_item_id")
+    @JsonIgnore // Nie wysyłaj productionQueueItem do frontendu
     private ProductionQueueItem productionQueueItem;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "material_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Material material;
 
     @Column(name = "is_custom", nullable = false)
@@ -55,6 +59,7 @@ public class MaterialReservation {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "custom_material_type_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private MaterialType customMaterialType;
 
     @Column(name = "quantity_or_length", nullable = false)

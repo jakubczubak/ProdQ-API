@@ -264,6 +264,7 @@ public class MaterialReservationService {
                 .id(material.getId())
                 .materialGroupId(groupId)
                 .materialGroupName(materialGroup.getName())
+                .materialGroupType(materialGroup.getType())
                 .materialType(materialTypeDTO)
                 .profile(material.getType())
                 .x((double) material.getX())
