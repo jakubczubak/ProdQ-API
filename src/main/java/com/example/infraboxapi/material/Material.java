@@ -1,6 +1,8 @@
 package com.example.infraboxapi.material;
 
+import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -45,6 +47,12 @@ public class Material {
 
     @Column(name = "updated_on")
     private String updatedOn;
+
+    @ManyToOne
+    @JoinColumn(name = "material_group_id")
+    @ToString.Exclude
+    @JsonIgnore
+    private MaterialGroup materialGroup;
 
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "material_id")

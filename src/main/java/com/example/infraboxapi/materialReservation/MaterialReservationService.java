@@ -177,7 +177,11 @@ public class MaterialReservationService {
         Double stockQuantity;
         String unit;
 
-        if ("Plate".equals(material.getType())) {
+        // Get material group to determine type
+        MaterialGroup materialGroup = material.getMaterialGroup();
+        String groupType = materialGroup != null ? materialGroup.getType() : null;
+
+        if ("Plate".equalsIgnoreCase(groupType)) {
             stockQuantity = (double) material.getQuantity();
             unit = "szt";
         } else {
@@ -225,7 +229,7 @@ public class MaterialReservationService {
             }
 
             Double stockQuantity;
-            if ("Plate".equals(material.getType())) {
+            if ("Plate".equalsIgnoreCase(materialGroup.getType())) {
                 stockQuantity = (double) material.getQuantity();
             } else {
                 stockQuantity = (double) (material.getLength() * material.getQuantity());
