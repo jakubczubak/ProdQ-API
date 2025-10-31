@@ -56,19 +56,9 @@ public class MaterialReservationService {
             Material material = materialRepository.findById(dto.getMaterialId())
                 .orElseThrow(() -> new IllegalArgumentException("Material not found"));
 
-            // Validate availability
-            MaterialAvailabilityDTO availability = validateAvailability(
-                dto.getMaterialId(),
-                dto.getQuantityOrLength(),
-                null
-            );
-
-            if (!availability.getAvailable()) {
-                throw new InsufficientMaterialException(
-                    String.format("Insufficient material available. Required: %.2f, Available: %.2f",
-                        dto.getQuantityOrLength(), availability.getAvailableQuantity())
-                );
-            }
+            // Note: We don't throw an error for insufficient material
+            // Frontend shows a warning dialog, but user can force the reservation
+            // This allows ordering more material than currently available
 
             reservation.setMaterial(material);
         } else {
@@ -101,20 +91,11 @@ public class MaterialReservationService {
         MaterialReservation reservation = reservationRepository.findById(reservationId)
             .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
 
-        // For database materials, validate availability
+        // Update material reference
         if (!dto.getIsCustom()) {
-            MaterialAvailabilityDTO availability = validateAvailability(
-                dto.getMaterialId(),
-                dto.getQuantityOrLength(),
-                reservationId
-            );
-
-            if (!availability.getAvailable()) {
-                throw new InsufficientMaterialException(
-                    String.format("Insufficient material available. Required: %.2f, Available: %.2f",
-                        dto.getQuantityOrLength(), availability.getAvailableQuantity())
-                );
-            }
+            // Note: We don't throw an error for insufficient material
+            // Frontend shows a warning dialog, but user can force the reservation
+            // This allows ordering more material than currently available
 
             Material material = materialRepository.findById(dto.getMaterialId())
                 .orElseThrow(() -> new IllegalArgumentException("Material not found"));
