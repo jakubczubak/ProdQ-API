@@ -27,7 +27,7 @@ public class MaterialReservation {
     @JsonIgnore // Nie wysyłaj productionQueueItem do frontendu
     private ProductionQueueItem productionQueueItem;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "material_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Material material;
@@ -57,7 +57,7 @@ public class MaterialReservation {
     @Column(name = "custom_inner_diameter")
     private Double customInnerDiameter;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "custom_material_type_id")
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private MaterialType customMaterialType;
