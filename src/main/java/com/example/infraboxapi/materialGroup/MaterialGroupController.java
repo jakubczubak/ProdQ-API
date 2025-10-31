@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/material_group/")
 @AllArgsConstructor
@@ -73,11 +75,18 @@ public class MaterialGroupController {
     }
 
     @GetMapping("/get")
-    public ResponseEntity<Iterable<MaterialGroup>> getMaterialGroups() {
+    public ResponseEntity<List<MaterialGroup>> getMaterialGroups() {
+        System.out.println("========================================");
+        System.out.println(">>> MaterialGroupController.getMaterialGroups() CALLED <<<");
+        System.out.println("========================================");
 
         try {
-            return ResponseEntity.ok(materialGroupService.getMaterialGroups());
+            List<MaterialGroup> groups = materialGroupService.getMaterialGroups();
+            System.out.println(">>> Returning " + groups.size() + " material groups");
+            return ResponseEntity.ok(groups);
         } catch (Exception e) {
+            System.err.println(">>> ERROR in getMaterialGroups: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

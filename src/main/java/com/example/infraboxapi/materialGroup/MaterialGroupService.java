@@ -3,6 +3,9 @@ package com.example.infraboxapi.materialGroup;
 import com.example.infraboxapi.FileImage.FileImage;
 import com.example.infraboxapi.FileImage.FileImageRepository;
 import com.example.infraboxapi.FileImage.FileImageService;
+import com.example.infraboxapi.material.Material;
+import com.example.infraboxapi.materialReservation.MaterialReservationRepository;
+import com.example.infraboxapi.materialReservation.ReservationStatus;
 import com.example.infraboxapi.materialType.MaterialType;
 import com.example.infraboxapi.materialType.MaterialTypeRepository;
 import com.example.infraboxapi.notification.NotificationDescription;
@@ -13,6 +16,9 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 @AllArgsConstructor
@@ -23,6 +29,7 @@ public class MaterialGroupService {
     private final MaterialTypeRepository materialTypeRepository;
     private final FileImageService fileImageService;
     private final FileImageRepository fileImageRepository;
+    private final MaterialReservationRepository reservationRepository;
 
     @Transactional
     public void createMaterialGroup(MaterialGroupDTO materialGroupDTO) throws IOException {
@@ -94,13 +101,78 @@ public class MaterialGroupService {
     }
 
 
+    @Transactional
     public MaterialGroup getMaterialGroup(Integer id) {
+        MaterialGroup materialGroup = materialGroupRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Material Group not found"));
 
-        return materialGroupRepository.findById(id).orElseThrow(() -> new RuntimeException("Material Group not found"));
+        // Enrich with availability data
+        enrichMaterialsWithAvailability(materialGroup);
+
+        return materialGroup;
     }
 
-    public Iterable<MaterialGroup> getMaterialGroups() {
-        return materialGroupRepository.findAll();
+    @Transactional
+    public List<MaterialGroup> getMaterialGroups() {
+        Iterable<MaterialGroup> materialGroupsIterable = materialGroupRepository.findAll();
+
+        // Convert to list and enrich with availability data
+        List<MaterialGroup> materialGroups = StreamSupport.stream(materialGroupsIterable.spliterator(), false)
+            .collect(Collectors.toList());
+
+        // Enrich each material with reservation data
+        for (MaterialGroup materialGroup : materialGroups) {
+            enrichMaterialsWithAvailability(materialGroup);
+        }
+
+        return materialGroups;
+    }
+
+    private void enrichMaterialsWithAvailability(MaterialGroup materialGroup) {
+        if (materialGroup.getMaterials() == null) {
+            return;
+        }
+
+        System.out.println("=== Enriching MaterialGroup: " + materialGroup.getName() + " ===");
+
+        for (Material material : materialGroup.getMaterials()) {
+            // Calculate reserved quantity
+            Double reservedQuantity = reservationRepository.sumReservedQuantity(
+                material.getId(),
+                ReservationStatus.RESERVED,
+                null
+            );
+
+            if (reservedQuantity == null) {
+                reservedQuantity = 0.0;
+            }
+
+            // Calculate stock quantity based on material type
+            Double stockQuantity;
+            if ("Plate".equalsIgnoreCase(materialGroup.getType())) {
+                // For plates: quantity is number of pieces
+                stockQuantity = (double) material.getQuantity();
+            } else {
+                // For Rod/Tube: available length = length * quantity
+                stockQuantity = (double) (material.getLength() * material.getQuantity());
+            }
+
+            // Calculate available quantity
+            Double availableQuantity = stockQuantity - reservedQuantity;
+
+            // Set transient fields
+            material.setReservedQuantity(reservedQuantity);
+            material.setAvailableQuantity(availableQuantity);
+
+            System.out.println("Material ID: " + material.getId() +
+                             " | Reserved: " + reservedQuantity +
+                             " | Available: " + availableQuantity +
+                             " | Stock: " + stockQuantity);
+
+            // Verify getters are working
+            System.out.println("Getter check - Reserved: " + material.getReservedQuantity() +
+                             " | Available: " + material.getAvailableQuantity());
+        }
     }
 
 

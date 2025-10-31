@@ -4,6 +4,9 @@ import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -49,6 +52,16 @@ public class Material {
     @Column(name = "updated_on")
     private String updatedOn;
 
+    @Transient
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private Double reservedQuantity;
+
+    @Transient
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    private Double availableQuantity;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "material_group_id")
     @ToString.Exclude
@@ -59,6 +72,34 @@ public class Material {
     @JoinColumn(name = "material_id")
     @ToString.Exclude // Wyłączenie kolekcji z toString()
     private List<MaterialPriceHistory> materialPriceHistoryList;
+
+
+    // Explicit getters and setters for transient fields to ensure JSON serialization
+    @JsonGetter("reservedQuantity")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public Double getReservedQuantity() {
+        System.out.println(">>> getReservedQuantity() called, returning: " + reservedQuantity);
+        return reservedQuantity;
+    }
+
+    @JsonSetter("reservedQuantity")
+    public void setReservedQuantity(Double reservedQuantity) {
+        System.out.println(">>> setReservedQuantity() called with: " + reservedQuantity);
+        this.reservedQuantity = reservedQuantity;
+    }
+
+    @JsonGetter("availableQuantity")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    public Double getAvailableQuantity() {
+        System.out.println(">>> getAvailableQuantity() called, returning: " + availableQuantity);
+        return availableQuantity;
+    }
+
+    @JsonSetter("availableQuantity")
+    public void setAvailableQuantity(Double availableQuantity) {
+        System.out.println(">>> setAvailableQuantity() called with: " + availableQuantity);
+        this.availableQuantity = availableQuantity;
+    }
 
     @PreUpdate
     public void preUpdate() {
