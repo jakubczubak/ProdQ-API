@@ -76,17 +76,10 @@ public class MaterialGroupController {
 
     @GetMapping("/get")
     public ResponseEntity<List<MaterialGroup>> getMaterialGroups() {
-        System.out.println("========================================");
-        System.out.println(">>> MaterialGroupController.getMaterialGroups() CALLED <<<");
-        System.out.println("========================================");
-
         try {
             List<MaterialGroup> groups = materialGroupService.getMaterialGroups();
-            System.out.println(">>> Returning " + groups.size() + " material groups");
             return ResponseEntity.ok(groups);
         } catch (Exception e) {
-            System.err.println(">>> ERROR in getMaterialGroups: " + e.getMessage());
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

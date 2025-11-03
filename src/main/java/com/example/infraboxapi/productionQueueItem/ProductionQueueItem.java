@@ -1,6 +1,7 @@
 package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
+import com.example.infraboxapi.materialReservation.MaterialReservation;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -75,4 +76,9 @@ public class ProductionQueueItem {
     @OneToMany(mappedBy = "productionQueueItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<ProductionFileInfo> files = new ArrayList<>();
+
+    // Material Reservation (one-to-one relationship)
+    @OneToOne(mappedBy = "productionQueueItem", fetch = FetchType.EAGER)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "productionQueueItem"})
+    private MaterialReservation materialReservation;
 }

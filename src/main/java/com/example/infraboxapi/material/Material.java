@@ -78,26 +78,22 @@ public class Material {
     @JsonGetter("reservedQuantity")
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public Double getReservedQuantity() {
-        System.out.println(">>> getReservedQuantity() called, returning: " + reservedQuantity);
         return reservedQuantity;
     }
 
     @JsonSetter("reservedQuantity")
     public void setReservedQuantity(Double reservedQuantity) {
-        System.out.println(">>> setReservedQuantity() called with: " + reservedQuantity);
         this.reservedQuantity = reservedQuantity;
     }
 
     @JsonGetter("availableQuantity")
     @JsonInclude(JsonInclude.Include.ALWAYS)
     public Double getAvailableQuantity() {
-        System.out.println(">>> getAvailableQuantity() called, returning: " + availableQuantity);
         return availableQuantity;
     }
 
     @JsonSetter("availableQuantity")
     public void setAvailableQuantity(Double availableQuantity) {
-        System.out.println(">>> setAvailableQuantity() called with: " + availableQuantity);
         this.availableQuantity = availableQuantity;
     }
 

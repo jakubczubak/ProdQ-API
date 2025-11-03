@@ -43,7 +43,6 @@ public class ProductionQueueItemService {
     private final FileWatcherService fileWatcherService;
     private final FileSystemService fileSystemService;
     private final UserRepository userRepository;
-    private final ToolListGeneratorService toolListGeneratorService;
     private final MaterialReservationRepository materialReservationRepository;
     private final MaterialRepository materialRepository;
 
@@ -59,7 +58,6 @@ public class ProductionQueueItemService {
             FileWatcherService fileWatcherService,
             FileSystemService fileSystemService,
             UserRepository userRepository,
-            ToolListGeneratorService toolListGeneratorService,
             MaterialReservationRepository materialReservationRepository,
             MaterialRepository materialRepository) {
         this.productionQueueItemRepository = productionQueueItemRepository;
@@ -69,7 +67,6 @@ public class ProductionQueueItemService {
         this.fileWatcherService = fileWatcherService;
         this.fileSystemService = fileSystemService;
         this.userRepository = userRepository;
-        this.toolListGeneratorService = toolListGeneratorService;
         this.materialReservationRepository = materialReservationRepository;
         this.materialRepository = materialRepository;
     }
@@ -148,12 +145,6 @@ public class ProductionQueueItemService {
         syncAttachmentsToMachinePath(savedItem);
         fileWatcherService.checkQueueFile(savedItem.getQueueType());
         machineQueueFileGeneratorService.generateQueueFileForMachine(savedItem.getQueueType());
-
-        toolListGeneratorService.generateAndStoreToolList(savedItem)
-                .ifPresent(toolListInfo -> {
-                    savedItem.getFiles().add(toolListInfo);
-                    productionFileInfoService.save(toolListInfo);
-                });
 
         return savedItem;
     }
@@ -251,12 +242,6 @@ public class ProductionQueueItemService {
                 fileWatcherService.checkQueueFile(queueType);
                 machineQueueFileGeneratorService.generateQueueFileForMachine(queueType);
             }
-
-            toolListGeneratorService.generateAndStoreToolList(savedItem)
-                    .ifPresent(toolListInfo -> {
-                        savedItem.getFiles().add(toolListInfo);
-                        productionFileInfoService.save(toolListInfo);
-                    });
 
             return savedItem;
         } else {
@@ -503,33 +488,48 @@ public class ProductionQueueItemService {
                 if (reservation != null && !reservation.getIsCustom() &&
                     reservation.getStatus() != ReservationStatus.CONSUMED) {
 
-                    Material material = reservation.getMaterial();
+                    // IMPORTANT: Reload material from database to get fresh data
+                    Material material = materialRepository.findById(reservation.getMaterial().getId())
+                        .orElseThrow(() -> new RuntimeException("Material not found"));
 
-                    // Validate sufficient quantity
                     Double requiredQuantity = reservation.getQuantityOrLength();
-                    Double availableQuantity;
 
-                    if ("Plate".equals(material.getType())) {
-                        availableQuantity = (double) material.getQuantity();
+                    // Important: Material is already RESERVED for this program!
+                    // We only need to check if stock quantity is sufficient (not available quantity)
+                    // because the reservation was already created and validated earlier.
+
+                    // Get material type from MaterialGroup (not from Material.type which is always "material")
+                    String materialType = material.getMaterialGroup() != null
+                        ? material.getMaterialGroup().getType()
+                        : null;
+
+                    Double stockQuantity;
+                    if ("Plate".equalsIgnoreCase(materialType)) {
+                        stockQuantity = (double) material.getQuantity();
                     } else {
-                        // Rod/Tube: available length
-                        availableQuantity = (double) (material.getLength() * material.getQuantity());
+                        // Rod/Tube: stock length
+                        stockQuantity = (double) (material.getLength() * material.getQuantity());
                     }
 
-                    if (availableQuantity < requiredQuantity) {
+                    logger.info("Toggle Complete - Material ID: {}, Type: {}, MaterialGroup Type: {}, Stock: {}, Required: {}",
+                        material.getId(), material.getType(), materialType, stockQuantity, requiredQuantity);
+
+                    // Validate that stock has enough material
+                    // (This shouldn't fail if reservation was created correctly)
+                    if (stockQuantity < requiredQuantity) {
                         throw new InsufficientMaterialException(
-                            String.format("Insufficient material in stock. Required: %.2f, Available: %.2f",
-                                requiredQuantity, availableQuantity)
+                            String.format("Insufficient material in stock. Required: %.2f, Stock: %.2f",
+                                requiredQuantity, stockQuantity)
                         );
                     }
 
-                    // Consume material
-                    if ("Plate".equals(material.getType())) {
+                    // Consume material from stock
+                    if ("Plate".equalsIgnoreCase(materialType)) {
                         material.setQuantity(material.getQuantity() - requiredQuantity.floatValue());
                     } else {
                         // Rod/Tube: recalculate quantity coefficient
-                        Double newAvailableLength = availableQuantity - requiredQuantity;
-                        Double newQuantity = newAvailableLength / material.getLength();
+                        Double newStockLength = stockQuantity - requiredQuantity;
+                        Double newQuantity = newStockLength / material.getLength();
                         material.setQuantity(newQuantity.floatValue());
                     }
 
@@ -667,9 +667,18 @@ public class ProductionQueueItemService {
         if (item.getFiles() == null || item.getFiles().isEmpty()) {
             return false;
         }
-        return item.getFiles().stream()
+
+        List<ProductionFileInfo> mpfFiles = item.getFiles().stream()
                 .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
-                .allMatch(ProductionFileInfo::isCompleted);
+                .collect(Collectors.toList());
+
+        // If there are no .mpf files, the program cannot be completed
+        if (mpfFiles.isEmpty()) {
+            return false;
+        }
+
+        // Check if all .mpf files are completed
+        return mpfFiles.stream().allMatch(ProductionFileInfo::isCompleted);
     }
 
     private void validateQueueType(String queueType) {

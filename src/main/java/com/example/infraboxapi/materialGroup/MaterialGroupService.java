@@ -133,8 +133,6 @@ public class MaterialGroupService {
             return;
         }
 
-        System.out.println("=== Enriching MaterialGroup: " + materialGroup.getName() + " ===");
-
         for (Material material : materialGroup.getMaterials()) {
             // Calculate reserved quantity
             Double reservedQuantity = reservationRepository.sumReservedQuantity(
@@ -163,15 +161,6 @@ public class MaterialGroupService {
             // Set transient fields
             material.setReservedQuantity(reservedQuantity);
             material.setAvailableQuantity(availableQuantity);
-
-            System.out.println("Material ID: " + material.getId() +
-                             " | Reserved: " + reservedQuantity +
-                             " | Available: " + availableQuantity +
-                             " | Stock: " + stockQuantity);
-
-            // Verify getters are working
-            System.out.println("Getter check - Reserved: " + material.getReservedQuantity() +
-                             " | Available: " + material.getAvailableQuantity());
         }
     }
 
