@@ -221,13 +221,7 @@ public class ProductionQueueItemService {
                 }
             }
 
-            existingItem.setCompleted(updatedItem.isCompleted());
-            if (existingItem.getFiles() != null) {
-                boolean allMpfCompleted = existingItem.getFiles().stream()
-                        .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
-                        .allMatch(ProductionFileInfo::isCompleted);
-                existingItem.setCompleted(allMpfCompleted);
-            }
+            existingItem.setCompleted(checkAllMpfCompleted(existingItem));
 
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
             syncAttachmentsToMachinePath(savedItem);
@@ -418,6 +412,12 @@ public class ProductionQueueItemService {
                 }
             }
 
+            // Delete material reservation if exists (must be done before deleting the program)
+            materialReservationRepository.findByProductionQueueItemId(id).ifPresent(reservation -> {
+                materialReservationRepository.delete(reservation);
+                logger.info("Deleted material reservation for ProductionQueueItem ID: {}", id);
+            });
+
             productionQueueItemRepository.deleteById(id);
             logger.info("Deleted ProductionQueueItem with ID: {}", id);
 
@@ -517,9 +517,17 @@ public class ProductionQueueItemService {
                     // Validate that stock has enough material
                     // (This shouldn't fail if reservation was created correctly)
                     if (stockQuantity < requiredQuantity) {
+                        String unit = "Plate".equalsIgnoreCase(materialType) ? "szt" : "mm";
+                        String materialName = material.getName() != null ? material.getName() : "Material";
+
                         throw new InsufficientMaterialException(
-                            String.format("Insufficient material in stock. Required: %.2f, Stock: %.2f",
-                                requiredQuantity, stockQuantity)
+                            String.format("Insufficient material in stock. Required: %.2f, Available: %.2f",
+                                requiredQuantity, stockQuantity),
+                            material.getId(),
+                            materialName,
+                            requiredQuantity,
+                            stockQuantity,
+                            unit
                         );
                     }
 

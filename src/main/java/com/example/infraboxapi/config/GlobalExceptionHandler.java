@@ -19,6 +19,24 @@ public class GlobalExceptionHandler {
         Map<String, Object> error = new HashMap<>();
         error.put("error", "INSUFFICIENT_MATERIAL");
         error.put("message", ex.getMessage());
+
+        // Add detailed information if available
+        if (ex.getMaterialId() != null) {
+            error.put("materialId", ex.getMaterialId());
+        }
+        if (ex.getMaterialName() != null) {
+            error.put("materialName", ex.getMaterialName());
+        }
+        if (ex.getRequired() != null) {
+            error.put("required", ex.getRequired());
+        }
+        if (ex.getAvailable() != null) {
+            error.put("available", ex.getAvailable());
+        }
+        if (ex.getUnit() != null) {
+            error.put("unit", ex.getUnit());
+        }
+
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 }
