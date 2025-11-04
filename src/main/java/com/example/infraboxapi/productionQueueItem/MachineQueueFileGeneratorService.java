@@ -1,6 +1,9 @@
 package com.example.infraboxapi.productionQueueItem;
 
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
+import com.example.infraboxapi.material.Material;
+import com.example.infraboxapi.materialReservation.MaterialReservation;
+import com.example.infraboxapi.materialReservation.MaterialProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
@@ -82,7 +85,7 @@ public class MachineQueueFileGeneratorService {
     }
 
     private List<ProductionQueueItem> getSortedPrograms(String queueType) {
-        return productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent()
+        return productionQueueItemRepository.findByQueueTypeWithFilesAndMaterial(queueType)
                 .stream()
                 .sorted(Comparator.comparing(ProductionQueueItem::getOrder, Comparator.nullsLast(Comparator.naturalOrder())))
                 .collect(Collectors.toList());
@@ -144,7 +147,12 @@ public class MachineQueueFileGeneratorService {
         appendHeaderLine(content, "Czas", program.getCamTime());
         appendHeaderLine(content, "Autor", program.getAuthor());
 
-
+        // Dodaj informacje o materiale jeśli istnieje
+        String materialInfo = buildMaterialInfo(program);
+        if (materialInfo != null && !materialInfo.isEmpty()) {
+            content.append("------------------------------------------------------------\n");
+            content.append(materialInfo);
+        }
 
         String additionalInfo = program.getAdditionalInfo();
         if (additionalInfo != null && !additionalInfo.trim().isEmpty()) {
@@ -178,6 +186,155 @@ public class MachineQueueFileGeneratorService {
             position++;
         }
         return position;
+    }
+
+    private String buildMaterialInfo(ProductionQueueItem program) {
+        if (program.getMaterialReservation() == null) {
+            return " Materiał         : Nie zdefiniowano\n";
+        }
+
+        MaterialReservation reservation = program.getMaterialReservation();
+        String materialDesc;
+
+        if (reservation.getIsCustom()) {
+            materialDesc = buildCustomMaterialDescription(reservation);
+        } else if (reservation.getMaterial() != null) {
+            Material material = reservation.getMaterial();
+            materialDesc = buildStandardMaterialDescription(material, reservation);
+        } else {
+            return " Materiał         : Nie zdefiniowano\n";
+        }
+
+        return String.format(" Materiał         : %s\n", materialDesc);
+    }
+
+    private String buildStandardMaterialDescription(Material material, MaterialReservation reservation) {
+        StringBuilder desc = new StringBuilder();
+
+        // Nazwa materiału (bez wymiarów)
+        String materialName = material.getName();
+        // Usuwamy wymiary z nazwy (np. "Płyty PA13: 19x415x575" -> "Płyty PA13")
+        materialName = materialName.replaceAll(":\\s*[0-9x⌀Ø×]+\\s*$", "").trim();
+        desc.append(materialName);
+
+        // Typ materiału w nawiasach (MaterialGroup.MaterialType.name)
+        if (material.getMaterialGroup() != null &&
+            material.getMaterialGroup().getMaterialType() != null &&
+            material.getMaterialGroup().getMaterialType().getName() != null) {
+            desc.append(String.format(" (%s)", material.getMaterialGroup().getMaterialType().getName()));
+        }
+
+        // Wymiary materiału
+        String dimensions = formatMaterialDimensions(material);
+        if (!dimensions.isEmpty()) {
+            desc.append(String.format(" | %s", dimensions));
+        }
+
+        // Ilość/Długość potrzebna
+        if (reservation.getQuantityOrLength() != null) {
+            String unit = determineMaterialUnit(material);
+            desc.append(String.format(" | Potrzebne: %.2f %s", reservation.getQuantityOrLength(), unit));
+        }
+
+        return desc.toString();
+    }
+
+    private String buildCustomMaterialDescription(MaterialReservation reservation) {
+        StringBuilder desc = new StringBuilder();
+
+        if (reservation.getCustomName() != null) {
+            desc.append(reservation.getCustomName());
+        } else {
+            desc.append("Materiał niestandardowy");
+        }
+
+        if (reservation.getCustomMaterialType() != null && reservation.getCustomMaterialType().getName() != null) {
+            desc.append(String.format(" (%s)", reservation.getCustomMaterialType().getName()));
+        }
+
+        String dimensions = formatCustomMaterialDimensions(reservation);
+        if (!dimensions.isEmpty()) {
+            desc.append(String.format(" | %s", dimensions));
+        }
+
+        if (reservation.getQuantityOrLength() != null) {
+            String unit = determineCustomMaterialUnit(reservation);
+            desc.append(String.format(" | Potrzebne: %.2f %s", reservation.getQuantityOrLength(), unit));
+        }
+
+        return desc.toString();
+    }
+
+    private String formatMaterialDimensions(Material material) {
+        // Sprawdzamy czy to rura (ma diameter i length)
+        if (material.getDiameter() > 0 && material.getLength() > 0) {
+            // Rura: Ø100xØ80mm (zakładamy że length to średnica wewnętrzna dla rur)
+            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), material.getLength());
+        }
+
+        // Pręt (tylko diameter bez length)
+        if (material.getDiameter() > 0) {
+            return String.format("Ø%.0fmm", material.getDiameter());
+        }
+
+        // Płyta/Blok (x, y, z)
+        if (material.getX() > 0 || material.getY() > 0 || material.getZ() > 0) {
+            List<String> dims = new java.util.ArrayList<>();
+            if (material.getX() > 0) dims.add(String.format("%.0f", material.getX()));
+            if (material.getY() > 0) dims.add(String.format("%.0f", material.getY()));
+            if (material.getZ() > 0) dims.add(String.format("%.0f", material.getZ()));
+            return String.join("x", dims) + "mm";
+        }
+
+        return "";
+    }
+
+    private String formatCustomMaterialDimensions(MaterialReservation reservation) {
+        MaterialProfile profile = reservation.getCustomType();
+
+        if (profile == MaterialProfile.PLATE) {
+            // Płyta: 415x575x19mm
+            List<String> dims = new java.util.ArrayList<>();
+            if (reservation.getCustomX() != null && reservation.getCustomX() > 0)
+                dims.add(String.format("%.0f", reservation.getCustomX()));
+            if (reservation.getCustomY() != null && reservation.getCustomY() > 0)
+                dims.add(String.format("%.0f", reservation.getCustomY()));
+            if (reservation.getCustomZ() != null && reservation.getCustomZ() > 0)
+                dims.add(String.format("%.0f", reservation.getCustomZ()));
+            return dims.isEmpty() ? "" : String.join("x", dims) + "mm";
+
+        } else if (profile == MaterialProfile.TUBE) {
+            // Rura: Ø100xØ80mm
+            if (reservation.getCustomDiameter() != null && reservation.getCustomDiameter() > 0 &&
+                reservation.getCustomInnerDiameter() != null && reservation.getCustomInnerDiameter() > 0) {
+                return String.format("Ø%.0fxØ%.0fmm", reservation.getCustomDiameter(), reservation.getCustomInnerDiameter());
+            } else if (reservation.getCustomDiameter() != null && reservation.getCustomDiameter() > 0) {
+                return String.format("Ø%.0fmm", reservation.getCustomDiameter());
+            }
+
+        } else if (profile == MaterialProfile.ROD) {
+            // Pręt: Ø100mm
+            if (reservation.getCustomDiameter() != null && reservation.getCustomDiameter() > 0) {
+                return String.format("Ø%.0fmm", reservation.getCustomDiameter());
+            }
+        }
+
+        return "";
+    }
+
+    private String determineMaterialUnit(Material material) {
+        if (material.getLength() > 0 || material.getDiameter() > 0) {
+            return "mm";
+        }
+        return "szt";
+    }
+
+    private String determineCustomMaterialUnit(MaterialReservation reservation) {
+        MaterialProfile profile = reservation.getCustomType();
+        if (profile == MaterialProfile.ROD || profile == MaterialProfile.TUBE) {
+            return "mm";
+        }
+        return "szt";
     }
 
 

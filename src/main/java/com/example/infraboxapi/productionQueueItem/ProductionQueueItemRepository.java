@@ -16,7 +16,14 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
 
     // --- POCZĄTEK ZMIANY ---
     // Dodajemy DISTINCT, aby uniknąć duplikowania wierszy rodzica, gdy ma wiele dzieci.
-    @Query("SELECT DISTINCT p FROM ProductionQueueItem p LEFT JOIN FETCH p.files f WHERE p.queueType = :queueType")
+    // Pobieramy również rezerwację materiału wraz z zagnieżdżonymi danymi
+    @Query("SELECT DISTINCT p FROM ProductionQueueItem p " +
+           "LEFT JOIN FETCH p.files f " +
+           "LEFT JOIN FETCH p.materialReservation mr " +
+           "LEFT JOIN FETCH mr.material m " +
+           "LEFT JOIN FETCH m.materialGroup mg " +
+           "LEFT JOIN FETCH mr.customMaterialType cmt " +
+           "WHERE p.queueType = :queueType")
     Page<ProductionQueueItem> findByQueueTypeWithFiles(@Param("queueType") String queueType, Pageable pageable);
     // --- KONIEC ZMIANY ---
 
@@ -27,6 +34,16 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
     // Tutaj również dodajemy DISTINCT z tego samego powodu.
     @Query("SELECT DISTINCT p FROM ProductionQueueItem p LEFT JOIN FETCH p.files f WHERE p.id = :id ORDER BY f.order ASC")
     Optional<ProductionQueueItem> findByIdWithFiles(@Param("id") Integer id);
+
+    // Query dla generatora kolejki - pobiera programy z plikami i rezerwacją materiału
+    @Query("SELECT DISTINCT p FROM ProductionQueueItem p " +
+           "LEFT JOIN FETCH p.files f " +
+           "LEFT JOIN FETCH p.materialReservation mr " +
+           "LEFT JOIN FETCH mr.material m " +
+           "LEFT JOIN FETCH m.materialGroup mg " +
+           "LEFT JOIN FETCH mr.customMaterialType cmt " +
+           "WHERE p.queueType = :queueType")
+    List<ProductionQueueItem> findByQueueTypeWithFilesAndMaterial(@Param("queueType") String queueType);
     // --- KONIEC ZMIANY ---
 
     @Query("SELECT DISTINCT f.fileName FROM ProductionQueueItem p JOIN p.files f WHERE p.orderName = :orderName AND p.partName = :partName")
