@@ -22,6 +22,7 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
            "LEFT JOIN FETCH p.materialReservation mr " +
            "LEFT JOIN FETCH mr.material m " +
            "LEFT JOIN FETCH m.materialGroup mg " +
+           "LEFT JOIN FETCH mg.materialType mt " +
            "LEFT JOIN FETCH mr.customMaterialType cmt " +
            "WHERE p.queueType = :queueType")
     Page<ProductionQueueItem> findByQueueTypeWithFiles(@Param("queueType") String queueType, Pageable pageable);
@@ -41,6 +42,7 @@ public interface ProductionQueueItemRepository extends JpaRepository<ProductionQ
            "LEFT JOIN FETCH p.materialReservation mr " +
            "LEFT JOIN FETCH mr.material m " +
            "LEFT JOIN FETCH m.materialGroup mg " +
+           "LEFT JOIN FETCH mg.materialType mt " +
            "LEFT JOIN FETCH mr.customMaterialType cmt " +
            "WHERE p.queueType = :queueType")
     List<ProductionQueueItem> findByQueueTypeWithFilesAndMaterial(@Param("queueType") String queueType);

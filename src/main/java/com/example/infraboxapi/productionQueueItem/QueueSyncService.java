@@ -68,8 +68,9 @@ public class QueueSyncService {
                 logger.debug("Starting automatic file sync for machine: {}", machine.getMachineName());
 
                 // 1. Pobierz wszystkie aktywne programy dla tej maszyny
+                // IMPORTANT: Use findByQueueTypeWithFilesAndMaterial() to eagerly load files
                 List<ProductionQueueItem> programs = productionQueueItemRepository
-                        .findByQueueType(String.valueOf(machine.getId()), Pageable.unpaged()).getContent();
+                        .findByQueueTypeWithFilesAndMaterial(String.valueOf(machine.getId()));
 
                 // 2. Dla każdego programu uruchom synchronizację jego plików
                 for (ProductionQueueItem program : programs) {

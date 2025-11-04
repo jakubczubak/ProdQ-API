@@ -453,7 +453,8 @@ public class ProductionQueueItemService {
         Machine machine = machineOpt.get();
         fileWatcherService.checkQueueFile(queueType);
 
-        List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueType(queueType, Pageable.unpaged()).getContent();
+        // IMPORTANT: Use findByQueueTypeWithFilesAndMaterial() to eagerly load files
+        List<ProductionQueueItem> programs = productionQueueItemRepository.findByQueueTypeWithFilesAndMaterial(queueType);
         for (ProductionQueueItem program : programs) {
             String orderName = fileSystemService.sanitizeName(program.getOrderName(), "NoOrderName_" + program.getId());
             String partName = fileSystemService.sanitizeName(program.getPartName(), "NoPartName_" + program.getId());
@@ -587,7 +588,13 @@ public class ProductionQueueItemService {
         List<Integer> itemIds = items.stream()
                 .map(OrderItem::getId)
                 .collect(Collectors.toList());
-        List<ProductionQueueItem> existingItems = productionQueueItemRepository.findAllById(itemIds);
+
+        // IMPORTANT: Load items with files to ensure proper synchronization
+        List<ProductionQueueItem> existingItems = new ArrayList<>();
+        for (Integer id : itemIds) {
+            productionQueueItemRepository.findByIdWithFiles(id).ifPresent(existingItems::add);
+        }
+
         Map<Integer, ProductionQueueItem> itemMap = existingItems.stream()
                 .collect(Collectors.toMap(ProductionQueueItem::getId, item -> item));
 
