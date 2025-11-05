@@ -221,7 +221,22 @@ public class ProductionQueueItemService {
                 }
             }
 
-            existingItem.setCompleted(checkAllMpfCompleted(existingItem));
+            // NEW LOGIC: Don't automatically set completed=true, use operator reporting workflow instead
+            // Only update operatorReportedComplete flag if all MPF files are completed
+            boolean allMpfCompleted = checkAllMpfCompleted(existingItem);
+            if (allMpfCompleted && !existingItem.isCompleted()) {
+                // If all MPF files are now completed but program is not yet completed,
+                // set the operator reported flag (requires admin approval before consuming material)
+                if (!Boolean.TRUE.equals(existingItem.getOperatorReportedComplete())) {
+                    existingItem.setOperatorReportedComplete(true);
+                    existingItem.setOperatorReportedAt(java.time.LocalDateTime.now());
+                }
+            } else if (!allMpfCompleted && Boolean.TRUE.equals(existingItem.getOperatorReportedComplete())) {
+                // If MPF files are no longer all completed, clear the operator reported flag
+                existingItem.setOperatorReportedComplete(false);
+                existingItem.setOperatorReportedAt(null);
+            }
+            // Note: existingItem.completed is NOT set here - only via toggleComplete (admin approval)
 
             ProductionQueueItem savedItem = productionQueueItemRepository.save(existingItem);
             syncAttachmentsToMachinePath(savedItem);
@@ -564,6 +579,13 @@ public class ProductionQueueItemService {
             }
 
             item.setCompleted(newCompletedStatus);
+
+            // Clear operator reported flag when admin approves/unapproves completion
+            if (newCompletedStatus) {
+                // When marking as completed, clear the operator reported flag
+                item.setOperatorReportedComplete(false);
+                item.setOperatorReportedAt(null);
+            }
 
             if (item.getFiles() != null) {
                 for (ProductionFileInfo file : item.getFiles()) {

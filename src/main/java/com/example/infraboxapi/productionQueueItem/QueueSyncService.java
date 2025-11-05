@@ -204,9 +204,28 @@ public class QueueSyncService {
                         .filter(f -> f.getFileName().toLowerCase().endsWith(".mpf"))
                         .allMatch(ProductionFileInfo::isCompleted);
 
-                program.setCompleted(allMpfCompleted);
+                // NEW LOGIC: Set operator reported flag instead of directly completing
+                // This allows manual approval in UI before consuming material
+                if (allMpfCompleted && !program.isCompleted()) {
+                    // Operator reports completion by marking all files as OK
+                    if (!Boolean.TRUE.equals(program.getOperatorReportedComplete())) {
+                        program.setOperatorReportedComplete(true);
+                        program.setOperatorReportedAt(java.time.LocalDateTime.now());
+                        logger.info("Operator reported completion for program {} at {}",
+                            programId, program.getOperatorReportedAt());
+                    }
+                    // DO NOT set program.completed = true here
+                    // DO NOT consume material here
+                } else if (!allMpfCompleted && Boolean.TRUE.equals(program.getOperatorReportedComplete())) {
+                    // Operator changed mind - clear the flag
+                    program.setOperatorReportedComplete(false);
+                    program.setOperatorReportedAt(null);
+                    logger.info("Operator cleared completion report for program {}", programId);
+                }
+
                 productionQueueItemRepository.save(program);
-                logger.info("Updated program {} status to completed={}", programId, allMpfCompleted);
+                logger.info("Updated program {} operator report status: reported={}",
+                    programId, program.getOperatorReportedComplete());
             }
         } else {
             logger.warn("File {} for program {} not found in database", fileName, programId);

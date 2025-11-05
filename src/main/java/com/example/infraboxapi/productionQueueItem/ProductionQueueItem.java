@@ -51,6 +51,13 @@ public class ProductionQueueItem {
     @Column(name = "completed", nullable = false)
     private boolean completed = false;
 
+    // Operator reported completion fields
+    @Column(name = "operator_reported_complete")
+    private Boolean operatorReportedComplete = false;
+
+    @Column(name = "operator_reported_at")
+    private LocalDateTime operatorReportedAt;
+
     @Column(name = "queue_type")
     private String queueType;
 

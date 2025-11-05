@@ -266,18 +266,41 @@ public class MachineQueueFileGeneratorService {
     }
 
     private String formatMaterialDimensions(Material material) {
-        // Sprawdzamy czy to rura (ma diameter i length)
-        if (material.getDiameter() > 0 && material.getLength() > 0) {
-            // Rura: Ø100xØ80mm (zakładamy że length to średnica wewnętrzna dla rur)
-            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), material.getLength());
+        // Pobierz typ z materialGroup
+        String materialGroupType = null;
+        if (material.getMaterialGroup() != null && material.getMaterialGroup().getType() != null) {
+            materialGroupType = material.getMaterialGroup().getType().toLowerCase();
         }
 
-        // Pręt (tylko diameter bez length)
-        if (material.getDiameter() > 0) {
+        // Rura (tube): ma diameter i thickness, wyświetl średnicę zewnętrzną i wewnętrzną
+        if ("tube".equals(materialGroupType) && material.getDiameter() > 0 && material.getThickness() > 0) {
+            // Średnica wewnętrzna = diameter - 2 * thickness
+            float innerDiameter = material.getDiameter() - (2 * material.getThickness());
+            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), innerDiameter);
+        }
+
+        // Pręt (rod): ma tylko diameter, wyświetl tylko średnicę
+        if ("rod".equals(materialGroupType) && material.getDiameter() > 0) {
             return String.format("Ø%.0fmm", material.getDiameter());
         }
 
-        // Płyta/Blok (x, y, z)
+        // Płyta (plate): ma x, y, z
+        if ("plate".equals(materialGroupType) && (material.getX() > 0 || material.getY() > 0 || material.getZ() > 0)) {
+            List<String> dims = new java.util.ArrayList<>();
+            if (material.getX() > 0) dims.add(String.format("%.0f", material.getX()));
+            if (material.getY() > 0) dims.add(String.format("%.0f", material.getY()));
+            if (material.getZ() > 0) dims.add(String.format("%.0f", material.getZ()));
+            return String.join("x", dims) + "mm";
+        }
+
+        // Fallback: jeśli nie ma typu w materialGroup, użyj starej logiki
+        if (material.getDiameter() > 0 && material.getThickness() > 0) {
+            float innerDiameter = material.getDiameter() - (2 * material.getThickness());
+            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), innerDiameter);
+        }
+        if (material.getDiameter() > 0) {
+            return String.format("Ø%.0fmm", material.getDiameter());
+        }
         if (material.getX() > 0 || material.getY() > 0 || material.getZ() > 0) {
             List<String> dims = new java.util.ArrayList<>();
             if (material.getX() > 0) dims.add(String.format("%.0f", material.getX()));
@@ -323,9 +346,11 @@ public class MachineQueueFileGeneratorService {
     }
 
     private String determineMaterialUnit(Material material) {
-        if (material.getLength() > 0 || material.getDiameter() > 0) {
+        // Rury i pręty (mają diameter) - jednostka to długość w mm
+        if (material.getDiameter() > 0) {
             return "mm";
         }
+        // Płyty (mają x, y, z) - jednostka to sztuki
         return "szt";
     }
 
