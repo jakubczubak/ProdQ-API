@@ -5,11 +5,13 @@ import com.example.infraboxapi.FileImage.FileImageService;
 import com.example.infraboxapi.FileProductionItem.ProductionFileInfo;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,9 +23,11 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -57,6 +61,106 @@ public class MachineService {
         this.machineQueueFileGeneratorService = Objects.requireNonNull(machineQueueFileGeneratorService, "MachineQueueFileGeneratorService cannot be null");
         this.fileSystemService = Objects.requireNonNull(fileSystemService, "FileSystemService cannot be null");
         logger.info("MachineService initialized successfully");
+    }
+
+    /**
+     * Runs cleanup of orphaned queue files on application startup.
+     * This method deletes .txt queue files that no longer correspond to existing machines.
+     */
+    @PostConstruct
+    @Async
+    public void cleanupOrphanedQueueFilesOnStartup() {
+        logger.info("Starting cleanup of orphaned queue files on application startup...");
+        try {
+            int deletedFiles = cleanupOrphanedQueueFiles();
+            logger.info("Finished cleanup of orphaned queue files. Deleted {} files.", deletedFiles);
+        } catch (Exception e) {
+            logger.error("Error during cleanup of orphaned queue files: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Cleans up orphaned queue files (.txt) that don't correspond to any existing machine.
+     * Only scans directories that are explicitly configured in machine settings.
+     * SAFE: Does NOT scan any directories if no machines are configured.
+     *
+     * @return Number of deleted files
+     */
+    public int cleanupOrphanedQueueFiles() {
+        int deletedCount = 0;
+        List<Machine> allMachines = machineRepository.findAll();
+
+        // SAFETY CHECK: If no machines exist, skip cleanup entirely
+        // We don't want to blindly delete files from unknown locations
+        if (allMachines.isEmpty()) {
+            logger.info("No machines configured. Skipping queue files cleanup for safety.");
+            return 0;
+        }
+
+        // Build a set of expected queue file names (sanitized machine names + .txt)
+        Set<String> expectedFileNames = allMachines.stream()
+                .map(machine -> fileSystemService.sanitizeName(machine.getMachineName(), "machine_queue") + ".txt")
+                .collect(Collectors.toSet());
+
+        logger.debug("Expected queue files: {}", expectedFileNames);
+
+        // Collect all unique queue file paths from configured machines
+        Set<String> uniqueQueuePaths = allMachines.stream()
+                .map(Machine::getQueueFilePath)
+                .filter(Objects::nonNull)
+                .map(this::normalizePath)
+                .collect(Collectors.toSet());
+
+        if (uniqueQueuePaths.isEmpty()) {
+            logger.info("No queue file paths configured. Skipping cleanup.");
+            return 0;
+        }
+
+        // Scan ONLY configured queue file paths
+        for (String queuePathStr : uniqueQueuePaths) {
+            Path queuePath = resolveMountedPath(queuePathStr);
+
+            if (!Files.exists(queuePath) || !Files.isDirectory(queuePath)) {
+                logger.warn("Queue file path {} does not exist or is not a directory. Skipping.", queuePath);
+                continue;
+            }
+
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(queuePath, "*.txt")) {
+                for (Path file : stream) {
+                    String fileName = file.getFileName().toString();
+
+                    // If this .txt file is NOT in the expected list, delete it
+                    if (!expectedFileNames.contains(fileName)) {
+                        try {
+                            if (Files.deleteIfExists(file)) {
+                                logger.info("Deleted orphaned queue file: {}", file);
+                                deletedCount++;
+                            }
+                        } catch (IOException e) {
+                            logger.error("Failed to delete orphaned queue file {}: {}", file, e.getMessage());
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                logger.error("Error scanning path {}: {}", queuePath, e.getMessage(), e);
+            }
+        }
+
+        return deletedCount;
+    }
+
+    /**
+     * Resolves a path to the mounted directory structure.
+     * Uses /cnc for production/docker-local, ./cnc for local development.
+     */
+    private Path resolveMountedPath(String pathStr) {
+        String cleanedPath = pathStr.replaceFirst("^/+", "").replaceFirst("^cnc/?", "");
+        String appEnv = System.getenv("APP_ENV") != null ? System.getenv("APP_ENV") : "local";
+        Path mountDir = "prod".equalsIgnoreCase(appEnv) || "docker-local".equalsIgnoreCase(appEnv)
+                ? Paths.get("/cnc")
+                : Paths.get("./cnc");
+
+        return cleanedPath.isEmpty() ? mountDir : mountDir.resolve(cleanedPath).normalize();
     }
 
     @Transactional

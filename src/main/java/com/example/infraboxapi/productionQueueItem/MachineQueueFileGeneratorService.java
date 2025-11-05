@@ -106,14 +106,18 @@ public class MachineQueueFileGeneratorService {
         int position = 1;
         for (ProductionQueueItem program : programs) {
             List<ProductionFileInfo> mpfFiles = filterAndSortMpfFiles(program);
-            if (mpfFiles.isEmpty()) {
-                continue;
-            }
 
             content.append("---\n\n");
             appendHeader(content, program);
             content.append("\n--- PROGRAMY ---\n\n");
-            position = appendProgramFiles(content, mpfFiles, position);
+
+            if (mpfFiles.isEmpty()) {
+                // No MPF files - display informational message
+                content.append("# Brak przypisanych programów do zlecenia produkcyjnego.\n");
+            } else {
+                // Has MPF files - list them
+                position = appendProgramFiles(content, mpfFiles, position);
+            }
         }
         content.append("\n---");
         return content.toString();
