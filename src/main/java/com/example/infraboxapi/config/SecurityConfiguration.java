@@ -96,13 +96,6 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/order/update").hasAuthority("ADMIN")
                         .requestMatchers("/api/order/delete/*").hasAuthority("ADMIN")
 
-                        // RECYCLING
-                        .requestMatchers("/api/recycling/all").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/recycling/get/*").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/recycling/add").hasAuthority("ADMIN")
-                        .requestMatchers("/api/recycling/update").hasAuthority("ADMIN")
-                        .requestMatchers("/api/recycling/delete/*").hasAuthority("ADMIN")
-
                         // CONTACT (SUPPLIER)
                         .requestMatchers("/api/supplier/all").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/supplier/get/*").hasAnyAuthority("ADMIN", "USER")
@@ -119,9 +112,6 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/user/manageUser/*/*").hasAuthority("ADMIN")
                         .requestMatchers("/api/user/delete/*").hasAuthority("ADMIN")
 
-                        // DEPARTMENT COST
-                        .requestMatchers("/api/department_cost/get").hasAnyAuthority("ADMIN", "USER")
-                        .requestMatchers("/api/department_cost/update").hasAuthority("ADMIN")
 
                         // ACCESSORIES GROUP
                         .requestMatchers("/api/accessorie/get").hasAnyAuthority("ADMIN", "USER")

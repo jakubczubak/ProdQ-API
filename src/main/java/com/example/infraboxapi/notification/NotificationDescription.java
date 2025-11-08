@@ -27,17 +27,12 @@ public enum NotificationDescription {
     ToolUpdated("Tool details updated"),
     ToolDeleted("Tool removed from inventory"),
 
-    DepartmentCostUpdated("Department cost adjusted"),
 
     OrderAdded("New order placed"),
     OrderDeleted("Order removed from records"),
     OrderUpdated("Order details updated"),
     OrderOnTheWay("Order is in transit"),
     OrderDelivered("Order successfully delivered"),
-
-    RecyclingAdded("New recycling entry created"),
-    RecyclingUpdated("Recycling entry updated"),
-    RecyclingDeleted("Recycling entry removed"),
 
     SupplierAdded("New supplier added"),
     SupplierUpdated("Supplier details updated"),
