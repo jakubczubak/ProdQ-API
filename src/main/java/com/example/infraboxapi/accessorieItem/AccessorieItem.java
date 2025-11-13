@@ -32,6 +32,7 @@ public class AccessorieItem {
     private String additionalInfo;
     private float length;
     private float diameter;
+    private float quantityInTransit;
 
     @Column(name = "updated_on")
     private String updatedOn;

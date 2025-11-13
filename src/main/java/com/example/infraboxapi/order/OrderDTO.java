@@ -36,6 +36,10 @@ public class OrderDTO {
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private double totalPrice;
 
+    private Integer supplierId;
+
+    private String expectedDeliveryDate;
+
     @Valid
     private List<OrderItemDTO> orderItems;
 }

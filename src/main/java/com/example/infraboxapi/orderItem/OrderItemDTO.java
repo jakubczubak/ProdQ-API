@@ -23,7 +23,7 @@ public class OrderItemDTO {
     private float quantity;
     @NotBlank(message = "Field 'item type' cannot be blank")
     @Size(min = 1, max = 100, message = "Field 'item type' must have a length between 1 and 100 characters")
-    private String itemType;
+    private String itemType; // "material" | "tool" | "accessorie"
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private Integer itemID;
 }
