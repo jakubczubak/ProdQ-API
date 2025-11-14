@@ -38,5 +38,12 @@ public class OrderItem {
     private BigDecimal newPrice;
     private boolean priceUpdated;
 
+    @Column(name = "vat_rate")
+    @Builder.Default
+    private Integer vatRate = 23; // VAT rate percentage (default 23%)
+
+    @Column(name = "discount")
+    @Builder.Default
+    private Float discount = 0.0f; // Discount percentage (0-100)
 
 }

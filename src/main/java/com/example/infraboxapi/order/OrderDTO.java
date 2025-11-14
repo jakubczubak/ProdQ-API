@@ -28,13 +28,19 @@ public class OrderDTO {
     @NotBlank(message = "Field 'status' cannot be blank")
     private String status;
 
-    @Email(message = "Field 'supplierEmail' must be a valid email address")
+    // Optional - can be derived from supplier relationship
     private String supplierEmail;
 
     private String supplierMessage;  // Umożliwienie długich wiadomości
 
     @PositiveOrZero(message = "Value must be a positive number or zero")
-    private double totalPrice;
+    private double totalNet; // Total net price (before VAT)
+
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private double totalVat; // Total VAT amount
+
+    @PositiveOrZero(message = "Value must be a positive number or zero")
+    private double totalGross; // Total gross price (net + VAT)
 
     private Integer supplierId;
 

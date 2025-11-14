@@ -34,6 +34,11 @@ public class Tool {
     private float quantity;
     private float minQuantity;
     private BigDecimal price;
+
+    @Column(name = "vat_rate")
+    @Builder.Default
+    private Integer vatRate = 23; // Default VAT rate 23%
+
     private String toolID;
     private String link;
     private String additionalInfo;

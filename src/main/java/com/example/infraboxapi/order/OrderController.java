@@ -54,11 +54,37 @@ public class OrderController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<String> updateOrder(@RequestBody Order order) {
+    public ResponseEntity<String> updateOrder(@RequestBody OrderDTO orderDTO) {
+        try {
+            orderService.updateOrderFromDTO(orderDTO);
+            return ResponseEntity.ok("Order updated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{orderId}/item/{itemId}/price")
+    public ResponseEntity<String> updateItemPrice(
+            @PathVariable Integer orderId,
+            @PathVariable Integer itemId,
+            @RequestBody java.math.BigDecimal newPrice) {
 
         try {
-            orderService.updateOrder(order);
-            return ResponseEntity.ok("Order updated successfully");
+            orderService.updateItemPrice(orderId, itemId, newPrice);
+            return ResponseEntity.ok("Price updated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{orderId}/partial-delivery")
+    public ResponseEntity<String> partialDelivery(
+            @PathVariable Integer orderId,
+            @RequestBody java.util.List<com.example.infraboxapi.orderItem.OrderItem> updatedItems) {
+
+        try {
+            orderService.partialDelivery(orderId, updatedItems);
+            return ResponseEntity.ok("Partial delivery processed successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }

@@ -26,4 +26,14 @@ public class OrderItemDTO {
     private String itemType; // "material" | "tool" | "accessorie"
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private Integer itemID;
+
+    @Builder.Default
+    private Integer vatRate = 23; // VAT rate percentage (default 23%)
+
+    @Builder.Default
+    @PositiveOrZero(message = "Discount must be a positive number or zero")
+    private Float discount = 0.0f; // Discount percentage (0-100)
+
+    @PositiveOrZero(message = "Price override must be a positive number or zero")
+    private Double priceOverride; // Optional price override (null = use default price)
 }

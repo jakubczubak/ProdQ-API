@@ -35,7 +35,15 @@ public class Order {
     @Lob  // Oznaczenie pola jako typu Lob (Large Object)
     private String supplierMessage;
 
-    private double totalPrice;
+    @Column(name = "total_net")
+    private double totalNet; // Total net price (before VAT)
+
+    @Column(name = "total_vat")
+    private double totalVat; // Total VAT amount
+
+    @Column(name = "total_gross")
+    private double totalGross; // Total gross price (net + VAT)
+
     private boolean externalQuantityUpdated;
     private boolean transitQuantitySet;
 

@@ -46,6 +46,10 @@ public class Material {
     private BigDecimal price;
     private String type;
 
+    @Column(name = "vat_rate")
+    @Builder.Default
+    private Integer vatRate = 23; // Default VAT rate 23%
+
     private float quantityInTransit;
     private String additionalInfo;
 
