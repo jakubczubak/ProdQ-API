@@ -148,11 +148,11 @@ public class MaterialGroupService {
             // Calculate stock quantity based on material type
             Double stockQuantity;
             if ("Plate".equalsIgnoreCase(materialGroup.getType())) {
-                // For plates: quantity is number of pieces
-                stockQuantity = (double) material.getQuantity();
+                // For plates: stockQuantity is number of pieces
+                stockQuantity = material.getStockQuantity() != null ? material.getStockQuantity().doubleValue() : 0.0;
             } else {
-                // For Rod/Tube: available length = length * quantity
-                stockQuantity = (double) (material.getLength() * material.getQuantity());
+                // For Rod/Tube: totalStockLength is total available length in mm
+                stockQuantity = material.getTotalStockLength() != null ? material.getTotalStockLength().doubleValue() : 0.0;
             }
 
             // Calculate available quantity

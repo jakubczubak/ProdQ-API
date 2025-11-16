@@ -508,23 +508,24 @@ public class ProductionQueueItemService {
                     Material material = materialRepository.findById(reservation.getMaterial().getId())
                         .orElseThrow(() -> new RuntimeException("Material not found"));
 
-                    Double requiredQuantity = reservation.getQuantityOrLength();
-
-                    // Important: Material is already RESERVED for this program!
-                    // We only need to check if stock quantity is sufficient (not available quantity)
-                    // because the reservation was already created and validated earlier.
-
                     // Get material type from MaterialGroup (not from Material.type which is always "material")
                     String materialType = material.getMaterialGroup() != null
                         ? material.getMaterialGroup().getType()
                         : null;
 
+                    Double requiredQuantity;
                     Double stockQuantity;
+                    String unit;
+
                     if ("Plate".equalsIgnoreCase(materialType)) {
-                        stockQuantity = (double) material.getQuantity();
+                        requiredQuantity = reservation.getReservedQuantity() != null ? reservation.getReservedQuantity().doubleValue() : 0.0;
+                        stockQuantity = material.getStockQuantity() != null ? material.getStockQuantity().doubleValue() : 0.0;
+                        unit = "szt";
                     } else {
-                        // Rod/Tube: stock length
-                        stockQuantity = (double) (material.getLength() * material.getQuantity());
+                        // Rod/Tube
+                        requiredQuantity = reservation.getReservedLength() != null ? reservation.getReservedLength() : 0.0;
+                        stockQuantity = material.getTotalStockLength() != null ? material.getTotalStockLength().doubleValue() : 0.0;
+                        unit = "mm";
                     }
 
                     logger.info("Toggle Complete - Material ID: {}, Type: {}, MaterialGroup Type: {}, Stock: {}, Required: {}",
@@ -533,7 +534,6 @@ public class ProductionQueueItemService {
                     // Validate that stock has enough material
                     // (This shouldn't fail if reservation was created correctly)
                     if (stockQuantity < requiredQuantity) {
-                        String unit = "Plate".equalsIgnoreCase(materialType) ? "szt" : "mm";
                         String materialName = material.getName() != null ? material.getName() : "Material";
 
                         throw new InsufficientMaterialException(
@@ -549,12 +549,11 @@ public class ProductionQueueItemService {
 
                     // Consume material from stock
                     if ("Plate".equalsIgnoreCase(materialType)) {
-                        material.setQuantity(material.getQuantity() - requiredQuantity.floatValue());
+                        material.setStockQuantity(material.getStockQuantity() - requiredQuantity.intValue());
                     } else {
-                        // Rod/Tube: recalculate quantity coefficient
-                        Double newStockLength = stockQuantity - requiredQuantity;
-                        Double newQuantity = newStockLength / material.getLength();
-                        material.setQuantity(newQuantity.floatValue());
+                        // Rod/Tube: subtract from total stock length
+                        Float newStockLength = material.getTotalStockLength() - requiredQuantity.floatValue();
+                        material.setTotalStockLength(newStockLength);
                     }
 
                     reservation.setStatus(ReservationStatus.CONSUMED);

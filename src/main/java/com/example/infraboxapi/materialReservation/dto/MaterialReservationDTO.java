@@ -28,8 +28,10 @@ public class MaterialReservationDTO {
     private Double customInnerDiameter;
     private Integer customMaterialTypeId;
 
-    // Common fields
-    private Double quantityOrLength;
+    // Common fields - separated by material type
+    private Integer reservedQuantity;  // For Plates: number of pieces
+    private Double reservedLength;     // For Rods/Tubes: length in mm
+    private Double customLength;       // For custom Rods/Tubes: length per piece
     private Double weight;
     private Double cost;
 }

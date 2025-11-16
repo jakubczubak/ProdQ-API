@@ -53,6 +53,15 @@ public class Order {
 
     private String expectedDeliveryDate;
 
+    @Column(name = "invoice_file_name")
+    private String invoiceFileName; // Original filename of uploaded invoice
+
+    @Column(name = "invoice_file_path")
+    private String invoiceFilePath; // Server path to invoice file
+
+    @Column(name = "invoice_upload_date")
+    private String invoiceUploadDate; // Date when invoice was uploaded
+
     private String createdBy;
     private String lastModifiedBy;
 

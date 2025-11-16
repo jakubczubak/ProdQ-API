@@ -36,12 +36,13 @@ public class MaterialService {
         Material newMaterial = Material.builder()
                 .diameter(materialDTO.getDiameter())
                 .length(materialDTO.getLength())
-                .thickness(materialDTO.getThickness())
+                .innerDiameter(materialDTO.getInnerDiameter())
                 .name(materialDTO.getName())
                 .price(materialDTO.getPrice())
                 .pricePerKg(materialDTO.getPricePerKg())
                 .minQuantity(materialDTO.getMinQuantity())
-                .quantity(materialDTO.getQuantity())
+                .stockQuantity(materialDTO.getStockQuantity())
+                .totalStockLength(materialDTO.getTotalStockLength())
                 .z(materialDTO.getZ())
                 .y(materialDTO.getY())
                 .x(materialDTO.getX())
@@ -119,15 +120,26 @@ public class MaterialService {
             material.getMaterialPriceHistoryList().add(materialPriceHistory);
         }
 
-        // Zmiana ilości
-        if (material.getQuantity() != materialDTO.getQuantity()) {
+        // Zmiana ilości - sprawdź stockQuantity lub totalStockLength w zależności od typu
+        if (materialDTO.getStockQuantity() != null && !materialDTO.getStockQuantity().equals(material.getStockQuantity())) {
             String message;
-            if (materialDTO.getQuantity() > material.getQuantity()) {
+            if (materialDTO.getStockQuantity() > (material.getStockQuantity() != null ? material.getStockQuantity() : 0)) {
                 message = "Ilość materiału " + material.getName() + " została zwiększona z "
-                        + material.getQuantity() + " na " + materialDTO.getQuantity() + ".";
+                        + (material.getStockQuantity() != null ? material.getStockQuantity() : 0) + " na " + materialDTO.getStockQuantity() + " szt.";
             } else {
                 message = "Ilość materiału " + material.getName() + " została zmniejszona z "
-                        + material.getQuantity() + " na " + materialDTO.getQuantity() + ".";
+                        + (material.getStockQuantity() != null ? material.getStockQuantity() : 0) + " na " + materialDTO.getStockQuantity() + " szt.";
+            }
+            notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
+        }
+        if (materialDTO.getTotalStockLength() != null && !materialDTO.getTotalStockLength().equals(material.getTotalStockLength())) {
+            String message;
+            if (materialDTO.getTotalStockLength() > (material.getTotalStockLength() != null ? material.getTotalStockLength() : 0)) {
+                message = "Długość materiału " + material.getName() + " została zwiększona z "
+                        + (material.getTotalStockLength() != null ? material.getTotalStockLength() : 0) + " na " + materialDTO.getTotalStockLength() + " mm.";
+            } else {
+                message = "Długość materiału " + material.getName() + " została zmniejszona z "
+                        + (material.getTotalStockLength() != null ? material.getTotalStockLength() : 0) + " na " + materialDTO.getTotalStockLength() + " mm.";
             }
             notificationService.createAndSendQuantityNotification(message, NotificationDescription.MaterialQuantityUpdated);
         }
@@ -169,11 +181,11 @@ public class MaterialService {
                     .append(" na ")
                     .append(materialDTO.getLength());
         }
-        if (material.getThickness() != materialDTO.getThickness()) {
-            notificationMessage.append("\nGrubość: z ")
-                    .append(material.getThickness())
+        if (materialDTO.getInnerDiameter() != null && !materialDTO.getInnerDiameter().equals(material.getInnerDiameter())) {
+            notificationMessage.append("\nŚrednica wewnętrzna: z ")
+                    .append(material.getInnerDiameter() != null ? material.getInnerDiameter() : 0)
                     .append(" na ")
-                    .append(materialDTO.getThickness());
+                    .append(materialDTO.getInnerDiameter());
         }
         if (!Objects.equals(material.getAdditionalInfo(), materialDTO.getAdditionalInfo())) {
             notificationMessage.append("\nDodatkowe informacje: z ")
@@ -186,13 +198,14 @@ public class MaterialService {
         material.setPricePerKg(materialDTO.getPricePerKg());
         material.setPrice(materialDTO.getPrice());
         material.setMinQuantity(materialDTO.getMinQuantity());
-        material.setQuantity(materialDTO.getQuantity());
+        material.setStockQuantity(materialDTO.getStockQuantity());
+        material.setTotalStockLength(materialDTO.getTotalStockLength());
         material.setZ(materialDTO.getZ());
         material.setY(materialDTO.getY());
         material.setX(materialDTO.getX());
         material.setDiameter(materialDTO.getDiameter());
         material.setLength(materialDTO.getLength());
-        material.setThickness(materialDTO.getThickness());
+        material.setInnerDiameter(materialDTO.getInnerDiameter());
         material.setName(materialDTO.getName());
         material.setType(materialDTO.getType());
         material.setQuantityInTransit(materialDTO.getQuantityInTransit());

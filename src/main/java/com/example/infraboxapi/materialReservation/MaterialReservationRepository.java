@@ -15,7 +15,7 @@ public interface MaterialReservationRepository extends JpaRepository<MaterialRes
 
     List<MaterialReservation> findByMaterialIdAndStatus(Integer materialId, ReservationStatus status);
 
-    @Query("SELECT COALESCE(SUM(mr.quantityOrLength), 0.0) FROM MaterialReservation mr " +
+    @Query("SELECT COALESCE(SUM(COALESCE(mr.reservedQuantity, 0.0) + COALESCE(mr.reservedLength, 0.0)), 0.0) FROM MaterialReservation mr " +
            "WHERE mr.material.id = :materialId " +
            "AND mr.status = :status " +
            "AND (:excludeReservationId IS NULL OR mr.id != :excludeReservationId)")

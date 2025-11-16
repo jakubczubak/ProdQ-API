@@ -32,15 +32,25 @@ public class Material {
     private BigDecimal pricePerKg;
     private float minQuantity;
     private float proposedMinQuantity;
-    private float quantity;
 
-    private float z;
-    private float y;
-    private float x;
+    // Stock fields - different per material type
+    private Integer stockQuantity;      // For Plates: number of pieces
+    private Float totalStockLength;     // For Rods/Tubes: total length in mm
+
+    // Plate dimensions (mm)
+    private float z;  // thickness
+    private float y;  // height
+    private float x;  // width
+
+    // Rod dimensions (mm)
     private float diameter;
 
+    // Tube dimensions (mm)
+    // diameter is reused from Rod (outer diameter)
+    private Float innerDiameter;  // inner diameter (replaces thickness!)
+
+    // Rod/Tube length per piece (mm)
     private float length;
-    private float thickness;
 
     private String name;
     private BigDecimal price;
@@ -99,6 +109,19 @@ public class Material {
     @JsonSetter("availableQuantity")
     public void setAvailableQuantity(Double availableQuantity) {
         this.availableQuantity = availableQuantity;
+    }
+
+    /**
+     * Calculate wall thickness for tubes
+     * wallThickness = (outerDiameter - innerDiameter) / 2
+     */
+    @JsonGetter("wallThickness")
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Float getWallThickness() {
+        if (diameter > 0 && innerDiameter != null && innerDiameter > 0) {
+            return (diameter - innerDiameter) / 2;
+        }
+        return null;
     }
 
     @PreUpdate

@@ -23,9 +23,10 @@ public class MaterialWithAvailabilityDTO {
     private Double y;
     private Double z;
     private Double diameter;
-    private Double thickness;
+    private Double innerDiameter;
     private Double length;
-    private Float quantity;
+    private Integer stockQuantity;
+    private Float totalStockLength;
     private BigDecimal pricePerKg;
     private Double availableQuantity;
     private Double reservedQuantity;
@@ -48,7 +49,8 @@ public class MaterialWithAvailabilityDTO {
     public static class ExistingReservationDTO {
         private Integer programId;
         private String programName;
-        private Double quantityOrLength;
+        private Integer reservedQuantity;  // For Plates
+        private Double reservedLength;     // For Rods/Tubes
         private String status;
     }
 }

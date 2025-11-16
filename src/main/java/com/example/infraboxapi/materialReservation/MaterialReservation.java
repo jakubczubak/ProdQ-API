@@ -33,6 +33,7 @@ public class MaterialReservation {
     private Material material;
 
     @Column(name = "is_custom", nullable = false)
+    @Builder.Default
     private Boolean isCustom = false;
 
     @Column(name = "custom_name")
@@ -42,6 +43,7 @@ public class MaterialReservation {
     @Column(name = "custom_type")
     private MaterialProfile customType;
 
+    // Custom Plate fields
     @Column(name = "custom_x")
     private Double customX;
 
@@ -51,9 +53,14 @@ public class MaterialReservation {
     @Column(name = "custom_z")
     private Double customZ;
 
+    // Custom Rod fields
     @Column(name = "custom_diameter")
     private Double customDiameter;
 
+    @Column(name = "custom_length")
+    private Double customLength;  // Length for custom rods/tubes
+
+    // Custom Tube fields (reuses customDiameter as outer diameter)
     @Column(name = "custom_inner_diameter")
     private Double customInnerDiameter;
 
@@ -62,8 +69,12 @@ public class MaterialReservation {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private MaterialType customMaterialType;
 
-    @Column(name = "quantity_or_length", nullable = false)
-    private Double quantityOrLength;
+    // Reservation amount - separated by material type
+    @Column(name = "reserved_quantity")
+    private Integer reservedQuantity;  // For Plates: number of pieces
+
+    @Column(name = "reserved_length")
+    private Double reservedLength;  // For Rods/Tubes: length in mm
 
     @Column(name = "weight")
     private Double weight;
@@ -73,6 +84,7 @@ public class MaterialReservation {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
+    @Builder.Default
     private ReservationStatus status = ReservationStatus.RESERVED;
 
     @Column(name = "consumed_at")

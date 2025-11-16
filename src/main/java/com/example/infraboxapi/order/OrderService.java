@@ -18,11 +18,22 @@ import com.example.infraboxapi.tool.ToolRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @AllArgsConstructor
@@ -97,6 +108,11 @@ public class OrderService {
         // Handle priceOverride if provided
         if (orderItemDTO.getPriceOverride() != null && orderItemDTO.getPriceOverride() > 0) {
             orderItemBuilder.newPrice(BigDecimal.valueOf(orderItemDTO.getPriceOverride()));
+        }
+
+        // Handle pricePerKg if provided (for materials)
+        if (orderItemDTO.getPricePerKg() != null && orderItemDTO.getPricePerKg() > 0) {
+            orderItemBuilder.pricePerKg(BigDecimal.valueOf(orderItemDTO.getPricePerKg()));
         }
 
         if ("tool".equals(itemType)) {
@@ -401,7 +417,21 @@ public class OrderService {
                     Material material = materialRepository.findById(orderItem.getMaterial().getId()).orElse(null);
 
                     if (material != null) {
-                        material.setQuantity(material.getQuantity() + quantityToAdd);
+                        // Determine material type from MaterialGroup
+                        String materialType = material.getMaterialGroup() != null
+                            ? material.getMaterialGroup().getType()
+                            : null;
+
+                        // Add to appropriate stock field based on material type
+                        if ("Plate".equalsIgnoreCase(materialType)) {
+                            // For plates: add to stockQuantity (pieces)
+                            Integer currentStock = material.getStockQuantity() != null ? material.getStockQuantity() : 0;
+                            material.setStockQuantity(currentStock + (int) quantityToAdd);
+                        } else {
+                            // For Rod/Tube: add to totalStockLength (mm)
+                            Float currentLength = material.getTotalStockLength() != null ? material.getTotalStockLength() : 0.0f;
+                            material.setTotalStockLength(currentLength + quantityToAdd);
+                        }
 
                         // Update price if newPrice is set
                         if (orderItem.getNewPrice() != null && orderItem.getNewPrice().compareTo(BigDecimal.ZERO) > 0) {
@@ -591,5 +621,141 @@ public class OrderService {
                 NotificationDescription.OrderUpdated
             );
         }
+    }
+
+    // Invoice file upload directory
+    private static final String INVOICE_UPLOAD_DIR = "uploads/invoices/";
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("pdf", "jpg", "jpeg", "png", "doc", "docx", "xls", "xlsx");
+
+    /**
+     * Upload invoice file for an order
+     */
+    @Transactional
+    public void uploadInvoice(Integer orderId, MultipartFile file) throws IOException {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found with ID: " + orderId));
+
+        // Validate file
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("File is empty");
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("File size exceeds maximum limit of 10MB");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.isEmpty()) {
+            throw new IllegalArgumentException("Invalid filename");
+        }
+
+        String fileExtension = getFileExtension(originalFilename).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.contains(fileExtension)) {
+            throw new IllegalArgumentException("File type not allowed. Allowed types: " + String.join(", ", ALLOWED_EXTENSIONS));
+        }
+
+        // Delete old invoice if exists
+        if (order.getInvoiceFilePath() != null) {
+            deleteInvoiceFile(order.getInvoiceFilePath());
+        }
+
+        // Create directory if not exists
+        Path uploadPath = Paths.get(INVOICE_UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        // Generate unique filename
+        String uniqueFilename = "invoice_" + orderId + "_" + UUID.randomUUID() + "." + fileExtension;
+        Path filePath = uploadPath.resolve(uniqueFilename);
+
+        // Save file
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        // Update order
+        order.setInvoiceFileName(originalFilename);
+        order.setInvoiceFilePath(filePath.toString());
+
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        order.setInvoiceUploadDate(now.format(formatter));
+
+        orderRepository.save(order);
+
+        notificationService.createAndSendNotification(
+                "Invoice uploaded for order '" + order.getName() + "'.",
+                NotificationDescription.OrderUpdated
+        );
+    }
+
+    /**
+     * Get invoice file path for download
+     */
+    public Path getInvoiceFilePath(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found with ID: " + orderId));
+
+        if (order.getInvoiceFilePath() == null) {
+            throw new IllegalArgumentException("No invoice found for this order");
+        }
+
+        return Paths.get(order.getInvoiceFilePath());
+    }
+
+    /**
+     * Get invoice filename
+     */
+    public String getInvoiceFileName(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found with ID: " + orderId));
+
+        return order.getInvoiceFileName();
+    }
+
+    /**
+     * Delete invoice for an order
+     */
+    @Transactional
+    public void deleteInvoice(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found with ID: " + orderId));
+
+        if (order.getInvoiceFilePath() != null) {
+            deleteInvoiceFile(order.getInvoiceFilePath());
+            order.setInvoiceFileName(null);
+            order.setInvoiceFilePath(null);
+            order.setInvoiceUploadDate(null);
+            orderRepository.save(order);
+
+            notificationService.createAndSendNotification(
+                    "Invoice deleted for order '" + order.getName() + "'.",
+                    NotificationDescription.OrderUpdated
+            );
+        }
+    }
+
+    /**
+     * Helper method to delete invoice file from filesystem
+     */
+    private void deleteInvoiceFile(String filePath) {
+        try {
+            Path path = Paths.get(filePath);
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            // Log error but don't throw exception
+            System.err.println("Failed to delete invoice file: " + filePath);
+        }
+    }
+
+    /**
+     * Helper method to get file extension
+     */
+    private String getFileExtension(String filename) {
+        int lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex == -1) {
+            return "";
+        }
+        return filename.substring(lastDotIndex + 1);
     }
 }

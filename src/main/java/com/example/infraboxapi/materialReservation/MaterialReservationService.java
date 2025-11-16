@@ -78,7 +78,9 @@ public class MaterialReservationService {
             }
         }
 
-        reservation.setQuantityOrLength(dto.getQuantityOrLength());
+        reservation.setReservedQuantity(dto.getReservedQuantity());
+        reservation.setReservedLength(dto.getReservedLength());
+        reservation.setCustomLength(dto.getCustomLength());
         reservation.setWeight(dto.getWeight());
         reservation.setCost(dto.getCost());
         reservation.setStatus(ReservationStatus.RESERVED);
@@ -121,7 +123,9 @@ public class MaterialReservationService {
             }
         }
 
-        reservation.setQuantityOrLength(dto.getQuantityOrLength());
+        reservation.setReservedQuantity(dto.getReservedQuantity());
+        reservation.setReservedLength(dto.getReservedLength());
+        reservation.setCustomLength(dto.getCustomLength());
         reservation.setWeight(dto.getWeight());
         reservation.setCost(dto.getCost());
 
@@ -163,11 +167,11 @@ public class MaterialReservationService {
         String groupType = materialGroup != null ? materialGroup.getType() : null;
 
         if ("Plate".equalsIgnoreCase(groupType)) {
-            stockQuantity = (double) material.getQuantity();
+            stockQuantity = material.getStockQuantity() != null ? material.getStockQuantity().doubleValue() : 0.0;
             unit = "szt";
         } else {
-            // Rod or Tube: available length = length * quantity
-            stockQuantity = (double) (material.getLength() * material.getQuantity());
+            // Rod or Tube: totalStockLength is total available length in mm
+            stockQuantity = material.getTotalStockLength() != null ? material.getTotalStockLength().doubleValue() : 0.0;
             unit = "mm";
         }
 
@@ -211,9 +215,9 @@ public class MaterialReservationService {
 
             Double stockQuantity;
             if ("Plate".equalsIgnoreCase(materialGroup.getType())) {
-                stockQuantity = (double) material.getQuantity();
+                stockQuantity = material.getStockQuantity() != null ? material.getStockQuantity().doubleValue() : 0.0;
             } else {
-                stockQuantity = (double) (material.getLength() * material.getQuantity());
+                stockQuantity = material.getTotalStockLength() != null ? material.getTotalStockLength().doubleValue() : 0.0;
             }
 
             Double availableQuantity = stockQuantity - reservedQuantity;
@@ -230,7 +234,8 @@ public class MaterialReservationService {
                             .programId(r.getProductionQueueItem().getId())
                             .programName(r.getProductionQueueItem().getOrderName() + " - " +
                                         r.getProductionQueueItem().getPartName())
-                            .quantityOrLength(r.getQuantityOrLength())
+                            .reservedQuantity(r.getReservedQuantity())
+                            .reservedLength(r.getReservedLength())
                             .status(r.getStatus().name())
                             .build()
                     ).collect(Collectors.toList());
@@ -256,9 +261,10 @@ public class MaterialReservationService {
                 .y((double) material.getY())
                 .z((double) material.getZ())
                 .diameter((double) material.getDiameter())
-                .thickness((double) material.getThickness())
+                .innerDiameter(material.getInnerDiameter() != null ? material.getInnerDiameter().doubleValue() : null)
                 .length((double) material.getLength())
-                .quantity(material.getQuantity())
+                .stockQuantity(material.getStockQuantity())
+                .totalStockLength(material.getTotalStockLength())
                 .pricePerKg(material.getPricePerKg())
                 .availableQuantity(availableQuantity)
                 .reservedQuantity(reservedQuantity)

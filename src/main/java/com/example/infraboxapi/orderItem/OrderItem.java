@@ -46,4 +46,7 @@ public class OrderItem {
     @Builder.Default
     private Float discount = 0.0f; // Discount percentage (0-100)
 
+    @Column(name = "price_per_kg")
+    private BigDecimal pricePerKg; // Price per kilogram for materials (PLN/kg)
+
 }

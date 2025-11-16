@@ -235,9 +235,11 @@ public class MachineQueueFileGeneratorService {
         }
 
         // Ilość/Długość potrzebna
-        if (reservation.getQuantityOrLength() != null) {
-            String unit = determineMaterialUnit(material);
-            desc.append(String.format(" | Potrzebne: %.2f %s", reservation.getQuantityOrLength(), unit));
+        String unit = determineMaterialUnit(material);
+        if (reservation.getReservedQuantity() != null) {
+            desc.append(String.format(" | Potrzebne: %d %s", reservation.getReservedQuantity(), unit));
+        } else if (reservation.getReservedLength() != null) {
+            desc.append(String.format(" | Potrzebne: %.2f %s", reservation.getReservedLength(), unit));
         }
 
         return desc.toString();
@@ -261,9 +263,11 @@ public class MachineQueueFileGeneratorService {
             desc.append(String.format(" | %s", dimensions));
         }
 
-        if (reservation.getQuantityOrLength() != null) {
-            String unit = determineCustomMaterialUnit(reservation);
-            desc.append(String.format(" | Potrzebne: %.2f %s", reservation.getQuantityOrLength(), unit));
+        String unit = determineCustomMaterialUnit(reservation);
+        if (reservation.getReservedQuantity() != null) {
+            desc.append(String.format(" | Potrzebne: %d %s", reservation.getReservedQuantity(), unit));
+        } else if (reservation.getReservedLength() != null) {
+            desc.append(String.format(" | Potrzebne: %.2f %s", reservation.getReservedLength(), unit));
         }
 
         return desc.toString();
@@ -276,11 +280,9 @@ public class MachineQueueFileGeneratorService {
             materialGroupType = material.getMaterialGroup().getType().toLowerCase();
         }
 
-        // Rura (tube): ma diameter i thickness, wyświetl średnicę zewnętrzną i wewnętrzną
-        if ("tube".equals(materialGroupType) && material.getDiameter() > 0 && material.getThickness() > 0) {
-            // Średnica wewnętrzna = diameter - 2 * thickness
-            float innerDiameter = material.getDiameter() - (2 * material.getThickness());
-            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), innerDiameter);
+        // Rura (tube): ma diameter i innerDiameter, wyświetl średnicę zewnętrzną i wewnętrzną
+        if ("tube".equals(materialGroupType) && material.getDiameter() > 0 && material.getInnerDiameter() != null && material.getInnerDiameter() > 0) {
+            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), material.getInnerDiameter());
         }
 
         // Pręt (rod): ma tylko diameter, wyświetl tylko średnicę
@@ -298,9 +300,8 @@ public class MachineQueueFileGeneratorService {
         }
 
         // Fallback: jeśli nie ma typu w materialGroup, użyj starej logiki
-        if (material.getDiameter() > 0 && material.getThickness() > 0) {
-            float innerDiameter = material.getDiameter() - (2 * material.getThickness());
-            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), innerDiameter);
+        if (material.getDiameter() > 0 && material.getInnerDiameter() != null && material.getInnerDiameter() > 0) {
+            return String.format("Ø%.0fxØ%.0fmm", material.getDiameter(), material.getInnerDiameter());
         }
         if (material.getDiameter() > 0) {
             return String.format("Ø%.0fmm", material.getDiameter());

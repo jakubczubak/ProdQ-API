@@ -26,8 +26,11 @@ public class MaterialDTO {
     @PositiveOrZero(message = "Minimum quantity must be a positive number or zero")
     private float minQuantity;
 
-    @PositiveOrZero(message = "Quantity must be a positive number")
-    private float quantity;
+    @PositiveOrZero(message = "Stock quantity must be a positive number")
+    private Integer stockQuantity;  // For Plates: number of pieces
+
+    @PositiveOrZero(message = "Total stock length must be a positive number")
+    private Float totalStockLength;  // For Rods/Tubes: total length in mm
 
     @PositiveOrZero(message = "Value must be a positive number or zero")
     private float z;
@@ -44,8 +47,8 @@ public class MaterialDTO {
     @PositiveOrZero(message = "Length must be a positive number or zero")
     private float length;
 
-    @PositiveOrZero(message = "Thickness must be a positive number or zero")
-    private float thickness;
+    @PositiveOrZero(message = "Inner diameter must be a positive number or zero")
+    private Float innerDiameter;  // For Tubes: inner diameter
 
     @NotBlank(message = "Field 'name' cannot be blank")
     @Size(min = 1, max = 100, message = "Field 'name' must have a length between 1 and 100 characters")

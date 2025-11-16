@@ -36,4 +36,7 @@ public class OrderItemDTO {
 
     @PositiveOrZero(message = "Price override must be a positive number or zero")
     private Double priceOverride; // Optional price override (null = use default price)
+
+    @PositiveOrZero(message = "Price per kg must be a positive number or zero")
+    private Double pricePerKg; // Price per kilogram for materials (PLN/kg)
 }
