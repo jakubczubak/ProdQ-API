@@ -75,11 +75,11 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
 
 # JVM optimization dla Raspberry Pi ARM64
 # -Xms256m: Initial heap (szybki start)
-# -Xmx1536m: Max heap 1.5GB (zgodne z docker-compose limit 2GB)
+# -Xmx1200m: Max heap 1.2GB (dostosowane dla Raspberry Pi 8GB, limit 1.5GB)
 # -XX:+UseG1GC: Garbage-First GC (lepszy dla ARM64)
 # -XX:MaxGCPauseMillis=200: Max GC pause 200ms
 # -XX:+UseStringDeduplication: Oszczędność RAM
-ENV JAVA_OPTS="-Xms256m -Xmx1536m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication"
+ENV JAVA_OPTS="-Xms256m -Xmx1200m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication"
 
 # Uruchomienie aplikacji
 # Spring Boot DevTools są automatycznie wyłączone w packaged JAR
