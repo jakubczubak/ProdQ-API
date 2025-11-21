@@ -1,0 +1,79 @@
+# Maven build output
+target/
+!target/*.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (nie potrzebne w obrazie)
+*.md
+docs/
+HELP.md
+README.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Environment
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.env
+application-local.yml
+application-local.properties
+
+# Logs
+*.log
+logs/
+spring.log
+
+# Testing
+.mvn/wrapper/maven-wrapper.properties
+mvnw.cmd
+
+# OS
+Thumbs.db
+.Trashes
+ehthumbs.db
+
+# Misc
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+node_modules/
