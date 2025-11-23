@@ -79,23 +79,19 @@ public class Order {
     public void prePersist() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUsername = userDetails.getUsername();
-        if (!"root@gmail.com".equals(currentUsername)) {
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            createdDate = now.format(formatter);
-            createdBy = currentUsername;
-        }
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        createdDate = now.format(formatter);
+        createdBy = currentUsername;
     }
 
     @PreUpdate
     public void preUpdate() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUsername = userDetails.getUsername();
-        if (!"root@gmail.com".equals(currentUsername)) {
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            lastModifiedDate = now.format(formatter);
-            lastModifiedBy = currentUsername;
-        }
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        lastModifiedDate = now.format(formatter);
+        lastModifiedBy = currentUsername;
     }
 }

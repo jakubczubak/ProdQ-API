@@ -35,15 +35,15 @@ public class OrderController {
     }
 
     @PostMapping("/add")
-    public ResponseEntity<String> addOrder(@Valid @RequestBody OrderDTO orderDTO, BindingResult bindingResult) {
+    public ResponseEntity<?> addOrder(@Valid @RequestBody OrderDTO orderDTO, BindingResult bindingResult) {
 
         if (bindingResult.hasErrors()) {
             return commonService.handleBindingResult(bindingResult);
         }
 
         try {
-            orderService.addOrder(orderDTO);
-            return ResponseEntity.ok("Order created successfully");
+            Order createdOrder = orderService.addOrder(orderDTO);
+            return ResponseEntity.ok(createdOrder);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }

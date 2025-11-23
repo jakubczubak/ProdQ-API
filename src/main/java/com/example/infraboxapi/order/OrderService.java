@@ -54,7 +54,7 @@ public class OrderService {
     }
 
     @Transactional
-    public void addOrder(OrderDTO orderDTO) {
+    public Order addOrder(OrderDTO orderDTO) {
         List<OrderItem> orderItems = new ArrayList<>();
 
         for (OrderItemDTO orderItemDTO : orderDTO.getOrderItems()) {
@@ -90,9 +90,11 @@ public class OrderService {
                 .transitQuantitySet(false)
                 .build();
 
-        orderRepository.save(order);
+        Order savedOrder = orderRepository.save(order);
 
         notificationService.createAndSendNotification("Order '" + order.getName() + "' has been added.", NotificationDescription.OrderAdded);
+
+        return savedOrder;
     }
 
     private OrderItem createOrderItemFromDTO(OrderItemDTO orderItemDTO) {

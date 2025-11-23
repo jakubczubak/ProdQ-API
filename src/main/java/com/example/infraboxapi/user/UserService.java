@@ -137,11 +137,8 @@ public class UserService {
         if (authentication != null && authentication.getPrincipal() instanceof User loggedInUser) {
             Integer loggedInUserId = loggedInUser.getId();
 
-            User rootUser = userRepository.findByEmail(ROOT_EMAIL).orElseThrow();
-
             List<User> users = userRepository.findAll();
             users.removeIf(user -> user.getId().equals(loggedInUserId));
-            users.removeIf(user -> user.getId().equals(rootUser.getId()));
 
             return users;
         } else {

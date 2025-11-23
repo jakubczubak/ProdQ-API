@@ -54,11 +54,8 @@ public class Tool {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUsername = userDetails.getUsername();  // Zakładając, że username to email użytkownika
 
-        // Jeśli użytkownik to root, nie aktualizuj pola updatedOn
-        if (!"root@gmail.com".equals(currentUsername)) {
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            updatedOn = now.format(formatter);
-        }
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        updatedOn = now.format(formatter);
     }
 }

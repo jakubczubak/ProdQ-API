@@ -14,7 +14,6 @@ import java.util.List;
 @AllArgsConstructor
 public class NotificationService {
 
-    private static final String ROOT_EMAIL = "root@gmail.com";
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
 
@@ -43,10 +42,6 @@ public class NotificationService {
     public void createAndSendNotification(String description, NotificationDescription notificationDescription) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
-
-        if (isRootUser(currentUser)) {
-            return;
-        }
 
         List<User> allUsersExceptAuthor = findAllUsersExceptUserWithId(currentUser.getId());
 
@@ -85,10 +80,6 @@ public class NotificationService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User currentUser = (User) authentication.getPrincipal();
 
-        if (isRootUser(currentUser)) {
-            return;
-        }
-
         List<User> allUsers = userRepository.findAll();
 
         for (User u : allUsers) {
@@ -116,14 +107,6 @@ public class NotificationService {
 
         // Usuwamy powiadomienia niezależnie od tego, czy użytkownik jest rootem
         return notificationRepository.deleteByReadFalseAndUserId(userId);
-    }
-
-    private boolean isRootUser(User user) {
-        return user != null && ROOT_EMAIL.equals(user.getEmail());
-    }
-
-    private boolean isRootUser(String author) {
-        return "root".equalsIgnoreCase(author);
     }
 
     public Integer getUserId() {

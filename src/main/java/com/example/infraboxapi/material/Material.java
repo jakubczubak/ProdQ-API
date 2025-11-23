@@ -128,10 +128,8 @@ public class Material {
     public void preUpdate() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String currentUsername = userDetails.getUsername();
-        if (!"root@gmail.com".equals(currentUsername)) {
-            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-            updatedOn = now.format(formatter);
-        }
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        updatedOn = now.format(formatter);
     }
 }
