@@ -8,6 +8,8 @@ import com.example.infraboxapi.material.Material;
 import com.example.infraboxapi.material.MaterialRepository;
 import com.example.infraboxapi.notification.NotificationDescription;
 import com.example.infraboxapi.notification.NotificationService;
+import com.example.infraboxapi.orderChangeLog.OrderChangeLog;
+import com.example.infraboxapi.orderChangeLog.OrderChangeLogRepository;
 import com.example.infraboxapi.orderItem.OrderItem;
 import com.example.infraboxapi.orderItem.OrderItemDTO;
 import com.example.infraboxapi.orderItem.OrderItemRepository;
@@ -32,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,10 +50,15 @@ public class OrderService {
     private final AccessorieItemRepository accessorieItemRepository;
     private final SupplierRepository supplierRepository;
     private final NotificationService notificationService;
+    private final OrderChangeLogRepository orderChangeLogRepository;
 
     public List<Order> getAllOrders() {
         // Use JOIN FETCH to avoid N+1 query problem
         return orderRepository.findAllWithSupplierAndItems();
+    }
+
+    public Order getOrderById(Integer id) {
+        return orderRepository.findById(id).orElse(null);
     }
 
     @Transactional
@@ -80,6 +88,7 @@ public class OrderService {
                 .status(orderDTO.getStatus())
                 .supplierEmail(supplierEmail)
                 .supplierMessage(orderDTO.getSupplierMessage())
+                .trackingNumber(orderDTO.getTrackingNumber())
                 .totalNet(orderDTO.getTotalNet())
                 .totalVat(orderDTO.getTotalVat())
                 .totalGross(orderDTO.getTotalGross())
@@ -107,13 +116,13 @@ public class OrderService {
                 .vatRate(orderItemDTO.getVatRate() != null ? orderItemDTO.getVatRate() : 23)
                 .discount(orderItemDTO.getDiscount() != null ? orderItemDTO.getDiscount() : 0.0f);
 
-        // Handle priceOverride if provided
-        if (orderItemDTO.getPriceOverride() != null && orderItemDTO.getPriceOverride() > 0) {
+        // Handle priceOverride if provided (allow 0 values for explicit price overrides)
+        if (orderItemDTO.getPriceOverride() != null) {
             orderItemBuilder.newPrice(BigDecimal.valueOf(orderItemDTO.getPriceOverride()));
         }
 
-        // Handle pricePerKg if provided (for materials)
-        if (orderItemDTO.getPricePerKg() != null && orderItemDTO.getPricePerKg() > 0) {
+        // Handle pricePerKg if provided (for materials, allow 0 values)
+        if (orderItemDTO.getPricePerKg() != null) {
             orderItemBuilder.pricePerKg(BigDecimal.valueOf(orderItemDTO.getPricePerKg()));
         }
 
@@ -172,6 +181,9 @@ public class OrderService {
             }
             if (orderDTO.getExpectedDeliveryDate() != null) {
                 existingOrder.setExpectedDeliveryDate(orderDTO.getExpectedDeliveryDate());
+            }
+            if (orderDTO.getTrackingNumber() != null) {
+                existingOrder.setTrackingNumber(orderDTO.getTrackingNumber());
             }
 
             // Update price totals (VAT calculations)
@@ -248,6 +260,11 @@ public class OrderService {
                 }
             }
 
+            // Save changes to audit log if provided
+            if (orderDTO.getChanges() != null && !orderDTO.getChanges().isEmpty()) {
+                saveChangesToAuditLog(existingOrder.getId(), orderDTO.getChanges());
+            }
+
             orderRepository.save(existingOrder);
         }
     }
@@ -312,6 +329,32 @@ public class OrderService {
             }
 
             orderRepository.save(existingOrder);
+        }
+    }
+
+    /**
+     * Save changes to audit log for timeline tracking
+     * @param orderId The order ID
+     * @param changes List of changes from frontend
+     */
+    private void saveChangesToAuditLog(Integer orderId, List<Map<String, Object>> changes) {
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        String currentDate = now.format(formatter);
+
+        for (Map<String, Object> change : changes) {
+            OrderChangeLog changeLog = OrderChangeLog.builder()
+                    .orderId(orderId)
+                    .type((String) change.get("type"))
+                    .itemName((String) change.get("itemName"))
+                    .field((String) change.get("field"))
+                    .oldValue(change.get("oldValue") != null ? change.get("oldValue").toString() : null)
+                    .newValue(change.get("newValue") != null ? change.get("newValue").toString() : null)
+                    .description((String) change.get("description"))
+                    .date(currentDate)
+                    .build();
+
+            orderChangeLogRepository.save(changeLog);
         }
     }
 
@@ -685,10 +728,11 @@ public class OrderService {
 
         orderRepository.save(order);
 
-        notificationService.createAndSendNotification(
-                "Invoice uploaded for order '" + order.getName() + "'.",
-                NotificationDescription.OrderUpdated
-        );
+        // Note: Frontend handles success notification with i18n translation
+        // notificationService.createAndSendNotification(
+        //         "Invoice uploaded for order '" + order.getName() + "'.",
+        //         NotificationDescription.OrderUpdated
+        // );
     }
 
     /**
@@ -730,10 +774,11 @@ public class OrderService {
             order.setInvoiceUploadDate(null);
             orderRepository.save(order);
 
-            notificationService.createAndSendNotification(
-                    "Invoice deleted for order '" + order.getName() + "'.",
-                    NotificationDescription.OrderUpdated
-            );
+            // Note: Frontend handles success notification with i18n translation
+            // notificationService.createAndSendNotification(
+            //         "Invoice deleted for order '" + order.getName() + "'.",
+            //         NotificationDescription.OrderUpdated
+            // );
         }
     }
 

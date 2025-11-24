@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -45,6 +46,10 @@ public class OrderDTO {
     private Integer supplierId;
 
     private String expectedDeliveryDate;
+
+    private String trackingNumber;
+
+    private List<Map<String, Object>> changes; // Changes for audit log
 
     @Valid
     private List<OrderItemDTO> orderItems;

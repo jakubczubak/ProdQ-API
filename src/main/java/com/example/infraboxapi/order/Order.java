@@ -1,5 +1,6 @@
 package com.example.infraboxapi.order;
 
+import com.example.infraboxapi.orderChangeLog.OrderChangeLog;
 import com.example.infraboxapi.orderItem.OrderItem;
 import com.example.infraboxapi.supplier.Supplier;
 import jakarta.persistence.*;
@@ -53,6 +54,9 @@ public class Order {
 
     private String expectedDeliveryDate;
 
+    @Column(name = "tracking_number")
+    private String trackingNumber;
+
     @Column(name = "invoice_file_name")
     private String invoiceFileName; // Original filename of uploaded invoice
 
@@ -74,6 +78,11 @@ public class Order {
     @OneToMany(cascade = CascadeType.ALL)
     @JoinColumn(name = "order_id")
     private List<OrderItem> orderItems;
+
+    @OneToMany
+    @JoinColumn(name = "order_id", insertable = false, updatable = false)
+    @OrderBy("date DESC")
+    private List<OrderChangeLog> changeLog;
 
     @PrePersist
     public void prePersist() {
