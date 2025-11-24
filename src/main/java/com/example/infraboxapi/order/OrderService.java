@@ -118,12 +118,14 @@ public class OrderService {
 
         // Handle priceOverride if provided (allow 0 values for explicit price overrides)
         if (orderItemDTO.getPriceOverride() != null) {
-            orderItemBuilder.newPrice(BigDecimal.valueOf(orderItemDTO.getPriceOverride()));
+            BigDecimal newPrice = BigDecimal.valueOf(orderItemDTO.getPriceOverride());
+            orderItemBuilder.newPrice(newPrice);
         }
 
         // Handle pricePerKg if provided (for materials, allow 0 values)
         if (orderItemDTO.getPricePerKg() != null) {
-            orderItemBuilder.pricePerKg(BigDecimal.valueOf(orderItemDTO.getPricePerKg()));
+            BigDecimal pricePerKg = BigDecimal.valueOf(orderItemDTO.getPricePerKg());
+            orderItemBuilder.pricePerKg(pricePerKg);
         }
 
         if ("tool".equals(itemType)) {
@@ -167,6 +169,7 @@ public class OrderService {
 
     @Transactional
     public void updateOrderFromDTO(OrderDTO orderDTO) {
+
         Optional<Order> orderOptional = orderRepository.findById(orderDTO.getId());
 
         if (orderOptional.isPresent()) {
@@ -199,16 +202,23 @@ public class OrderService {
 
             // Update orderItems if provided
             if (orderDTO.getOrderItems() != null && !orderDTO.getOrderItems().isEmpty()) {
-                // Delete existing order items
+                // Step 1: Delete old items and flush to DB
                 orderItemRepository.deleteAll(existingOrder.getOrderItems());
+                orderItemRepository.flush();  // Force commit deletion
 
-                // Create new order items from DTO
+                // Step 2: Create new items from DTO
                 List<OrderItem> newOrderItems = new ArrayList<>();
                 for (OrderItemDTO orderItemDTO : orderDTO.getOrderItems()) {
                     OrderItem orderItem = createOrderItemFromDTO(orderItemDTO);
                     newOrderItems.add(orderItem);
                 }
+
+                // Step 3: Set items on Order (establishes relationship via @JoinColumn)
                 existingOrder.setOrderItems(newOrderItems);
+
+                // Step 4: Explicitly save new items to ensure persistence
+                orderItemRepository.saveAll(newOrderItems);
+                orderItemRepository.flush();  // Ensure persistence before continuing
             }
 
             // Update supplier if supplierId provided
