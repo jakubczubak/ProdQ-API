@@ -110,6 +110,36 @@ public class OrderController {
         }
     }
 
+    @PostMapping("/{orderId}/mark-invoice-pending")
+    public ResponseEntity<String> markInvoicePending(@PathVariable Integer orderId) {
+        try {
+            orderService.markInvoicePending(orderId);
+            return ResponseEntity.ok("Order marked as awaiting invoice");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{orderId}/mark-invoice-received")
+    public ResponseEntity<String> markInvoiceReceived(@PathVariable Integer orderId) {
+        try {
+            orderService.markInvoiceReceived(orderId);
+            return ResponseEntity.ok("Invoice marked as received");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{orderId}/close")
+    public ResponseEntity<String> closeOrder(@PathVariable Integer orderId) {
+        try {
+            orderService.closeOrder(orderId);
+            return ResponseEntity.ok("Order closed successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     @PostMapping("/{orderId}/invoice/upload")
     public ResponseEntity<String> uploadInvoice(
             @PathVariable Integer orderId,

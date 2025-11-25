@@ -66,6 +66,12 @@ public class Order {
     @Column(name = "invoice_upload_date")
     private String invoiceUploadDate; // Date when invoice was uploaded
 
+    @Column(name = "invoice_received_date")
+    private String invoiceReceivedDate; // Date when invoice was marked as received (MES workflow)
+
+    @Column(name = "closed_date")
+    private String closedDate; // Date when order was closed (final status)
+
     private String createdBy;
     private String lastModifiedBy;
 

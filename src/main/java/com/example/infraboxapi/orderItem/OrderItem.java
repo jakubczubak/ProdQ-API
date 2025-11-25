@@ -26,6 +26,10 @@ public class OrderItem {
     private float quantity;
     private float receivedQuantity;
 
+    @Column(name = "previously_added_to_inventory")
+    @Builder.Default
+    private Float previouslyAddedToInventory = 0.0f; // Track what was already added to warehouse
+
     @ManyToOne
     private Material material;
 

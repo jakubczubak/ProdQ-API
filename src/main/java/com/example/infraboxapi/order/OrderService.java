@@ -465,8 +465,15 @@ public class OrderService {
             Order order = orderOptional.get();
 
             for (OrderItem orderItem : order.getOrderItems()) {
-                // Use receivedQuantity if set, otherwise use full quantity
-                float quantityToAdd = orderItem.getReceivedQuantity() > 0 ? orderItem.getReceivedQuantity() : orderItem.getQuantity();
+                // Calculate delta: only add the NEW quantity, not the total receivedQuantity
+                // This prevents adding the same quantity multiple times during partial deliveries
+                float previouslyAdded = orderItem.getPreviouslyAddedToInventory() != null
+                    ? orderItem.getPreviouslyAddedToInventory()
+                    : 0.0f;
+
+                float quantityToAdd = orderItem.getReceivedQuantity() > 0
+                    ? orderItem.getReceivedQuantity() - previouslyAdded
+                    : orderItem.getQuantity();
 
                 if (orderItem.getMaterial() != null) {
                     Material material = materialRepository.findById(orderItem.getMaterial().getId()).orElse(null);
@@ -532,9 +539,14 @@ public class OrderService {
                         }
                     }
                 }
+
+                // Update tracking field to prevent duplicate inventory additions
+                if (orderItem.getReceivedQuantity() > 0) {
+                    orderItem.setPreviouslyAddedToInventory(orderItem.getReceivedQuantity());
+                }
             }
 
-            // Save order to persist priceUpdated flags
+            // Save order to persist priceUpdated and previouslyAddedToInventory flags
             orderRepository.save(order);
         }
     }
@@ -542,6 +554,7 @@ public class OrderService {
     /**
      * Partial delivery: Update receivedQuantity and newPrice for specific items
      * Call updateExternalQuantity after this to add only received items to warehouse
+     * Supports multiple partial deliveries - status changes to "delivered" only when all items fully received
      */
     @Transactional
     public void partialDelivery(Integer orderId, List<OrderItem> updatedItems) {
@@ -550,10 +563,47 @@ public class OrderService {
         if (orderOptional.isPresent()) {
             Order order = orderOptional.get();
 
+            // Update receivedQuantity for the items in this delivery
+            List<Map<String, Object>> deliveryChanges = new ArrayList<>();
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            String currentDate = now.format(formatter);
+
             for (OrderItem updatedItem : updatedItems) {
                 for (OrderItem orderItem : order.getOrderItems()) {
                     if (orderItem.getId().equals(updatedItem.getId())) {
-                        orderItem.setReceivedQuantity(updatedItem.getReceivedQuantity());
+                        // Accumulate received quantities (support multiple deliveries)
+                        float previouslyReceived = orderItem.getReceivedQuantity();
+                        float nowReceiving = updatedItem.getReceivedQuantity();
+                        orderItem.setReceivedQuantity(previouslyReceived + nowReceiving);
+
+                        // Log partial delivery to OrderChangeLog (if quantity was received)
+                        if (nowReceiving > 0) {
+                            // Determine unit based on material type
+                            String unit = "szt";
+                            if (orderItem.getMaterial() != null && orderItem.getMaterial().getMaterialGroup() != null) {
+                                String materialType = orderItem.getMaterial().getMaterialGroup().getType();
+                                if ("Rod".equals(materialType) || "Tube".equals(materialType)) {
+                                    unit = "mm";
+                                }
+                            }
+
+                            // Create change log entry for this partial delivery
+                            OrderChangeLog changeLog = OrderChangeLog.builder()
+                                    .orderId(orderId)
+                                    .type("partial_delivery")
+                                    .itemName(orderItem.getName())
+                                    .field("receivedQuantity")
+                                    .oldValue(String.format("%.2f", previouslyReceived))
+                                    .newValue(String.format("%.2f", previouslyReceived + nowReceiving))
+                                    .description(String.format("Odebrano %.2f %s - %s (Łącznie: %.2f/%.2f %s)",
+                                            nowReceiving, unit, orderItem.getName(),
+                                            previouslyReceived + nowReceiving, orderItem.getQuantity(), unit))
+                                    .date(currentDate)
+                                    .build();
+                            orderChangeLogRepository.save(changeLog);
+                        }
+
                         if (updatedItem.getNewPrice() != null) {
                             orderItem.setNewPrice(updatedItem.getNewPrice());
                         }
@@ -564,23 +614,113 @@ public class OrderService {
 
             orderRepository.save(order);
 
-            // Now process delivery
-            if (!order.isExternalQuantityUpdated()) {
-                updateExternalQuantity(orderId);
-            }
-
-            order.setStatus("delivered");
-            order.setExternalQuantityUpdated(true);
+            // Always process delivery (removed externalQuantityUpdated check)
+            updateExternalQuantity(orderId);
 
             // Remove only received quantities from transit
             deletePartialQuantityInTransport(orderId);
 
-            orderRepository.save(order);
+            // Check if ALL items are fully received
+            boolean allItemsFullyReceived = true;
+            for (OrderItem item : order.getOrderItems()) {
+                if (item.getReceivedQuantity() < item.getQuantity()) {
+                    allItemsFullyReceived = false;
+                    break;
+                }
+            }
 
-            notificationService.createAndSendNotification(
-                "Partial delivery for order '" + order.getName() + "' has been processed.",
-                NotificationDescription.OrderDelivered
-            );
+            // Set status based on completion
+            if (allItemsFullyReceived) {
+                // Auto-transition to invoice_pending (Issue #4 fix)
+                order.setStatus("invoice_pending");
+                // DO NOT set externalQuantityUpdated - allow invoice workflow to continue
+                notificationService.createAndSendNotification(
+                    "All materials for order '" + order.getName() + "' have been received. Status automatically set to awaiting invoice.",
+                    NotificationDescription.OrderDelivered
+                );
+            } else {
+                order.setStatus("partially_delivered");
+                // Do NOT set externalQuantityUpdated = true (allow future deliveries)
+                notificationService.createAndSendNotification(
+                    "Partial delivery for order '" + order.getName() + "' has been processed. Some items are still pending.",
+                    NotificationDescription.OrderDelivered
+                );
+            }
+
+            orderRepository.save(order);
+        }
+    }
+
+    /**
+     * Mark order as awaiting invoice (goods_received → invoice_pending)
+     * Called when all materials are in warehouse and we're waiting for invoice
+     */
+    @Transactional
+    public void markInvoicePending(Integer orderId) {
+        Optional<Order> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            if ("goods_received".equals(order.getStatus())) {
+                order.setStatus("invoice_pending");
+                notificationService.createAndSendNotification(
+                    "Order '" + order.getName() + "' is now awaiting invoice.",
+                    NotificationDescription.OrderDelivered
+                );
+                orderRepository.save(order);
+            }
+        }
+    }
+
+    /**
+     * Mark invoice as received (invoice_pending → invoice_received)
+     * Called when invoice file has been uploaded and verified
+     */
+    @Transactional
+    public void markInvoiceReceived(Integer orderId) {
+        Optional<Order> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            if ("invoice_pending".equals(order.getStatus()) && order.getInvoiceFileName() != null) {
+                order.setStatus("invoice_received");
+                ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                order.setInvoiceReceivedDate(now.format(formatter));
+                notificationService.createAndSendNotification(
+                    "Invoice received for order '" + order.getName() + "'.",
+                    NotificationDescription.OrderDelivered
+                );
+                orderRepository.save(order);
+            }
+        }
+    }
+
+    /**
+     * Close order (invoice_received → closed)
+     * Final status - order is complete and archived
+     */
+    @Transactional
+    public void closeOrder(Integer orderId) {
+        Optional<Order> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            if ("invoice_received".equals(order.getStatus())) {
+                order.setStatus("closed");
+                ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                order.setClosedDate(now.format(formatter));
+                order.setExternalQuantityUpdated(true); // Mark as fully processed
+                notificationService.createAndSendNotification(
+                    "Order '" + order.getName() + "' has been closed.",
+                    NotificationDescription.OrderDelivered
+                );
+                orderRepository.save(order);
+            }
         }
     }
 
