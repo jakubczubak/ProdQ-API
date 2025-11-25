@@ -242,6 +242,11 @@ public class OrderService {
             // Handle status changes with quantity management
             String newStatus = orderDTO.getStatus();
             if (newStatus != null && !newStatus.equals(existingOrder.getStatus())) {
+                String currentStatus = existingOrder.getStatus();
+
+                // Validate status transition - prevent backward transitions
+                validateStatusTransition(currentStatus, newStatus);
+
                 if ("pending".equals(newStatus)) {
                     if (existingOrder.isTransitQuantitySet()) {
                         deleteQuantityInTransport(orderDTO.getId());
@@ -495,10 +500,14 @@ public class OrderService {
                             material.setTotalStockLength(currentLength + quantityToAdd);
                         }
 
-                        // Update price if newPrice is set
+                        // Update price if newPrice is set and actually different from current price
                         if (orderItem.getNewPrice() != null && orderItem.getNewPrice().compareTo(BigDecimal.ZERO) > 0) {
-                            material.setPrice(orderItem.getNewPrice());
-                            orderItem.setPriceUpdated(true);
+                            BigDecimal currentPrice = material.getPrice();
+                            // Only update if price actually changed
+                            if (currentPrice == null || orderItem.getNewPrice().compareTo(currentPrice) != 0) {
+                                material.setPrice(orderItem.getNewPrice());
+                                orderItem.setPriceUpdated(true);
+                            }
                         }
 
                         materialRepository.save(material);
@@ -510,10 +519,14 @@ public class OrderService {
                     if (tool != null) {
                         tool.setQuantity(tool.getQuantity() + quantityToAdd);
 
-                        // Update price if newPrice is set
+                        // Update price if newPrice is set and actually different from current price
                         if (orderItem.getNewPrice() != null && orderItem.getNewPrice().compareTo(BigDecimal.ZERO) > 0) {
-                            tool.setPrice(orderItem.getNewPrice());
-                            orderItem.setPriceUpdated(true);
+                            BigDecimal currentPrice = tool.getPrice();
+                            // Only update if price actually changed
+                            if (currentPrice == null || orderItem.getNewPrice().compareTo(currentPrice) != 0) {
+                                tool.setPrice(orderItem.getNewPrice());
+                                orderItem.setPriceUpdated(true);
+                            }
                         }
 
                         toolRepository.save(tool);
@@ -527,10 +540,14 @@ public class OrderService {
                             if (accessorieItem.getName().equals(orderItem.getName())) {
                                 accessorieItem.setQuantity(accessorieItem.getQuantity() + quantityToAdd);
 
-                                // Update price if newPrice is set
+                                // Update price if newPrice is set and actually different from current price
                                 if (orderItem.getNewPrice() != null && orderItem.getNewPrice().compareTo(BigDecimal.ZERO) > 0) {
-                                    accessorieItem.setPrice(orderItem.getNewPrice());
-                                    orderItem.setPriceUpdated(true);
+                                    BigDecimal currentPrice = accessorieItem.getPrice();
+                                    // Only update if price actually changed
+                                    if (currentPrice == null || orderItem.getNewPrice().compareTo(currentPrice) != 0) {
+                                        accessorieItem.setPrice(orderItem.getNewPrice());
+                                        orderItem.setPriceUpdated(true);
+                                    }
                                 }
 
                                 accessorieItemRepository.save(accessorieItem);
@@ -589,6 +606,14 @@ public class OrderService {
                             }
 
                             // Create change log entry for this partial delivery
+                            // Store structured data in description as JSON for i18n on frontend
+                            // Use Locale.US to ensure dots instead of commas in JSON numbers
+                            String structuredDescription = String.format(
+                                java.util.Locale.US,
+                                "{\"quantityReceived\":%.2f,\"totalReceived\":%.2f,\"totalOrdered\":%.2f,\"unit\":\"%s\"}",
+                                nowReceiving, previouslyReceived + nowReceiving, orderItem.getQuantity(), unit
+                            );
+
                             OrderChangeLog changeLog = OrderChangeLog.builder()
                                     .orderId(orderId)
                                     .type("partial_delivery")
@@ -596,9 +621,7 @@ public class OrderService {
                                     .field("receivedQuantity")
                                     .oldValue(String.format("%.2f", previouslyReceived))
                                     .newValue(String.format("%.2f", previouslyReceived + nowReceiving))
-                                    .description(String.format("Odebrano %.2f %s - %s (Łącznie: %.2f/%.2f %s)",
-                                            nowReceiving, unit, orderItem.getName(),
-                                            previouslyReceived + nowReceiving, orderItem.getQuantity(), unit))
+                                    .description(structuredDescription)
                                     .date(currentDate)
                                     .build();
                             orderChangeLogRepository.save(changeLog);
@@ -713,8 +736,22 @@ public class OrderService {
                 order.setStatus("closed");
                 ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-                order.setClosedDate(now.format(formatter));
+                String currentDate = now.format(formatter);
+                order.setClosedDate(currentDate);
                 order.setExternalQuantityUpdated(true); // Mark as fully processed
+
+                // Create changelog entry for order closure
+                OrderChangeLog changeLog = OrderChangeLog.builder()
+                        .orderId(orderId)
+                        .type("status_change")
+                        .field("status")
+                        .oldValue("invoice_received")
+                        .newValue("closed")
+                        .description("") // Empty description - will be translated on frontend
+                        .date(currentDate)
+                        .build();
+                orderChangeLogRepository.save(changeLog);
+
                 notificationService.createAndSendNotification(
                     "Order '" + order.getName() + "' has been closed.",
                     NotificationDescription.OrderDelivered
@@ -776,8 +813,38 @@ public class OrderService {
 
             for (OrderItem orderItem : order.getOrderItems()) {
                 if (orderItem.getId().equals(orderItemId)) {
+                    // Check if price actually changed before setting priceUpdated flag
+                    BigDecimal oldPrice = orderItem.getNewPrice();
+                    if (oldPrice == null) {
+                        // Get old price from associated entity
+                        if (orderItem.getMaterial() != null) {
+                            Material material = materialRepository.findById(orderItem.getMaterial().getId()).orElse(null);
+                            if (material != null) {
+                                oldPrice = material.getPrice();
+                            }
+                        } else if (orderItem.getTool() != null) {
+                            Tool tool = toolRepository.findById(orderItem.getTool().getId()).orElse(null);
+                            if (tool != null) {
+                                oldPrice = tool.getPrice();
+                            }
+                        } else if (orderItem.getAccessorie() != null) {
+                            Accessorie accessorie = accessorieRepository.findById(orderItem.getAccessorie().getId()).orElse(null);
+                            if (accessorie != null && accessorie.getAccessorieItems() != null) {
+                                for (AccessorieItem accessorieItem : accessorie.getAccessorieItems()) {
+                                    if (accessorieItem.getName().equals(orderItem.getName())) {
+                                        oldPrice = accessorieItem.getPrice();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     orderItem.setNewPrice(newPrice);
-                    orderItem.setPriceUpdated(true);
+                    // Only set priceUpdated flag if price actually changed
+                    if (oldPrice == null || newPrice.compareTo(oldPrice) != 0) {
+                        orderItem.setPriceUpdated(true);
+                    }
 
                     // Update price in database immediately
                     if (orderItem.getMaterial() != null) {
@@ -954,5 +1021,48 @@ public class OrderService {
             return "";
         }
         return filename.substring(lastDotIndex + 1);
+    }
+
+    /**
+     * Validates that the status transition is allowed (prevents backward transitions)
+     * Order status flow: pending → on the way → partially_delivered → delivered → invoice_pending → invoice_received → closed
+     *
+     * @param currentStatus The current order status
+     * @param newStatus The desired new status
+     * @throws IllegalStateException if the transition is invalid
+     */
+    private void validateStatusTransition(String currentStatus, String newStatus) {
+        // Define status order (higher number = later in workflow)
+        java.util.Map<String, Integer> statusOrder = new java.util.HashMap<>();
+        statusOrder.put("pending", 1);
+        statusOrder.put("on the way", 2);
+        statusOrder.put("partially_delivered", 3);
+        statusOrder.put("delivered", 4);
+        statusOrder.put("invoice_pending", 5);
+        statusOrder.put("invoice_received", 6);
+        statusOrder.put("closed", 7);
+
+        Integer currentOrder = statusOrder.get(currentStatus);
+        Integer newOrder = statusOrder.get(newStatus);
+
+        // If either status is not in the map, allow the transition (for backward compatibility)
+        if (currentOrder == null || newOrder == null) {
+            return;
+        }
+
+        // Prevent backward transitions from partially_delivered or later stages
+        if (currentOrder >= 3 && newOrder < currentOrder) {
+            throw new IllegalStateException(
+                "Invalid status transition: Cannot change order status from '" + currentStatus +
+                "' to '" + newStatus + "'. Backward transitions are not allowed after partial delivery."
+            );
+        }
+
+        // Allow forward transitions or staying at same status
+        // Allow transitions within early stages (pending <-> on the way is acceptable for manual edits)
+        if (currentOrder < 3 && newOrder < 3) {
+            // Allow transitions between pending and on the way
+            return;
+        }
     }
 }
