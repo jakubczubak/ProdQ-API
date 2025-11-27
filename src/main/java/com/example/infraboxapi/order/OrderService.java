@@ -17,6 +17,13 @@ import com.example.infraboxapi.supplier.Supplier;
 import com.example.infraboxapi.supplier.SupplierRepository;
 import com.example.infraboxapi.tool.Tool;
 import com.example.infraboxapi.tool.ToolRepository;
+import com.example.infraboxapi.invoiceItem.InvoiceItem;
+import com.example.infraboxapi.invoiceItem.InvoiceItemRepository;
+import com.example.infraboxapi.invoiceReconciliation.InvoiceReconciliation;
+import com.example.infraboxapi.invoiceReconciliation.InvoiceReconciliationRepository;
+import com.example.infraboxapi.invoiceReconciliation.InvoiceDiscrepancy;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +31,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -51,6 +59,9 @@ public class OrderService {
     private final SupplierRepository supplierRepository;
     private final NotificationService notificationService;
     private final OrderChangeLogRepository orderChangeLogRepository;
+    private final InvoiceItemRepository invoiceItemRepository;
+    private final InvoiceReconciliationRepository invoiceReconciliationRepository;
+    private final ObjectMapper objectMapper;
 
     public List<Order> getAllOrders() {
         // Use JOIN FETCH to avoid N+1 query problem
@@ -627,8 +638,63 @@ public class OrderService {
                             orderChangeLogRepository.save(changeLog);
                         }
 
+                        // Handle price changes with validation for >10% difference
                         if (updatedItem.getNewPrice() != null) {
+                            // Get original price for comparison
+                            BigDecimal originalPrice = orderItem.getNewPrice(); // Use previously updated price if exists
+                            if (originalPrice == null) {
+                                // Get price from related entity
+                                if (orderItem.getMaterial() != null) {
+                                    originalPrice = orderItem.getMaterial().getPrice();
+                                } else if (orderItem.getTool() != null) {
+                                    originalPrice = orderItem.getTool().getPrice();
+                                }
+                                // Note: Accessories don't have a direct price field, they use priceOverride from OrderItem
+                            }
+
+                            // Calculate percentage difference if original price exists
+                            if (originalPrice != null && originalPrice.compareTo(BigDecimal.ZERO) > 0) {
+                                BigDecimal priceDifference = updatedItem.getNewPrice().subtract(originalPrice);
+                                BigDecimal percentageDifference = priceDifference
+                                        .divide(originalPrice, 4, RoundingMode.HALF_UP)
+                                        .multiply(BigDecimal.valueOf(100))
+                                        .abs();
+
+                                // If difference > 10%, require reason
+                                if (percentageDifference.compareTo(BigDecimal.valueOf(10)) > 0) {
+                                    if (updatedItem.getPriceChangeReason() == null || updatedItem.getPriceChangeReason().trim().isEmpty()) {
+                                        throw new IllegalArgumentException(
+                                                "Price change reason is required when price difference exceeds 10%. " +
+                                                        "Item: " + orderItem.getName() + ", Difference: " + percentageDifference.setScale(2, RoundingMode.HALF_UP) + "%"
+                                        );
+                                    }
+                                }
+                            }
+
+                            // Update price and reason
                             orderItem.setNewPrice(updatedItem.getNewPrice());
+                            orderItem.setPriceUpdated(true);
+                            if (updatedItem.getPriceChangeReason() != null && !updatedItem.getPriceChangeReason().trim().isEmpty()) {
+                                orderItem.setPriceChangeReason(updatedItem.getPriceChangeReason().trim());
+
+                                // Create changelog entry for price change with reason
+                                OrderChangeLog priceChangeLog = OrderChangeLog.builder()
+                                        .orderId(orderId)
+                                        .type("price_changed")
+                                        .itemName(orderItem.getName())
+                                        .field("newPrice")
+                                        .oldValue(originalPrice != null ? originalPrice.toString() : "0")
+                                        .newValue(updatedItem.getNewPrice().toString())
+                                        .description(updatedItem.getPriceChangeReason().trim())
+                                        .date(currentDate)
+                                        .build();
+                                orderChangeLogRepository.save(priceChangeLog);
+                            }
+                        }
+
+                        // Handle pricePerKg update (for materials only)
+                        if (updatedItem.getPricePerKg() != null && orderItem.getMaterial() != null) {
+                            orderItem.setPricePerKg(updatedItem.getPricePerKg());
                         }
                         break;
                     }
@@ -733,6 +799,9 @@ public class OrderService {
             Order order = orderOptional.get();
 
             if ("invoice_received".equals(order.getStatus())) {
+                // Update prices from invoice before closing
+                updatePricesFromInvoice(order);
+
                 order.setStatus("closed");
                 ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -758,6 +827,187 @@ public class OrderService {
                 );
                 orderRepository.save(order);
             }
+        }
+    }
+
+    /**
+     * Updates material, tool, and accessory prices based on final invoice prices.
+     * Called when order is closed after invoice reconciliation.
+     * Uses InvoiceItem prices as the authoritative source after invoice approval.
+     */
+    private void updatePricesFromInvoice(Order order) {
+        List<InvoiceItem> invoiceItems = order.getInvoiceItems();
+        if (invoiceItems == null || invoiceItems.isEmpty()) {
+            return;
+        }
+
+        for (InvoiceItem invoiceItem : invoiceItems) {
+            Double invoiceUnitPrice = invoiceItem.getInvoiceUnitPrice();
+            if (invoiceUnitPrice == null || invoiceUnitPrice <= 0) {
+                continue; // Skip items without valid invoice price
+            }
+
+            // Get OrderItem directly from InvoiceItem (no name matching needed)
+            OrderItem orderItem = invoiceItem.getOrderItem();
+            if (orderItem == null) {
+                continue;
+            }
+
+            // Update Material price
+            if (orderItem.getMaterial() != null) {
+                Material material = orderItem.getMaterial();
+                material.setPrice(BigDecimal.valueOf(invoiceUnitPrice));
+
+                // Update pricePerKg if provided in invoice
+                Double invoicePricePerKg = invoiceItem.getInvoicePricePerKg();
+                if (invoicePricePerKg != null && invoicePricePerKg > 0) {
+                    material.setPricePerKg(BigDecimal.valueOf(invoicePricePerKg));
+                }
+
+                materialRepository.save(material);
+            }
+
+            // Update Tool price
+            if (orderItem.getTool() != null) {
+                Tool tool = orderItem.getTool();
+                tool.setPrice(BigDecimal.valueOf(invoiceUnitPrice));
+                toolRepository.save(tool);
+            }
+
+            // Update Accessory price
+            if (orderItem.getAccessorieItem() != null) {
+                AccessorieItem accessory = orderItem.getAccessorieItem();
+                accessory.setPrice(BigDecimal.valueOf(invoiceUnitPrice));
+                accessorieItemRepository.save(accessory);
+            }
+        }
+    }
+
+    /**
+     * Mark order for incomplete closure (partially_delivered → invoice_pending)
+     * Sets pendingClosedShort flag and awaits invoice before finalizing as closed_short
+     * Does NOT set closed_short status - that happens after invoice is received
+     */
+    @Transactional
+    public void closeOrderShort(Integer orderId, String reason) {
+        // Validate reason
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new IllegalArgumentException("Reason is required for closing order as incomplete");
+        }
+        if (reason.trim().length() < 10) {
+            throw new IllegalArgumentException("Reason must be at least 10 characters long");
+        }
+
+        Optional<Order> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            // Only allow marking for incomplete closure from partially_delivered status
+            if (!"partially_delivered".equals(order.getStatus())) {
+                throw new IllegalStateException(
+                    "Order can only be marked for incomplete closure from 'partially_delivered' status. " +
+                    "Current status: " + order.getStatus()
+                );
+            }
+
+            // Set invoice_pending status and pendingClosedShort flag
+            order.setStatus("invoice_pending");
+            order.setPendingClosedShort(true); // Flag: awaiting invoice before closing as incomplete
+            order.setClosedShortReason(reason.trim()); // Store reason now
+            // Note: closedShortDate will be set when finalizing (after invoice)
+
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            String currentDate = now.format(formatter);
+
+            // Create changelog entry for marking incomplete closure
+            OrderChangeLog changeLog = OrderChangeLog.builder()
+                    .orderId(orderId)
+                    .type("status_change")
+                    .field("status")
+                    .oldValue("partially_delivered")
+                    .newValue("invoice_pending")
+                    .description("Order marked for incomplete closure - awaiting invoice. Reason: " + reason.trim())
+                    .date(currentDate)
+                    .build();
+            orderChangeLogRepository.save(changeLog);
+
+            notificationService.createAndSendNotification(
+                "Order '" + order.getName() + "' marked for incomplete closure. Awaiting invoice.",
+                NotificationDescription.OrderMarkedForIncompleteClose
+            );
+            orderRepository.save(order);
+        } else {
+            throw new IllegalArgumentException("Order not found with ID: " + orderId);
+        }
+    }
+
+    /**
+     * Finalize order as incomplete (invoice_received → closed_short)
+     * Final step after invoice has been uploaded for an incomplete order
+     * Sets closed_short status and closedShortDate
+     */
+    @Transactional
+    public void finalizeClosedShort(Integer orderId) {
+        Optional<Order> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            // Validation 1: Must be in invoice_received status
+            if (!"invoice_received".equals(order.getStatus())) {
+                throw new IllegalStateException(
+                    "Order can only be finalized as incomplete from 'invoice_received' status. " +
+                    "Current status: " + order.getStatus()
+                );
+            }
+
+            // Validation 2: Must have pendingClosedShort flag set
+            if (!Boolean.TRUE.equals(order.getPendingClosedShort())) {
+                throw new IllegalStateException(
+                    "Order is not marked for incomplete closure. Cannot finalize as closed_short."
+                );
+            }
+
+            // Validation 3: Must have closure reason saved
+            if (order.getClosedShortReason() == null || order.getClosedShortReason().trim().isEmpty()) {
+                throw new IllegalStateException(
+                    "Missing closure reason. Cannot finalize as closed_short."
+                );
+            }
+
+            // Update prices from invoice before closing
+            updatePricesFromInvoice(order);
+
+            // Set closed_short status and date
+            order.setStatus("closed_short");
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            String currentDate = now.format(formatter);
+            order.setClosedShortDate(currentDate);
+            order.setPendingClosedShort(false); // Clear flag
+            order.setExternalQuantityUpdated(true); // Mark as processed (even if incomplete)
+
+            // Create changelog entry for finalization
+            OrderChangeLog changeLog = OrderChangeLog.builder()
+                    .orderId(orderId)
+                    .type("status_change")
+                    .field("status")
+                    .oldValue("invoice_received")
+                    .newValue("closed_short")
+                    .description("Order finalized as incomplete. Reason: " + order.getClosedShortReason())
+                    .date(currentDate)
+                    .build();
+            orderChangeLogRepository.save(changeLog);
+
+            notificationService.createAndSendNotification(
+                "Order '" + order.getName() + "' finalized as incomplete.",
+                NotificationDescription.OrderClosedShort
+            );
+            orderRepository.save(order);
+        } else {
+            throw new IllegalArgumentException("Order not found with ID: " + orderId);
         }
     }
 
@@ -943,7 +1193,22 @@ public class OrderService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         order.setInvoiceUploadDate(now.format(formatter));
 
+        // Change status to invoice_data_pending (awaiting invoice items entry)
+        order.setStatus("invoice_data_pending");
+
         orderRepository.save(order);
+
+        // Create changelog entry for invoice upload
+        OrderChangeLog changeLog = OrderChangeLog.builder()
+                .orderId(orderId)
+                .type("invoice_uploaded")
+                .field("invoice")
+                .oldValue(null)
+                .newValue(originalFilename)
+                .description("Invoice uploaded: " + originalFilename)
+                .date(now.format(formatter))
+                .build();
+        orderChangeLogRepository.save(changeLog);
 
         // Note: Frontend handles success notification with i18n translation
         // notificationService.createAndSendNotification(
@@ -1025,7 +1290,8 @@ public class OrderService {
 
     /**
      * Validates that the status transition is allowed (prevents backward transitions)
-     * Order status flow: pending → on the way → partially_delivered → delivered → invoice_pending → invoice_received → closed
+     * Order status flow: pending → on the way → partially_delivered → delivered →
+     *                    invoice_pending → invoice_data_pending → invoice_reconciliation → invoice_received → closed
      *
      * @param currentStatus The current order status
      * @param newStatus The desired new status
@@ -1039,8 +1305,11 @@ public class OrderService {
         statusOrder.put("partially_delivered", 3);
         statusOrder.put("delivered", 4);
         statusOrder.put("invoice_pending", 5);
-        statusOrder.put("invoice_received", 6);
-        statusOrder.put("closed", 7);
+        statusOrder.put("invoice_data_pending", 6);  // Three-way match: awaiting invoice items entry
+        statusOrder.put("invoice_reconciliation", 7); // Three-way match: reconciliation in progress
+        statusOrder.put("invoice_received", 8);
+        statusOrder.put("closed", 9);
+        statusOrder.put("closed_short", 10); // Final status for incomplete orders
 
         Integer currentOrder = statusOrder.get(currentStatus);
         Integer newOrder = statusOrder.get(newStatus);
@@ -1048,6 +1317,20 @@ public class OrderService {
         // If either status is not in the map, allow the transition (for backward compatibility)
         if (currentOrder == null || newOrder == null) {
             return;
+        }
+
+        // Special validation for closed_short:
+        // Now can only be reached from invoice_received (via finalizeClosedShort)
+        // Old direct transition from partially_delivered is no longer allowed
+        if ("closed_short".equals(newStatus)) {
+            // Allow only from invoice_received (workflow redesign)
+            if (!"invoice_received".equals(currentStatus)) {
+                throw new IllegalStateException(
+                    "Invalid status transition: Orders can only be closed as incomplete (closed_short) " +
+                    "from 'invoice_received' status after invoice upload. Current status: " + currentStatus
+                );
+            }
+            return; // Allow this specific transition
         }
 
         // Prevent backward transitions from partially_delivered or later stages
@@ -1064,5 +1347,510 @@ public class OrderService {
             // Allow transitions between pending and on the way
             return;
         }
+    }
+
+    // ==================== THREE-WAY MATCH METHODS ====================
+
+    /**
+     * Save invoice items entered by user
+     * Changes order status from invoice_data_pending → invoice_reconciliation
+     */
+    @Transactional
+    public void saveInvoiceItems(Integer orderId, InvoiceItemsDTO dto) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        // Validation: must be in invoice_data_pending status
+        if (!"invoice_data_pending".equals(order.getStatus())) {
+            throw new IllegalStateException("Order not ready for invoice items entry");
+        }
+
+        // Delete existing invoice items (if any)
+        invoiceItemRepository.deleteByOrderId(orderId);
+
+        // Create new invoice items
+        List<InvoiceItem> invoiceItems = new ArrayList<>();
+        for (InvoiceItemDTO itemDTO : dto.getItems()) {
+            OrderItem orderItem = orderItemRepository.findById(itemDTO.getOrderItemId())
+                    .orElseThrow(() -> new IllegalArgumentException("OrderItem not found"));
+
+            InvoiceItem invoiceItem = InvoiceItem.builder()
+                    .order(order)
+                    .orderItem(orderItem)
+                    .invoiceQuantity(itemDTO.getInvoiceQuantity())
+                    .invoiceUnitPrice(itemDTO.getInvoiceUnitPrice())
+                    .invoicePricePerKg(itemDTO.getInvoicePricePerKg())
+                    .invoiceVatRate(itemDTO.getInvoiceVatRate())
+                    .invoiceDiscount(itemDTO.getInvoiceDiscount())
+                    .build();
+
+            // Calculate amounts
+            double netAmount = invoiceItem.getInvoiceQuantity() * invoiceItem.getInvoiceUnitPrice();
+            double afterDiscount = netAmount * (1 - invoiceItem.getInvoiceDiscount() / 100);
+            double vatAmount = afterDiscount * (invoiceItem.getInvoiceVatRate() / 100);
+            double grossAmount = afterDiscount + vatAmount;
+
+            invoiceItem.setInvoiceNetAmount(afterDiscount);
+            invoiceItem.setInvoiceVatAmount(vatAmount);
+            invoiceItem.setInvoiceGrossAmount(grossAmount);
+
+            invoiceItems.add(invoiceItem);
+        }
+
+        invoiceItemRepository.saveAll(invoiceItems);
+
+        // Update order status
+        order.setInvoiceDataEntered(true);
+        order.setStatus("invoice_reconciliation");
+        orderRepository.save(order);
+
+        // Create changelog
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        OrderChangeLog changeLog = OrderChangeLog.builder()
+                .orderId(orderId)
+                .type("invoice_items_entered")
+                .field("invoice_items")
+                .oldValue(null)
+                .newValue(invoiceItems.size() + " items entered")
+                .description("Invoice line items entered from " + order.getInvoiceFileName())
+                .date(now.format(formatter))
+                .build();
+        orderChangeLogRepository.save(changeLog);
+
+        notificationService.createAndSendNotification(
+                "Invoice items entered for order '" + order.getName() + "'",
+                NotificationDescription.InvoiceItemsEntered
+        );
+    }
+
+    /**
+     * Perform three-way match reconciliation
+     * Compares PO, Delivery, and Invoice
+     * Returns reconciliation results with discrepancies
+     */
+    @Transactional
+    public InvoiceReconciliation performThreeWayMatch(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        // Validation
+        if (!"invoice_reconciliation".equals(order.getStatus())) {
+            throw new IllegalStateException("Order not ready for reconciliation");
+        }
+
+        // CHECK IF RECONCILIATION ALREADY EXISTS
+        InvoiceReconciliation reconciliation = order.getInvoiceReconciliation();
+
+        // FALLBACK: If relationship not synced, check database directly
+        if (reconciliation == null) {
+            System.out.println("DEBUG: Reconciliation is null from order relationship, checking database directly...");
+            reconciliation = invoiceReconciliationRepository.findByOrderId(orderId).orElse(null);
+            if (reconciliation != null) {
+                System.out.println("DEBUG: Found existing reconciliation in database (id=" + reconciliation.getId() + "), relationship was not synced in JPA session");
+                // Sync the relationship for this session
+                order.setInvoiceReconciliation(reconciliation);
+            }
+        }
+
+        // IDEMPOTENCY CHECK: If reconciliation was just created (within last 10 seconds), return it
+        if (reconciliation != null && reconciliation.getReconciliationDate() != null) {
+            try {
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                ZonedDateTime reconciliationTime = ZonedDateTime.parse(
+                    reconciliation.getReconciliationDate() + " +01:00",
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm XXX")
+                ).withZoneSameInstant(ZoneId.of("Europe/Warsaw"));
+                ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+                long secondsSinceReconciliation = java.time.Duration.between(reconciliationTime, now).getSeconds();
+
+                if (secondsSinceReconciliation < 10) {
+                    System.out.println("DEBUG: Idempotency check - reconciliation was just created " + secondsSinceReconciliation + " seconds ago. Returning existing reconciliation (id=" + reconciliation.getId() + ")");
+                    return reconciliation;
+                }
+            } catch (Exception e) {
+                // If date parsing fails, continue with normal flow
+                System.out.println("DEBUG: Idempotency check failed to parse date, continuing normally");
+            }
+        }
+
+        List<OrderItem> orderItems = order.getOrderItems();
+        List<InvoiceItem> invoiceItems = invoiceItemRepository.findByOrderId(orderId);
+
+        // Calculate totals
+        ThreeWayTotals totals = calculateThreeWayTotals(orderItems, invoiceItems);
+
+        // Detect discrepancies
+        List<InvoiceDiscrepancy> discrepancies = detectDiscrepancies(orderItems, invoiceItems);
+
+        // Convert discrepancies to JSON
+        String discrepanciesJson = null;
+        try {
+            discrepanciesJson = objectMapper.writeValueAsString(discrepancies);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize discrepancies", e);
+        }
+
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        String currentDateTime = now.format(formatter);
+        String reconciliationStatus = discrepancies.isEmpty() ? "matched" : "discrepancy_pending";
+
+        // DEBUG: Log discrepancy detection
+        System.out.println("=== THREE-WAY MATCH DEBUG ===");
+        System.out.println("Order ID: " + orderId);
+        System.out.println("Discrepancies found: " + discrepancies.size());
+        System.out.println("Discrepancies isEmpty: " + discrepancies.isEmpty());
+        System.out.println("Reconciliation status: " + reconciliationStatus);
+        System.out.println("Existing reconciliation: " + (reconciliation != null ? "YES (id=" + reconciliation.getId() + ")" : "NO (will create new)"));
+
+        // UPDATE EXISTING OR CREATE NEW
+        if (reconciliation == null) {
+            // Create new reconciliation record
+            reconciliation = InvoiceReconciliation.builder()
+                    .order(order)
+                    .reconciliationDate(currentDateTime)
+                    .reconciliationStatus(reconciliationStatus)
+                    .poTotalNet(totals.getPoNet())
+                    .deliveryTotalNet(totals.getDeliveryNet())
+                    .invoiceTotalNet(totals.getInvoiceNet())
+                    .poTotalVat(totals.getPoVat())
+                    .deliveryTotalVat(totals.getDeliveryVat())
+                    .invoiceTotalVat(totals.getInvoiceVat())
+                    .poTotalGross(totals.getPoGross())
+                    .deliveryTotalGross(totals.getDeliveryGross())
+                    .invoiceTotalGross(totals.getInvoiceGross())
+                    .discrepanciesJson(discrepanciesJson)
+                    .build();
+
+            // CRITICAL: Sync bidirectional relationship
+            // Without this, order.getInvoiceReconciliation() returns null later!
+            order.setInvoiceReconciliation(reconciliation);
+            System.out.println("DEBUG: Created NEW reconciliation and synced bidirectional relationship");
+            System.out.println("DEBUG: order.getInvoiceReconciliation() after sync: " + (order.getInvoiceReconciliation() != null ? "NOT NULL" : "NULL"));
+        } else {
+            // Update existing reconciliation record
+            System.out.println("DEBUG: UPDATING existing reconciliation (id=" + reconciliation.getId() + ")");
+            reconciliation.setReconciliationDate(currentDateTime);
+            reconciliation.setReconciliationStatus(reconciliationStatus);
+            reconciliation.setPoTotalNet(totals.getPoNet());
+            reconciliation.setDeliveryTotalNet(totals.getDeliveryNet());
+            reconciliation.setInvoiceTotalNet(totals.getInvoiceNet());
+            reconciliation.setPoTotalVat(totals.getPoVat());
+            reconciliation.setDeliveryTotalVat(totals.getDeliveryVat());
+            reconciliation.setInvoiceTotalVat(totals.getInvoiceVat());
+            reconciliation.setPoTotalGross(totals.getPoGross());
+            reconciliation.setDeliveryTotalGross(totals.getDeliveryGross());
+            reconciliation.setInvoiceTotalGross(totals.getInvoiceGross());
+            reconciliation.setDiscrepanciesJson(discrepanciesJson);
+            // Clear approval data if re-reconciling
+            reconciliation.setDiscrepancyJustification(null);
+            reconciliation.setApprovedBy(null);
+            reconciliation.setApprovedDate(null);
+        }
+
+        // Save (will UPDATE if id exists, INSERT if new)
+        System.out.println("DEBUG: Saving reconciliation (id=" + (reconciliation.getId() != null ? reconciliation.getId() : "null-will-generate") + ")");
+        invoiceReconciliationRepository.save(reconciliation);
+        System.out.println("DEBUG: Reconciliation saved successfully (id=" + reconciliation.getId() + ")");
+
+        // If no discrepancies, auto-approve
+        System.out.println("DEBUG: Checking if should auto-approve: discrepancies.isEmpty() = " + discrepancies.isEmpty());
+        if (discrepancies.isEmpty()) {
+            System.out.println("DEBUG: AUTO-APPROVE TRIGGERED - No discrepancies found");
+            System.out.println("DEBUG: Changing order status from '" + order.getStatus() + "' to 'invoice_received'");
+            order.setStatus("invoice_received");
+            order.setInvoiceReconciliationCompleted(true);
+            orderRepository.save(order);
+            System.out.println("DEBUG: Order status updated and saved");
+
+            OrderChangeLog changeLog = OrderChangeLog.builder()
+                    .orderId(orderId)
+                    .type("invoice_reconciliation")
+                    .field("reconciliation")
+                    .oldValue(null)
+                    .newValue("matched")
+                    .description("Three-way match completed. No discrepancies found.")
+                    .date(now.format(formatter))
+                    .build();
+            orderChangeLogRepository.save(changeLog);
+        }
+
+        return reconciliation;
+    }
+
+    /**
+     * Calculate totals for PO, Delivery, and Invoice
+     */
+    private ThreeWayTotals calculateThreeWayTotals(List<OrderItem> orderItems, List<InvoiceItem> invoiceItems) {
+        double poNet = 0, poVat = 0, poGross = 0;
+        double deliveryNet = 0, deliveryVat = 0, deliveryGross = 0;
+        double invoiceNet = 0, invoiceVat = 0, invoiceGross = 0;
+
+        // Calculate PO totals
+        for (OrderItem item : orderItems) {
+            double price = getMaterialOrToolPrice(item);
+            double quantity = item.getQuantity();
+            double vatRate = item.getVatRate() != null ? item.getVatRate().doubleValue() : 23.0;
+
+            double net = quantity * price;
+            double vat = net * (vatRate / 100);
+            double gross = net + vat;
+
+            poNet += net;
+            poVat += vat;
+            poGross += gross;
+        }
+
+        // Calculate Delivery totals (using receivedQuantity and newPrice if available)
+        for (OrderItem item : orderItems) {
+            double deliveredQuantity = item.getReceivedQuantity() > 0 ? item.getReceivedQuantity() : item.getQuantity();
+            double deliveredPrice = item.getNewPrice() != null ? item.getNewPrice().doubleValue() : getMaterialOrToolPrice(item);
+            double vatRate = item.getVatRate() != null ? item.getVatRate().doubleValue() : 23.0;
+
+            double net = deliveredQuantity * deliveredPrice;
+            double vat = net * (vatRate / 100);
+            double gross = net + vat;
+
+            deliveryNet += net;
+            deliveryVat += vat;
+            deliveryGross += gross;
+        }
+
+        // Calculate Invoice totals
+        for (InvoiceItem item : invoiceItems) {
+            invoiceNet += item.getInvoiceNetAmount();
+            invoiceVat += item.getInvoiceVatAmount();
+            invoiceGross += item.getInvoiceGrossAmount();
+        }
+
+        return ThreeWayTotals.builder()
+                .poNet(roundToTwoDecimals(poNet))
+                .poVat(roundToTwoDecimals(poVat))
+                .poGross(roundToTwoDecimals(poGross))
+                .deliveryNet(roundToTwoDecimals(deliveryNet))
+                .deliveryVat(roundToTwoDecimals(deliveryVat))
+                .deliveryGross(roundToTwoDecimals(deliveryGross))
+                .invoiceNet(roundToTwoDecimals(invoiceNet))
+                .invoiceVat(roundToTwoDecimals(invoiceVat))
+                .invoiceGross(roundToTwoDecimals(invoiceGross))
+                .build();
+    }
+
+    /**
+     * Detect discrepancies between order and invoice
+     * NOTE: We compare quantities (Invoice vs Delivery) but prices (Invoice vs PO)
+     * WZ (delivery note) only contains quantity, not prices
+     */
+    private List<InvoiceDiscrepancy> detectDiscrepancies(List<OrderItem> orderItems, List<InvoiceItem> invoiceItems) {
+        List<InvoiceDiscrepancy> discrepancies = new ArrayList<>();
+
+        for (InvoiceItem invoiceItem : invoiceItems) {
+            OrderItem orderItem = invoiceItem.getOrderItem();
+
+            // Compare quantities (Invoice vs Delivery)
+            double deliveryQuantity = orderItem.getReceivedQuantity() > 0
+                    ? orderItem.getReceivedQuantity()
+                    : orderItem.getQuantity();
+            double invoiceQuantity = invoiceItem.getInvoiceQuantity();
+
+            // PO values
+            double poQuantity = orderItem.getQuantity();
+            double poPrice = getMaterialOrToolPrice(orderItem);
+
+            // Invoice price
+            double invoicePrice = invoiceItem.getInvoiceUnitPrice();
+
+            // Delivery price (for display only - WZ doesn't have prices, so we use PO price)
+            double deliveryPrice = poPrice;
+
+            // Detect discrepancies:
+            // - Quantity: compare Invoice vs Delivery (tolerance: 0.01)
+            // - Price: compare Invoice vs PO (tolerance: 0.01) - WZ doesn't have prices
+            boolean quantityMismatch = Math.abs(invoiceQuantity - deliveryQuantity) > 0.01;
+            boolean priceMismatch = Math.abs(invoicePrice - poPrice) > 0.01;
+
+            if (quantityMismatch || priceMismatch) {
+                InvoiceDiscrepancy discrepancy = InvoiceDiscrepancy.builder()
+                        .orderItemId(orderItem.getId())
+                        .itemName(orderItem.getName())
+                        .poQuantity(poQuantity)
+                        .deliveryQuantity(deliveryQuantity)
+                        .invoiceQuantity(invoiceQuantity)
+                        .poUnitPrice(poPrice)
+                        .deliveryUnitPrice(deliveryPrice)
+                        .invoiceUnitPrice(invoicePrice)
+                        .quantityDifference(invoiceQuantity - deliveryQuantity)
+                        .priceDifference(invoicePrice - poPrice)
+                        .amountDifference((invoiceQuantity * invoicePrice) - (deliveryQuantity * poPrice))
+                        .discrepancyType(
+                                quantityMismatch && priceMismatch ? "both" :
+                                        quantityMismatch ? "quantity" : "price"
+                        )
+                        .severity(calculateSeverity(invoiceItem, deliveryQuantity, poPrice))
+                        .build();
+
+                discrepancies.add(discrepancy);
+            }
+        }
+
+        return discrepancies;
+    }
+
+    /**
+     * Calculate severity of discrepancy based on percentage difference
+     * Compares invoice total vs expected total (delivery qty * PO price)
+     */
+    private String calculateSeverity(InvoiceItem invoiceItem, double deliveryQuantity, double poPrice) {
+        double invoiceTotal = invoiceItem.getInvoiceQuantity() * invoiceItem.getInvoiceUnitPrice();
+        double expectedTotal = deliveryQuantity * poPrice;
+
+        if (expectedTotal == 0) return "minor";
+
+        double percentageDiff = Math.abs((invoiceTotal - expectedTotal) / expectedTotal) * 100;
+
+        if (percentageDiff < 5) return "minor";
+        if (percentageDiff < 15) return "moderate";
+        return "major";
+    }
+
+    /**
+     * Get material or tool price from OrderItem
+     */
+    private double getMaterialOrToolPrice(OrderItem item) {
+        if (item.getMaterial() != null && item.getMaterial().getPrice() != null) {
+            return item.getMaterial().getPrice().doubleValue();
+        } else if (item.getTool() != null && item.getTool().getPrice() != null) {
+            return item.getTool().getPrice().doubleValue();
+        } else if (item.getAccessorie() != null) {
+            // For accessories, find the matching AccessorieItem by name
+            Accessorie accessorie = item.getAccessorie();
+            if (accessorie.getAccessorieItems() != null) {
+                for (AccessorieItem accessorieItem : accessorie.getAccessorieItems()) {
+                    if (accessorieItem.getName().equals(item.getName())) {
+                        if (accessorieItem.getPrice() != null) {
+                            return accessorieItem.getPrice().doubleValue();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        return 0.0;
+    }
+
+    /**
+     * Get existing reconciliation for an order
+     * Used when catching race conditions
+     */
+    public InvoiceReconciliation getExistingReconciliation(Integer orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        InvoiceReconciliation reconciliation = order.getInvoiceReconciliation();
+
+        // Fallback to database query if relationship not loaded
+        if (reconciliation == null) {
+            reconciliation = invoiceReconciliationRepository.findByOrderId(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("Reconciliation not found"));
+        }
+
+        return reconciliation;
+    }
+
+    /**
+     * Approve invoice discrepancies with justification
+     * Changes order status from invoice_reconciliation → invoice_received
+     */
+    @Transactional
+    public void approveInvoiceDiscrepancies(Integer orderId, String justification) {
+        System.out.println("=== APPROVE DISCREPANCIES DEBUG ===");
+        System.out.println("Order ID: " + orderId);
+        System.out.println("Justification provided: " + (justification != null ? "YES (length=" + justification.length() + ")" : "NO"));
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found"));
+
+        System.out.println("Order found - Status: " + order.getStatus());
+        System.out.println("Order.getInvoiceReconciliation(): " + (order.getInvoiceReconciliation() != null ? "NOT NULL (id=" + order.getInvoiceReconciliation().getId() + ")" : "NULL - THIS IS THE BUG!"));
+
+        // FIX 10: Idempotent check - if already approved, just return success
+        // This handles race conditions where auto-approve already worked
+        if ("invoice_received".equals(order.getStatus())) {
+            System.out.println("DEBUG: Order already in invoice_received status. Returning success (idempotent).");
+            return;  // Already done, nothing to do
+        }
+
+        InvoiceReconciliation reconciliation = order.getInvoiceReconciliation();
+        if (reconciliation == null) {
+            System.out.println("ERROR: Reconciliation is NULL - attempting INSERT will cause unique constraint violation");
+            throw new IllegalArgumentException("Reconciliation not found");
+        }
+
+        System.out.println("Reconciliation status: " + reconciliation.getReconciliationStatus());
+        System.out.println("Reconciliation discrepanciesJson: " + reconciliation.getDiscrepanciesJson());
+
+        // Validation
+        if (!"invoice_reconciliation".equals(order.getStatus())) {
+            throw new IllegalStateException("Order not in reconciliation status");
+        }
+
+        // Check if reconciliation has discrepancies
+        boolean hasDiscrepancies = reconciliation.getDiscrepanciesJson() != null &&
+                                   !reconciliation.getDiscrepanciesJson().equals("[]") &&
+                                   !reconciliation.getDiscrepanciesJson().equals("null");
+
+        System.out.println("hasDiscrepancies: " + hasDiscrepancies);
+
+        // Only require justification if there are discrepancies
+        if (hasDiscrepancies && (justification == null || justification.trim().length() < 10)) {
+            throw new IllegalArgumentException("Justification required when discrepancies exist (min 10 characters)");
+        }
+
+        // Get current user
+        String currentUser = org.springframework.security.core.context.SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        // Update reconciliation
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        reconciliation.setReconciliationStatus("discrepancy_approved");
+        reconciliation.setDiscrepancyJustification(justification);
+        reconciliation.setApprovedBy(currentUser);
+        reconciliation.setApprovedDate(now.format(formatter));
+        invoiceReconciliationRepository.save(reconciliation);
+
+        // Update order status
+        order.setStatus("invoice_received");
+        order.setInvoiceReconciliationCompleted(true);
+        orderRepository.save(order);
+
+        // Create changelog
+        OrderChangeLog changeLog = OrderChangeLog.builder()
+                .orderId(orderId)
+                .type("invoice_reconciliation")
+                .field("reconciliation")
+                .oldValue("discrepancy_pending")
+                .newValue("discrepancy_approved")
+                .description("Discrepancies approved. Justification: " + justification)
+                .date(now.format(formatter))
+                .build();
+        orderChangeLogRepository.save(changeLog);
+
+        notificationService.createAndSendNotification(
+                "Invoice discrepancies approved for order '" + order.getName() + "'",
+                NotificationDescription.InvoiceDiscrepanciesApproved
+        );
+    }
+
+    /**
+     * Helper method to round to 2 decimal places
+     */
+    private double roundToTwoDecimals(double value) {
+        return BigDecimal.valueOf(value)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 }

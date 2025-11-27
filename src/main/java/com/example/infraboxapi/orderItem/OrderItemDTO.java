@@ -37,6 +37,9 @@ public class OrderItemDTO {
     @PositiveOrZero(message = "Price override must be a positive number or zero")
     private Double priceOverride; // Optional price override (null = use default price)
 
+    @Size(max = 500, message = "Price change reason cannot exceed 500 characters")
+    private String priceChangeReason; // Reason for price change (required when >10% difference)
+
     @PositiveOrZero(message = "Price per kg must be a positive number or zero")
     private Double pricePerKg; // Price per kilogram for materials (PLN/kg)
 }

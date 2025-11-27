@@ -42,6 +42,9 @@ public class OrderItem {
     private BigDecimal newPrice;
     private boolean priceUpdated;
 
+    @Column(name = "price_change_reason", length = 500)
+    private String priceChangeReason; // Reason for price change (required when >10% difference)
+
     @Column(name = "vat_rate")
     @Builder.Default
     private Integer vatRate = 23; // VAT rate percentage (default 23%)

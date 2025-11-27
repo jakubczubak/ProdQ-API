@@ -33,6 +33,10 @@ public enum NotificationDescription {
     OrderUpdated("Order details updated"),
     OrderOnTheWay("Order is in transit"),
     OrderDelivered("Order successfully delivered"),
+    OrderClosedShort("Order closed as incomplete delivery"),
+    OrderMarkedForIncompleteClose("Order marked for incomplete closure - awaiting invoice"),
+    InvoiceItemsEntered("Invoice line items entered for order"),
+    InvoiceDiscrepanciesApproved("Invoice discrepancies approved for order"),
 
     SupplierAdded("New supplier added"),
     SupplierUpdated("Supplier details updated"),

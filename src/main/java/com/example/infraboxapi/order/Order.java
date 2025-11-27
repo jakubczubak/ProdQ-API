@@ -3,6 +3,7 @@ package com.example.infraboxapi.order;
 import com.example.infraboxapi.orderChangeLog.OrderChangeLog;
 import com.example.infraboxapi.orderItem.OrderItem;
 import com.example.infraboxapi.supplier.Supplier;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -72,6 +73,21 @@ public class Order {
     @Column(name = "closed_date")
     private String closedDate; // Date when order was closed (final status)
 
+    @Column(name = "closed_short_date")
+    private String closedShortDate; // Date when order was closed as incomplete
+
+    @Column(name = "closed_short_reason", length = 500)
+    private String closedShortReason; // Reason for closing order as incomplete (required, min 10 chars)
+
+    @Column(name = "pending_closed_short")
+    private Boolean pendingClosedShort = false; // Flag: awaiting invoice before closing as incomplete
+
+    @Column(name = "invoice_data_entered")
+    private Boolean invoiceDataEntered = false; // Flag: invoice line items have been entered
+
+    @Column(name = "invoice_reconciliation_completed")
+    private Boolean invoiceReconciliationCompleted = false; // Flag: three-way match reconciliation completed
+
     private String createdBy;
     private String lastModifiedBy;
 
@@ -89,6 +105,15 @@ public class Order {
     @JoinColumn(name = "order_id", insertable = false, updatable = false)
     @OrderBy("date DESC")
     private List<OrderChangeLog> changeLog;
+
+    @OneToMany(cascade = CascadeType.ALL)
+    @JoinColumn(name = "order_id")
+    @JsonManagedReference("order-invoiceItems")
+    private List<com.example.infraboxapi.invoiceItem.InvoiceItem> invoiceItems;
+
+    @OneToOne(cascade = CascadeType.ALL, mappedBy = "order")
+    @JsonManagedReference("order-invoiceReconciliation")
+    private com.example.infraboxapi.invoiceReconciliation.InvoiceReconciliation invoiceReconciliation;
 
     @PrePersist
     public void prePersist() {
