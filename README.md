@@ -1,4 +1,4 @@
-# INFRABOX - Enhance Your CNC Machining
+# ProdQ - Manufacturing Execution System
 
 ## Table of Contents
 
@@ -14,51 +14,39 @@
 
 ## General Information
 
-INFRABOX is a comprehensive solution designed to enhance CNC machining processes within your production facility. Powered by a React frontend and Spring Boot backend, it adeptly oversees your organization's inventory of tools and materials. Offering advanced management functionalities for both, it includes a distinctive feature for project cost estimation, meticulously considering expenses associated with materials and tools. The overarching objective of INFRABOX is to furnish your CNC machining facility with a dependable tool for monitoring stock levels and promptly addressing shortages, thereby ensuring seamless operational efficiency.
+ProdQ is a comprehensive Manufacturing Execution System (MES) designed to enhance CNC machining processes within your production facility. Powered by a React frontend and Spring Boot backend, it adeptly oversees your organization's inventory of tools, materials, and production queue. Offering advanced management functionalities, it includes distinctive features for project cost estimation, supplier performance tracking, and MRP (Material Requirements Planning). The overarching objective of ProdQ is to furnish your CNC machining facility with a dependable tool for monitoring stock levels, managing production workflows, and ensuring seamless operational efficiency.
 
 ## Technologies Used
 
-INFRABOX leverages a combination of advanced technologies to deliver its comprehensive functionality:
+ProdQ leverages a combination of advanced technologies to deliver its comprehensive functionality:
 
-- **Frontend**: Developed using React, a popular JavaScript library for building user interfaces.
-- **Backend**: Powered by Spring Boot, a Java-based framework for creating robust and scalable applications.
-- **Java**: Version 17
-- **MySQL**: Version 5.7
-- **JavaScript**: ECMAScript 6
-- **HTML**: Version 5
-- **CSS**: Version 3
+- **Frontend**: React 18 with Material-UI, TanStack Query, i18next
+- **Backend**: Spring Boot 3, Java 21
+- **Database**: H2 (development) / PostgreSQL (production)
+- **Authentication**: JWT (JSON Web Tokens)
+- **Containerization**: Docker with ARM64 support (Raspberry Pi compatible)
 
 ## Key Features
 
-INFRABOX offers a rich set of features tailored to meet the demands of effective inventory management in CNC machining facilities:
+ProdQ offers a rich set of features tailored to meet the demands of effective inventory and production management in CNC machining facilities:
 
-- **JWT-Based Authentication**: Utilizes JWT (JSON Web Tokens) for secure and efficient user authentication and authorization.
-- **Login/Logout**: Users can securely log in and out of the system, ensuring data privacy.
-- **Admin Account Creation**: Administrators have the privilege to create new user accounts, and there's no user self-registration option.
+- **JWT-Based Authentication**: Utilizes JWT for secure and efficient user authentication and authorization.
 - **Material Management**: Create material categories, associate specific items with precise dimensions and price attributes, manage quantities, and set minimum stock levels.
 - **Tool Management**: Similar capabilities for tools, facilitating efficient inventory control.
-- **CNC Project Calculations**: Provides a section for detailed CNC project calculations, incorporating parameters such as operating costs (including labor, energy, machine leasing, and depreciation), material costs, tool costs, and CNC machining duration.
-- **Orders Management**: The "orders" section allows for creating orders for missing materials and tools. It automatically generates lists of missing items, permits monitoring of order statuses, and streamlines the procurement process.
-- **Recycling**: The "Recycling" tab enables you to monitor the recycling of production waste materials, contributing to sustainability and environmental responsibility.
-- **Contact Network**: The "Contact Network" section contains a network of contact information for partner companies involved in your CNC machining processes.
+- **Production Queue**: Drag-and-drop interface for managing production jobs with material reservations.
+- **Order Management**: Create and track orders with full lifecycle management including delivery tracking, invoice reconciliation, and quality ratings.
+- **Supplier Performance**: Track and analyze supplier KPIs including delivery times, quality ratings, and pricing accuracy.
+- **MRP Module**: Material Requirements Planning with automatic shortage detection and reorder suggestions.
+- **Multi-language Support**: Full Polish and English localization.
+- **Real-time Notifications**: System-wide notification system for important events.
 
 ## Screenshots
 
-![img](./src/main/resources/static/screenshots/infrabox_1.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_2.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_3.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_4.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_5.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_6.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_7.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_8.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_9.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_10.JPG)
-![img](./src/main/resources/static/screenshots/infrabox_11.JPG)
+Screenshots available in `./src/main/resources/static/screenshots/`
 
 ## Configuration
 
-To run INFRABOX, follow these steps using Docker Compose:
+To run ProdQ, follow these steps using Docker Compose:
 
 1. Make sure you have Docker and Docker Compose installed on your system.
 2. Navigate to the project's root directory where the `docker-compose.yml` file is located.
@@ -75,7 +63,7 @@ To run INFRABOX, follow these steps using Docker Compose:
    - **Username**: root@gmail.com
    - **Password**: root
 
-7. You can now explore the various features of INFRABOX.
+7. You can now explore the various features of ProdQ.
 8. To stop the application, run the following command:
 
    ```sh
@@ -84,11 +72,11 @@ To run INFRABOX, follow these steps using Docker Compose:
 
 ## Project Status
 
-The project is currently maintained for bug fixes and minor updates as needed, but there are no active development plans. If any issues are noticed or fixes are required, they will be addressed accordingly.
+The project is actively maintained and under continuous development.
 
 ## Contributing
 
-As the project is concluded and not under active development, contributions are not being accepted at this time. However, you're welcome to fork the repository and continue development independently.
+Contributions are welcome! Feel free to fork the repository and submit pull requests.
 
 ## License
 
@@ -96,4 +84,4 @@ This application is distributed under the MIT License. Feel free to use, modify,
 
 ## Contact
 
-For any inquiries or further discussions related to the project, please reach out via GitHub or email at czubakjakub94@gmail.com.
+For any inquiries or further discussions related to the project, please reach out via GitHub.

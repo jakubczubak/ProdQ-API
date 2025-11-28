@@ -28,10 +28,10 @@ import static org.springframework.data.web.config.EnableSpringDataWebSupport.Pag
 @SpringBootApplication
 @EnableScheduling
 @EnableAsync
-@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO) // <-- DODAJ TĘ LINIJKĘ
-public class InfraBoxApiApplication {
+@EnableSpringDataWebSupport(pageSerializationMode = VIA_DTO)
+public class ProdQApiApplication {
 
-    private static final Logger logger = LoggerFactory.getLogger(InfraBoxApiApplication.class);
+    private static final Logger logger = LoggerFactory.getLogger(ProdQApiApplication.class);
 
     @Autowired
     private ApplicationContext applicationContext;
@@ -39,11 +39,10 @@ public class InfraBoxApiApplication {
     @Autowired
     private DirectoryCleanupService directoryCleanupService;
 
-    // Flaga do śledzenia aktywności aplikacji
     private final AtomicBoolean isProcessingRequests = new AtomicBoolean(false);
 
     public static void main(String[] args) {
-        SpringApplication.run(InfraBoxApiApplication.class, args);
+        SpringApplication.run(ProdQApiApplication.class, args);
     }
 
     @PostConstruct
@@ -51,18 +50,14 @@ public class InfraBoxApiApplication {
         checkMountOnStartup();
     }
 
-    /**
-     * Ta metoda jest wywoływana, gdy aplikacja jest w pełni uruchomiona i gotowa do przyjmowania żądań.
-     * Jest to niezawodny sposób na wykonanie logiki startowej.
-     */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        logger.info("Aplikacja jest w pełni uruchomiona. Wywołanie zadania czyszczenia dla wszystkich maszyn...");
+        logger.info("Application is fully started. Running cleanup task for all machines...");
         try {
             directoryCleanupService.cleanupAllMachines();
-            logger.info("Zadanie czyszczenia zakończone pomyślnie.");
+            logger.info("Cleanup task completed successfully.");
         } catch (Exception e) {
-            logger.error("Błąd podczas wykonywania zadania czyszczenia po starcie aplikacji: {}", e.getMessage(), e);
+            logger.error("Error during cleanup task after application start: {}", e.getMessage(), e);
         }
     }
 
@@ -82,51 +77,43 @@ public class InfraBoxApiApplication {
         checkMountedResource(mountDir);
     }
 
-    /**
-     * Metoda do restartowania aplikacji.
-     */
     private void restartApplication() {
-        logger.info("Rozpoczynanie restartu aplikacji...");
+        logger.info("Starting application restart...");
 
         int retryCount = 0;
-        int maxRetries = 12; // 12 prób co 5 sekund = 1 minuta
+        int maxRetries = 12;
         while (isProcessingRequests.get() && retryCount < maxRetries) {
-            logger.warn("Aplikacja jest w trakcie przetwarzania żądań/zadań. Opóźnianie restartu... (Próba {}/{})", retryCount + 1, maxRetries);
+            logger.warn("Application is processing requests/tasks. Delaying restart... (Attempt {}/{})", retryCount + 1, maxRetries);
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
-                logger.error("Przerwano opóźnienie restartu: {}", e.getMessage());
+                logger.error("Restart delay interrupted: {}", e.getMessage());
                 Thread.currentThread().interrupt();
             }
             retryCount++;
         }
 
         if (isProcessingRequests.get()) {
-            logger.error("Aplikacja nadal przetwarza żądania po {} próbach. Anulowanie restartu.", maxRetries);
+            logger.error("Application still processing requests after {} attempts. Canceling restart.", maxRetries);
             return;
         }
 
-        // Uruchomienie zamknięcia kontekstu w nowym wątku, aby uniknąć blokowania
         Thread shutdownThread = new Thread(() -> {
-            logger.info("Zamykanie kontekstu aplikacji Spring...");
+            logger.info("Closing Spring application context...");
             System.exit(SpringApplication.exit(applicationContext, () -> 0));
         });
         shutdownThread.setDaemon(false);
         shutdownThread.start();
     }
 
-    /**
-     * Logowanie informacji po zamknięciu kontekstu.
-     */
     @EventListener(ContextClosedEvent.class)
     public void onContextClosed() {
-        logger.info("Kontekst aplikacji został zamknięty. Serwer web powinien zostać zatrzymany automatycznie.");
+        logger.info("Application context closed. Web server should stop automatically.");
     }
 
-    // Planowanie restartu codziennie o 00:00
     @Scheduled(cron = "0 0 0 * * ?")
     public void scheduleApplicationRestart() {
-        logger.info("Zaplanowany restart aplikacji o 00:00...");
+        logger.info("Scheduled application restart at 00:00...");
         restartApplication();
     }
 
@@ -138,39 +125,39 @@ public class InfraBoxApiApplication {
         if (!Files.exists(directory)) {
             try {
                 Files.createDirectories(directory);
-                logger.info("Utworzono katalog {} dla trybu lokalnego lub docker-local.", directory.toString());
+                logger.info("Created directory {} for local or docker-local mode.", directory.toString());
             } catch (IOException e) {
-                logger.error("Błąd podczas tworzenia katalogu {}: {}", directory, e.getMessage());
+                logger.error("Error creating directory {}: {}", directory, e.getMessage());
             }
         } else if (!Files.isDirectory(directory)) {
-            logger.error("{} istnieje, ale nie jest katalogiem.", directory);
+            logger.error("{} exists but is not a directory.", directory);
         }
     }
 
     private void checkMountedResource(Path mountDir) {
         if (Files.exists(mountDir) && Files.isDirectory(mountDir)) {
             if (Files.isReadable(mountDir)) {
-                logger.info("Zasób {} jest dostępny do odczytu.", mountDir);
+                logger.info("Resource {} is readable.", mountDir);
                 listDirectoryContents(mountDir);
             } else {
-                logger.error("Zasób {} istnieje, ale brak uprawnień do odczytu.", mountDir);
+                logger.error("Resource {} exists but no read permissions.", mountDir);
             }
             if (Files.isWritable(mountDir)) {
-                logger.info("Zasób {} jest dostępny do zapisu.", mountDir);
+                logger.info("Resource {} is writable.", mountDir);
                 Path testFile = mountDir.resolve("test.txt");
                 try {
                     Files.writeString(testFile, "Test");
-                    logger.info("Utworzono plik testowy w {} - zapis działa prawidłowo.", mountDir);
+                    logger.info("Created test file in {} - write works correctly.", mountDir);
                     Files.deleteIfExists(testFile);
-                    logger.info("Usunięto plik testowy z {} - usuwanie działa prawidłowo.", mountDir);
+                    logger.info("Deleted test file from {} - delete works correctly.", mountDir);
                 } catch (IOException e) {
-                    logger.error("Błąd podczas tworzenia/usuwania pliku testowego w {}: {}", mountDir, e.getMessage());
+                    logger.error("Error creating/deleting test file in {}: {}", mountDir, e.getMessage());
                 }
             } else {
-                logger.error("Zasób {} istnieje, ale brak uprawnień do zapisu.", mountDir);
+                logger.error("Resource {} exists but no write permissions.", mountDir);
             }
         } else {
-            logger.error("Zasób {} nie jest zamontowany lub nie istnieje.", mountDir);
+            logger.error("Resource {} is not mounted or does not exist.", mountDir);
         }
     }
 
@@ -178,16 +165,16 @@ public class InfraBoxApiApplication {
         try (var contents = Files.list(directory)) {
             var files = contents.collect(Collectors.toList());
             if (!files.isEmpty()) {
-                logger.info("Zawartość katalogu {}:", directory);
+                logger.info("Contents of directory {}:", directory);
                 for (Path file : files) {
-                    String type = Files.isDirectory(file) ? "katalog" : "plik";
+                    String type = Files.isDirectory(file) ? "directory" : "file";
                     logger.info("- {} ({})", file.getFileName(), type);
                 }
             } else {
-                logger.info("Katalog {} jest pusty.", directory);
+                logger.info("Directory {} is empty.", directory);
             }
         } catch (IOException e) {
-            logger.error("Nie udało się wylistować zawartości {} - możliwy problem z uprawnieniami lub błędem I/O.", directory, e);
+            logger.error("Failed to list contents of {} - possible permission or I/O error.", directory, e);
         }
     }
 }

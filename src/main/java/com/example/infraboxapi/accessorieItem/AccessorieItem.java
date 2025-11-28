@@ -1,6 +1,7 @@
 package com.example.infraboxapi.accessorieItem;
 
-
+import com.example.infraboxapi.supplier.Supplier;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,6 +43,10 @@ public class AccessorieItem {
     @Column(name = "updated_on")
     private String updatedOn;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "preferred_supplier_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Supplier preferredSupplier;
 
     @PreUpdate
     public void preUpdate() {

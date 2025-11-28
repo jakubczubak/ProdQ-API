@@ -18,6 +18,7 @@ public class SupplierController {
 
     private final SupplierService supplierService;
     private final CommonService commonService;
+    private final SupplierPerformanceService supplierPerformanceService;
 
     @GetMapping("/all")
     public ResponseEntity<List<Supplier>> getAllSuppliers() {
@@ -65,6 +66,65 @@ public class SupplierController {
             return ResponseEntity.ok("Supplier created");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating supplier: " + e.getMessage());
+        }
+    }
+
+    // === Supplier Performance Endpoints ===
+
+    /**
+     * Get performance metrics for a specific supplier
+     */
+    @GetMapping("/{id}/performance")
+    public ResponseEntity<SupplierPerformanceDTO> getSupplierPerformance(@PathVariable Integer id) {
+        try {
+            SupplierPerformanceDTO performance = supplierPerformanceService.getPerformance(id);
+            if (performance == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(performance);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    /**
+     * Get ranking of all suppliers by overall score
+     */
+    @GetMapping("/ranking")
+    public ResponseEntity<List<SupplierPerformanceDTO>> getSupplierRanking() {
+        try {
+            List<SupplierPerformanceDTO> ranking = supplierPerformanceService.getSupplierRanking();
+            return ResponseEntity.ok(ranking);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    /**
+     * Manually trigger recalculation of all supplier performance metrics
+     * Admin endpoint
+     */
+    @PostMapping("/performance/recalculate")
+    public ResponseEntity<String> recalculateAllPerformance() {
+        try {
+            supplierPerformanceService.recalculateAllSuppliers();
+            return ResponseEntity.ok("Supplier performance metrics recalculated successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error recalculating performance: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Recalculate performance for a single supplier
+     */
+    @PostMapping("/{id}/performance/recalculate")
+    public ResponseEntity<SupplierPerformanceDTO> recalculateSupplierPerformance(@PathVariable Integer id) {
+        try {
+            SupplierPerformanceDTO performance = supplierPerformanceService.recalculateSupplier(id);
+            return ResponseEntity.ok(performance);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

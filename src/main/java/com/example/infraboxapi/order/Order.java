@@ -58,6 +58,28 @@ public class Order {
     @Column(name = "tracking_number")
     private String trackingNumber;
 
+    // === Supplier Performance Tracking Fields ===
+
+    /**
+     * Actual delivery date (when order was fully delivered)
+     * Set automatically when status changes to 'delivered'
+     */
+    @Column(name = "actual_delivery_date")
+    private String actualDeliveryDate;
+
+    /**
+     * Quality rating (1-5 stars) given by user when confirming delivery
+     * null if not yet rated
+     */
+    @Column(name = "quality_rating")
+    private Integer qualityRating;
+
+    /**
+     * Optional notes about delivery quality
+     */
+    @Column(name = "quality_notes", length = 500)
+    private String qualityNotes;
+
     @Column(name = "invoice_file_name")
     private String invoiceFileName; // Original filename of uploaded invoice
 

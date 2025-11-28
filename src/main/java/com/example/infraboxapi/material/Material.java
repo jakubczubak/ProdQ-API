@@ -2,6 +2,7 @@ package com.example.infraboxapi.material;
 
 import com.example.infraboxapi.materialGroup.MaterialGroup;
 import com.example.infraboxapi.materialPriceHistory.MaterialPriceHistory;
+import com.example.infraboxapi.supplier.Supplier;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonGetter;
@@ -87,6 +88,10 @@ public class Material {
     @ToString.Exclude // Wyłączenie kolekcji z toString()
     private List<MaterialPriceHistory> materialPriceHistoryList;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "preferred_supplier_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Supplier preferredSupplier;
 
     // Explicit getters and setters for transient fields to ensure JSON serialization
     @JsonGetter("reservedQuantity")

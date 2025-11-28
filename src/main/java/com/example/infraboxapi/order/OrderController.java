@@ -120,6 +120,31 @@ public class OrderController {
         }
     }
 
+    /**
+     * Update quality rating for a delivered order
+     * POST /api/order/{orderId}/quality-rating
+     */
+    @PostMapping("/{orderId}/quality-rating")
+    public ResponseEntity<String> updateQualityRating(
+            @PathVariable Integer orderId,
+            @RequestBody java.util.Map<String, Object> payload) {
+        try {
+            Integer rating = (Integer) payload.get("rating");
+            String notes = (String) payload.get("notes");
+
+            if (rating == null || rating < 1 || rating > 5) {
+                return ResponseEntity.badRequest().body("Rating must be between 1 and 5");
+            }
+
+            orderService.updateQualityRating(orderId, rating, notes);
+            return ResponseEntity.ok("Quality rating updated successfully");
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     @PostMapping("/{orderId}/mark-invoice-received")
     public ResponseEntity<String> markInvoiceReceived(@PathVariable Integer orderId) {
         try {

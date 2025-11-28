@@ -37,9 +37,6 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/material_reports/**").permitAll() // Access to new reports in the database
                         .requestMatchers("/tool_reports/**").permitAll() // Access to PDF reports
                         .requestMatchers("/accessorie_reports/**").permitAll() // Access to PDF reports
-                        .requestMatchers("/api/migration/migrate-files").permitAll()
-
-
                         // MATERIAL TYPE
                         .requestMatchers("/api/material_type/all").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/material_type/create").hasAuthority("ADMIN")

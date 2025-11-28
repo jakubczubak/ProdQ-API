@@ -15,6 +15,7 @@ import com.example.infraboxapi.orderItem.OrderItemDTO;
 import com.example.infraboxapi.orderItem.OrderItemRepository;
 import com.example.infraboxapi.supplier.Supplier;
 import com.example.infraboxapi.supplier.SupplierRepository;
+import com.example.infraboxapi.supplier.SupplierPerformanceService;
 import com.example.infraboxapi.tool.Tool;
 import com.example.infraboxapi.tool.ToolRepository;
 import com.example.infraboxapi.invoiceItem.InvoiceItem;
@@ -62,6 +63,7 @@ public class OrderService {
     private final InvoiceItemRepository invoiceItemRepository;
     private final InvoiceReconciliationRepository invoiceReconciliationRepository;
     private final ObjectMapper objectMapper;
+    private final SupplierPerformanceService supplierPerformanceService;
 
     public List<Order> getAllOrders() {
         // Use JOIN FETCH to avoid N+1 query problem
@@ -169,6 +171,8 @@ public class OrderService {
             if (order.isTransitQuantitySet() && "on the way".equals(order.getStatus())) {
                 deleteQuantityInTransport(id);
             }
+            // Delete change logs first (to avoid foreign key constraint violation)
+            orderChangeLogRepository.deleteByOrderId(id);
             orderItemRepository.deleteAll(order.getOrderItems());
             orderRepository.deleteById(id);
             notificationService.createAndSendNotification("Order  '" + order.getName() + "' has been deleted.", NotificationDescription.OrderDeleted);
@@ -722,6 +726,12 @@ public class OrderService {
             if (allItemsFullyReceived) {
                 // Auto-transition to invoice_pending (Issue #4 fix)
                 order.setStatus("invoice_pending");
+
+                // Set actual delivery date for supplier performance tracking
+                ZonedDateTime nowDelivery = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+                DateTimeFormatter deliveryFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+                order.setActualDeliveryDate(nowDelivery.format(deliveryFormatter));
+
                 // DO NOT set externalQuantityUpdated - allow invoice workflow to continue
                 notificationService.createAndSendNotification(
                     "All materials for order '" + order.getName() + "' have been received. Status automatically set to awaiting invoice.",
@@ -737,6 +747,76 @@ public class OrderService {
             }
 
             orderRepository.save(order);
+        }
+    }
+
+    /**
+     * Update quality rating for a delivered order
+     * Used for supplier performance tracking
+     * @param orderId Order ID
+     * @param rating Quality rating (1-5 stars)
+     * @param notes Optional notes about delivery quality
+     */
+    @Transactional
+    public void updateQualityRating(Integer orderId, Integer rating, String notes) {
+        Optional<Order> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            // Validate rating
+            if (rating < 1 || rating > 5) {
+                throw new IllegalArgumentException("Quality rating must be between 1 and 5");
+            }
+
+            // Only allow rating for orders that have been at least partially delivered
+            List<String> allowedStatuses = Arrays.asList(
+                "partially_delivered", "invoice_pending", "invoice_data_pending",
+                "invoice_reconciliation", "invoice_received", "closed", "closed_short"
+            );
+
+            if (!allowedStatuses.contains(order.getStatus())) {
+                throw new IllegalStateException(
+                    "Quality rating can only be set for orders that have been at least partially delivered. " +
+                    "Current status: " + order.getStatus()
+                );
+            }
+
+            order.setQualityRating(rating);
+            order.setQualityNotes(notes != null ? notes.trim() : null);
+
+            // Create changelog entry
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            OrderChangeLog changeLog = OrderChangeLog.builder()
+                    .orderId(orderId)
+                    .type("quality_rating")
+                    .field("qualityRating")
+                    .oldValue(null)
+                    .newValue(String.valueOf(rating))
+                    .description(notes != null && !notes.isBlank() ? notes.trim() : "Delivery quality rated " + rating + "/5 stars")
+                    .date(now.format(formatter))
+                    .build();
+            orderChangeLogRepository.save(changeLog);
+
+            orderRepository.save(order);
+
+            // Immediately recalculate supplier performance KPI after quality rating
+            if (order.getSupplier() != null) {
+                try {
+                    supplierPerformanceService.recalculateSupplier(order.getSupplier().getId());
+                } catch (Exception e) {
+                    // Log error but don't fail the rating save
+                    System.err.println("Failed to recalculate supplier performance: " + e.getMessage());
+                }
+            }
+
+            notificationService.createAndSendNotification(
+                "Quality rating (" + rating + "/5) added for order '" + order.getName() + "'.",
+                NotificationDescription.OrderUpdated
+            );
+        } else {
+            throw new IllegalArgumentException("Order not found with ID: " + orderId);
         }
     }
 
@@ -874,12 +954,8 @@ public class OrderService {
                 toolRepository.save(tool);
             }
 
-            // Update Accessory price
-            if (orderItem.getAccessorieItem() != null) {
-                AccessorieItem accessory = orderItem.getAccessorieItem();
-                accessory.setPrice(BigDecimal.valueOf(invoiceUnitPrice));
-                accessorieItemRepository.save(accessory);
-            }
+            // Note: OrderItem.accessorie links to Accessorie (group), not AccessorieItem directly
+            // Price update for individual accessory items would require different data model
         }
     }
 

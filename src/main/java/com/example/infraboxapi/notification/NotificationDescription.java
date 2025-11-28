@@ -73,7 +73,11 @@ public enum NotificationDescription {
     AccessorieItemScanner("Accessories have been successfully scanned"),
 
     DirectoryCleanupCompleted("Directory cleanup completed"),
-    QueueSyncFailed("Failed to synchronize queue for a machine");
+    QueueSyncFailed("Failed to synchronize queue for a machine"),
+
+    MrpAnalysisCompleted("MRP analysis completed"),
+    MrpCriticalShortage("Critical material shortage detected"),
+    MrpHighPriorityItems("High priority items require attention");
 
     private final String description;
 
