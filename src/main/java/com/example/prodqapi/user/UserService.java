@@ -74,9 +74,15 @@ public class UserService {
                     StandardOpenOption.TRUNCATE_EXISTING
             );
 
-            // Set file permissions (owner read/write only)
-            Files.setPosixFilePermissions(passwordFile,
-                    PosixFilePermissions.fromString("rw-------"));
+            // Set file permissions (owner read/write only) - only on Unix/Linux systems
+            try {
+                Files.setPosixFilePermissions(passwordFile,
+                        PosixFilePermissions.fromString("rw-------"));
+                logger.info("POSIX file permissions set (rw-------)");
+            } catch (UnsupportedOperationException e) {
+                // Windows doesn't support POSIX permissions - that's OK for development
+                logger.warn("POSIX permissions not supported on this system (Windows). File saved without permissions restriction.");
+            }
 
             logger.info("Initial password saved to: {}", INITIAL_PASSWORD_FILE);
         } catch (IOException e) {

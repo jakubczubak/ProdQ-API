@@ -4,6 +4,8 @@ import com.example.prodqapi.accessorie.Accessorie;
 import com.example.prodqapi.accessorie.AccessorieReposotory;
 import com.example.prodqapi.accessorieItem.AccessorieItem;
 import com.example.prodqapi.accessorieItem.AccessorieItemRepository;
+import com.example.prodqapi.documentAttachment.DocumentAttachment;
+import com.example.prodqapi.documentAttachment.DocumentCategory;
 import com.example.prodqapi.material.Material;
 import com.example.prodqapi.material.MaterialRepository;
 import com.example.prodqapi.notification.NotificationDescription;
@@ -64,6 +66,49 @@ public class OrderService {
     private final InvoiceReconciliationRepository invoiceReconciliationRepository;
     private final ObjectMapper objectMapper;
     private final SupplierPerformanceService supplierPerformanceService;
+
+    // ============================================
+    // Document Attachment Helper Methods
+    // ============================================
+
+    /**
+     * Check if order has an invoice document attached
+     *
+     * @param order The order to check
+     * @return true if order has at least one INVOICE document
+     */
+    public boolean hasInvoice(Order order) {
+        return order.getDocuments().stream()
+                .anyMatch(doc -> doc.getCategory() == DocumentCategory.INVOICE);
+    }
+
+    /**
+     * Get invoice document for an order
+     *
+     * @param order The order to check
+     * @return Optional containing the first INVOICE document, or empty if none exists
+     */
+    public Optional<DocumentAttachment> getInvoiceDocument(Order order) {
+        return order.getDocuments().stream()
+                .filter(doc -> doc.getCategory() == DocumentCategory.INVOICE)
+                .findFirst();
+    }
+
+    /**
+     * Safely get invoice filename for an order
+     *
+     * @param order The order to check
+     * @return Invoice filename if exists, null otherwise
+     */
+    public String getInvoiceFileNameSafe(Order order) {
+        return getInvoiceDocument(order)
+                .map(DocumentAttachment::getFileName)
+                .orElse(null);
+    }
+
+    // ============================================
+    // Order CRUD Operations
+    // ============================================
 
     public List<Order> getAllOrders() {
         // Use JOIN FETCH to avoid N+1 query problem
@@ -727,6 +772,11 @@ public class OrderService {
                 // Auto-transition to invoice_pending (Issue #4 fix)
                 order.setStatus("invoice_pending");
 
+                // Check if invoice document already exists - if so, auto-transition to invoice_data_pending
+                if (hasInvoice(order)) {
+                    order.setStatus("invoice_data_pending");
+                }
+
                 // Set actual delivery date for supplier performance tracking
                 ZonedDateTime nowDelivery = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
                 DateTimeFormatter deliveryFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -841,7 +891,7 @@ public class OrderService {
         if (orderOptional.isPresent()) {
             Order order = orderOptional.get();
 
-            if ("invoice_pending".equals(order.getStatus()) && order.getInvoiceFileName() != null) {
+            if ("invoice_pending".equals(order.getStatus()) && hasInvoice(order)) {
                 order.setStatus("invoice_received");
                 ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -1057,6 +1107,65 @@ public class OrderService {
             orderChangeLogRepository.save(changeLog);
 
             notificationService.sendNotification(NotificationDescription.OrderClosedShort, Map.of("name", order.getName()));
+            orderRepository.save(order);
+        } else {
+            throw new IllegalArgumentException("Order not found with ID: " + orderId);
+        }
+    }
+
+    /**
+     * Close order without invoice (when supplier doesn't provide invoice)
+     * Only allowed from invoice_pending status
+     * Prices remain at delivery confirmation values (NOT updated from invoice)
+     */
+    @Transactional
+    public void closeOrderNoInvoice(Integer orderId, String reason) {
+        // Validate reason
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new IllegalArgumentException("Reason is required for closing order without invoice");
+        }
+        if (reason.trim().length() < 10) {
+            throw new IllegalArgumentException("Reason must be at least 10 characters long");
+        }
+
+        Optional<Order> orderOptional = orderRepository.findById(orderId);
+
+        if (orderOptional.isPresent()) {
+            Order order = orderOptional.get();
+
+            // Only allow from invoice_pending status
+            if (!"invoice_pending".equals(order.getStatus())) {
+                throw new IllegalStateException(
+                    "Order can only be closed without invoice from 'invoice_pending' status. " +
+                    "Current status: " + order.getStatus()
+                );
+            }
+
+            // Set status and fields
+            order.setStatus("closed_no_invoice");
+            ZonedDateTime now = ZonedDateTime.now(ZoneId.of("Europe/Warsaw"));
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            String currentDate = now.format(formatter);
+            order.setClosedNoInvoiceDate(currentDate);
+            order.setClosedNoInvoiceReason(reason.trim());
+            order.setExternalQuantityUpdated(true);
+
+            // CRITICAL: DO NOT call updatePricesFromInvoice()
+            // Prices remain at delivery confirmation values
+
+            // Create changelog
+            OrderChangeLog changeLog = OrderChangeLog.builder()
+                    .orderId(orderId)
+                    .type("status_change")
+                    .field("status")
+                    .oldValue("invoice_pending")
+                    .newValue("closed_no_invoice")
+                    .description("Order closed without invoice. Reason: " + reason.trim())
+                    .date(currentDate)
+                    .build();
+            orderChangeLogRepository.save(changeLog);
+
+            notificationService.sendNotification(NotificationDescription.OrderClosedNoInvoice, Map.of("name", order.getName()));
             orderRepository.save(order);
         } else {
             throw new IllegalArgumentException("Order not found with ID: " + orderId);
@@ -1359,6 +1468,7 @@ public class OrderService {
         statusOrder.put("invoice_received", 8);
         statusOrder.put("closed", 9);
         statusOrder.put("closed_short", 10); // Final status for incomplete orders
+        statusOrder.put("closed_no_invoice", 11); // Final status for orders without invoice
 
         Integer currentOrder = statusOrder.get(currentStatus);
         Integer newOrder = statusOrder.get(newStatus);
@@ -1377,6 +1487,18 @@ public class OrderService {
                 throw new IllegalStateException(
                     "Invalid status transition: Orders can only be closed as incomplete (closed_short) " +
                     "from 'invoice_received' status after invoice upload. Current status: " + currentStatus
+                );
+            }
+            return; // Allow this specific transition
+        }
+
+        // Special validation for closed_no_invoice:
+        // Can only be reached from invoice_pending (when supplier doesn't provide invoice)
+        if ("closed_no_invoice".equals(newStatus)) {
+            if (!"invoice_pending".equals(currentStatus)) {
+                throw new IllegalStateException(
+                    "Invalid status transition: Orders can only be closed without invoice (closed_no_invoice) " +
+                    "from 'invoice_pending' status. Current status: " + currentStatus
                 );
             }
             return; // Allow this specific transition
@@ -1462,7 +1584,7 @@ public class OrderService {
                 .field("invoice_items")
                 .oldValue(null)
                 .newValue(invoiceItems.size() + " items entered")
-                .description("Invoice line items entered from " + order.getInvoiceFileName())
+                .description("Invoice line items entered from " + getInvoiceFileNameSafe(order))
                 .date(now.format(formatter))
                 .build();
         orderChangeLogRepository.save(changeLog);
@@ -1477,7 +1599,8 @@ public class OrderService {
      */
     @Transactional
     public InvoiceReconciliation performThreeWayMatch(Integer orderId) {
-        Order order = orderRepository.findById(orderId)
+        // Use pessimistic lock to prevent race conditions during concurrent reconciliation requests
+        Order order = orderRepository.findByIdWithLock(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
 
         // Validation

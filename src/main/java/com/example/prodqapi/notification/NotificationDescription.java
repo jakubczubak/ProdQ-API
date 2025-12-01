@@ -37,6 +37,7 @@ public enum NotificationDescription {
     OrderClosed("Order closed"),
     OrderItemPriceUpdated("Item price updated in order"),
     OrderClosedShort("Order closed as incomplete delivery"),
+    OrderClosedNoInvoice("Order closed without invoice"),
     OrderMarkedForIncompleteClose("Order marked for incomplete closure - awaiting invoice"),
     InvoiceItemsEntered("Invoice line items entered for order"),
     InvoiceDiscrepanciesApproved("Invoice discrepancies approved for order"),

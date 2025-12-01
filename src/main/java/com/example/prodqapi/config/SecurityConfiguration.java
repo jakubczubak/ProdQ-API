@@ -93,6 +93,13 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/order/update").hasAuthority("ADMIN")
                         .requestMatchers("/api/order/delete/*").hasAuthority("ADMIN")
 
+                        // ORDER DOCUMENTS
+                        .requestMatchers(HttpMethod.GET, "/api/order/*/documents", "/api/order/*/documents/category/*").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.POST, "/api/order/*/documents/upload").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.GET, "/api/order/documents/*/download").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/order/documents/*").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/order/documents/*/order").hasAnyAuthority("ADMIN", "USER")
+
                         // CONTACT (SUPPLIER)
                         .requestMatchers("/api/supplier/all").hasAnyAuthority("ADMIN", "USER")
                         .requestMatchers("/api/supplier/get/*").hasAnyAuthority("ADMIN", "USER")

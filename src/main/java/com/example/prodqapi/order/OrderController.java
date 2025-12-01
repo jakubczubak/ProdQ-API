@@ -2,6 +2,9 @@ package com.example.prodqapi.order;
 
 
 import com.example.prodqapi.common.CommonService;
+import com.example.prodqapi.documentAttachment.DocumentAttachmentDTO;
+import com.example.prodqapi.documentAttachment.DocumentAttachmentService;
+import com.example.prodqapi.documentAttachment.DocumentCategory;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -24,6 +27,7 @@ public class OrderController {
 
     private final OrderService orderService;
     private final CommonService commonService;
+    private final DocumentAttachmentService documentAttachmentService;
 
     @GetMapping("/all")
     public ResponseEntity<List<Order>> getAllOrders() {
@@ -207,14 +211,31 @@ public class OrderController {
         }
     }
 
-    @PostMapping("/{orderId}/invoice/upload")
-    public ResponseEntity<String> uploadInvoice(
+    /**
+     * Close order without invoice (when supplier doesn't provide invoice)
+     * POST /api/order/{orderId}/close-no-invoice
+     * Required: reason (minimum 10 characters)
+     */
+    @PostMapping("/{orderId}/close-no-invoice")
+    public ResponseEntity<String> closeOrderNoInvoice(
             @PathVariable Integer orderId,
-            @RequestParam("file") MultipartFile file) {
-
+            @RequestBody java.util.Map<String, String> payload) {
         try {
-            orderService.uploadInvoice(orderId, file);
-            return ResponseEntity.ok("Invoice uploaded successfully");
+            String reason = payload.get("reason");
+
+            if (reason == null || reason.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body("Reason is required for closing order without invoice");
+            }
+            if (reason.trim().length() < 10) {
+                return ResponseEntity.badRequest()
+                        .body("Reason must be at least 10 characters long");
+            }
+
+            orderService.closeOrderNoInvoice(orderId, reason);
+            return ResponseEntity.ok("Order closed without invoice successfully");
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
@@ -222,32 +243,76 @@ public class OrderController {
         }
     }
 
-    @GetMapping("/{orderId}/invoice/download")
-    public ResponseEntity<Resource> downloadInvoice(@PathVariable Integer orderId) {
+    /**
+     * Upload invoice for order (delegates to DocumentAttachmentService)
+     * POST /api/order/{orderId}/invoice/upload
+     */
+    @PostMapping("/{orderId}/invoice/upload")
+    public ResponseEntity<?> uploadInvoice(
+            @PathVariable Integer orderId,
+            @RequestParam("file") MultipartFile file) {
 
         try {
-            Path filePath = orderService.getInvoiceFilePath(orderId);
-            Resource resource = new UrlResource(filePath.toUri());
+            // Delegate to DocumentAttachmentService with category=INVOICE
+            DocumentAttachmentDTO uploadedDocument = documentAttachmentService.uploadDocument(
+                    orderId, file, DocumentCategory.INVOICE, null);
+            return ResponseEntity.ok(uploadedDocument);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
 
-            if (resource.exists() && resource.isReadable()) {
-                String filename = orderService.getInvoiceFileName(orderId);
-                return ResponseEntity.ok()
-                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                        .body(resource);
-            } else {
+    /**
+     * Download invoice for order (delegates to DocumentAttachmentService)
+     * GET /api/order/{orderId}/invoice/download
+     */
+    @GetMapping("/{orderId}/invoice/download")
+    public ResponseEntity<byte[]> downloadInvoice(@PathVariable Integer orderId) {
+
+        try {
+            // Get invoice documents for this order
+            List<DocumentAttachmentDTO> invoices = documentAttachmentService.getDocumentsByCategory(
+                    orderId, DocumentCategory.INVOICE);
+
+            if (invoices.isEmpty()) {
                 return ResponseEntity.notFound().build();
             }
+
+            // Get the first invoice (latest)
+            DocumentAttachmentDTO invoice = invoices.get(0);
+
+            // Download document bytes
+            byte[] content = documentAttachmentService.downloadDocument(invoice.getId());
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + invoice.getFileName() + "\"")
+                    .body(content);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
+    /**
+     * Delete invoice for order (delegates to DocumentAttachmentService)
+     * DELETE /api/order/{orderId}/invoice/delete
+     */
     @DeleteMapping("/{orderId}/invoice/delete")
     public ResponseEntity<String> deleteInvoice(@PathVariable Integer orderId) {
 
         try {
-            orderService.deleteInvoice(orderId);
+            // Get invoice documents for this order
+            List<DocumentAttachmentDTO> invoices = documentAttachmentService.getDocumentsByCategory(
+                    orderId, DocumentCategory.INVOICE);
+
+            if (invoices.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No invoice found for this order");
+            }
+
+            // Delete the first invoice (latest)
+            documentAttachmentService.deleteDocument(invoices.get(0).getId());
             return ResponseEntity.ok("Invoice deleted successfully");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
